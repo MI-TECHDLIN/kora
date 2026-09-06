@@ -1,0 +1,261 @@
+{
+  "name": "Post-Shift Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shift-end",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM voice_sessions WHERE shift_id = '{{ $json.shift_id }}'",
+        "options": {}
+      },
+      "id": "fetch-sessions",
+      "name": "Fetch Voice Sessions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combine all session transcripts\nconst sessions = $input.all();\nlet combinedTranscript = '';\n\nsessions.forEach(session => {\n  const driverText = session.json.driver_transcript || '';\n  const agentText = session.json.agent_transcript || '';\n  \n  if (driverText) combinedTranscript += `Driver: ${driverText}\\n`;\n  if (agentText) combinedTranscript += `Agent: ${agentText}\\n`;\n  combinedTranscript += '\\n';\n});\n\nreturn [{ json: { combined_transcript: combinedTranscript, shift_id: $json.shift_id } }];"
+      },
+      "id": "combine-transcripts",
+      "name": "Combine Transcripts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.assemblyai.com/v2/transcript",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio_url",
+              "value": "={{ $json.combined_transcript }}"
+            },
+            {
+              "name": "sentiment_analysis",
+              "value": "true"
+            },
+            {
+              "name": "summarization",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "assemblyai-transcribe",
+      "name": "AssemblyAI Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "assemblyai-credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Poll AssemblyAI until complete\nconst transcriptId = $json.id;\nconst maxAttempts = 60;\n\nfor (let i = 0; i < maxAttempts; i++) {\n  const response = await helpers.httpRequest({\n    method: 'GET',\n    url: `https://api.assemblyai.com/v2/transcript/${transcriptId}`,\n    headers: {\n      'Authorization': 'YOUR_ASSEMBLYAI_KEY'\n    }\n  });\n  \n  if (response.status === 'completed') {\n    return [{ json: response }];\n  }\n  \n  if (response.status === 'error') {\n    throw new Error('Transcription failed');\n  }\n  \n  await new Promise(resolve => setTimeout(resolve, 3000));\n}\n\nthrow new Error('Transcription timeout');"
+      },
+      "id": "poll-complete",
+      "name": "Poll Until Complete",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.assemblyai.com/lemur/v3/generate/task-result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "transcript_ids",
+              "value": "={{ [$json.id] }}"
+            },
+            {
+              "name": "prompt",
+              "value": "Analyze this delivery transcript for failure patterns. What are the top 3 reasons deliveries fail?"
+            },
+            {
+              "name": "model",
+              "value": "anthropic/claude-3-5-sonnet"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lemur-analysis",
+      "name": "LeMUR Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "assemblyai-credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "intelligence_reports",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "shift_id": "={{ $json.shift_id }}",
+            "total_deliveries": "={{ $json.total_deliveries }}",
+            "delivered_count": "={{ $json.delivered_count }}",
+            "failed_count": "={{ $json.failed_count }}",
+            "success_rate": "={{ $json.success_rate }}",
+            "failure_patterns": "={{ JSON.stringify($json.failure_patterns) }}",
+            "recommendations": "={{ $json.recommendations }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "store-report",
+      "name": "Store Report",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@voiceops.com",
+        "toEmail": "operator@company.com",
+        "subject": "VoiceOps Shift Intelligence Report",
+        "emailType": "html",
+        "message": "=<h1>Shift Intelligence Report</h1><p>Shift ID: {{ $json.shift_id }}</p><p>Success Rate: {{ $json.success_rate }}%</p><p>Top Failure: {{ $json.top_failure_reason }}</p>"
+      },
+      "id": "email-operator",
+      "name": "Email Operator",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Voice Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Voice Sessions": {
+      "main": [
+        [
+          {
+            "node": "Combine Transcripts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Transcripts": {
+      "main": [
+        [
+          {
+            "node": "AssemblyAI Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AssemblyAI Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Poll Until Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Until Complete": {
+      "main": [
+        [
+          {
+            "node": "LeMUR Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LeMUR Analysis": {
+      "main": [
+        [
+          {
+            "node": "Store Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Report": {
+      "main": [
+        [
+          {
+            "node": "Email Operator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
