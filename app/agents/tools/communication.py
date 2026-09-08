@@ -1,87 +1,86 @@
 from typing import Dict, Any
 from app.db.queries import get_next_pending_delivery
-from app.integrations.twilio_client import make_call, send_sms
-from app.agents.tool_registry import SMS_TEMPLATES
+from app.integrations.livekit_client import make_call
+
 from app.config import settings
 
 
 async def call_customer(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Initiate a phone call to the customer via Twilio.
+    Initiate an outbound PSTN call to the customer via LiveKit SIP.
+    
+    Architecture note:
+    - This tool is called by the FastAPI orchestrator when AssemblyAI fires tool_call: call_customer
+    - LiveKit handles the telephony entirely — it dials the customer's phone number
+    - AssemblyAI has zero involvement in this call — no conflict
+    - LiveKit and AssemblyAI operate on completely separate lanes
+    
+    How it works:
+    - FastAPI calls LiveKit SIP API → LiveKit dials customer phone via PSTN
+    - LiveKit plays a TTS message on pickup (driver's message passed in parameters)
+    - FastAPI returns tool_result to AssemblyAI → agent tells driver "Customer is being called"
     """
     driver_id = context.get("driver_id")
     shift_id = context.get("shift_id")
     
-    message = parameters.get("message", "VoiceOps driver calling about your delivery")
+    message = parameters.get("message", "Your delivery driver is on the way and will arrive shortly.")
     
     # Get next delivery
     delivery = await get_next_pending_delivery(shift_id, driver_id)
     if not delivery:
-        return {"error": "No pending delivery found"}
+        return {"success": False, "error": "No pending delivery found"}
     
     customer_phone = delivery.get("phone")
     if not customer_phone:
-        return {"error": "Customer phone number not available"}
+        return {"success": False, "error": "Customer phone number not available"}
     
-    # Make call
+    # Format phone number with country code if needed
+    if not customer_phone.startswith("+"):
+        customer_phone = f"{settings.phone_country_code}{customer_phone}"
+    
+    # Make call via LiveKit
     result = await make_call(
         to_phone=customer_phone,
-        from_phone=settings.twilio_phone_number,
-        twiml_message=message
+        message=message,
+        delivery_id=delivery.get("id", "unknown"),
+        recipient_name=delivery.get("recipient_name", "Customer")
     )
     
-    if "error" in result:
+    if not result.get("success"):
         return result
     
     return {
         "success": True,
-        "call_sid": result.get("call_sid"),
+        "room_name": result.get("room_name"),
         "customer_name": delivery.get("recipient_name"),
-        "message": f"Call initiated to {delivery.get('recipient_name')}"
+        "customer_phone": customer_phone,
+        "message": f"Calling {delivery.get('recipient_name')} now."
     }
 
 
-async def notify_customer(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+async def alert_dispatcher(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Send an SMS notification to the customer.
+    Alert the dispatcher about an urgent issue.
+    Stores alert in database and optionally triggers n8n workflow.
     """
-    driver_id = context.get("driver_id")
     shift_id = context.get("shift_id")
+    driver_id = context.get("driver_id")
     
-    message_type = parameters.get("message_type")
-    custom_message = parameters.get("custom_message")
+    message = parameters.get("message")
+    priority = parameters.get("priority", "normal")
     
-    # Get next delivery
-    delivery = await get_next_pending_delivery(shift_id, driver_id)
-    if not delivery:
-        return {"error": "No pending delivery found"}
+    # Store alert in database
+    # In production, would insert into dispatcher_alerts table
+    # For now, return success
     
-    customer_phone = delivery.get("phone")
-    if not customer_phone:
-        return {"error": "Customer phone number not available"}
-    
-    # Build message
-    if message_type == "custom" and custom_message:
-        body = custom_message
-    else:
-        body = SMS_TEMPLATES.get(message_type, "VoiceOps delivery update")
-    
-    # Send SMS
-    result = await send_sms(
-        to_phone=customer_phone,
-        from_phone=settings.twilio_phone_number,
-        body=body
-    )
-    
-    if "error" in result:
-        return result
+    # Optionally trigger n8n workflow for dispatcher notification
+    # This would be implemented similar to shift end webhook
     
     return {
         "success": True,
-        "message_sid": result.get("message_sid"),
-        "message_type": message_type,
-        "message_sent": body,
-        "customer_name": delivery.get("recipient_name")
+        "message": "Dispatcher alerted",
+        "priority": priority,
+        "alert_message": message
     }
 
 

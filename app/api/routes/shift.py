@@ -7,7 +7,6 @@ from app.db.queries import (
     get_shift_stats,
     get_intelligence_report_by_shift
 )
-from app.intelligence.pipeline import run_shift_intelligence
 
 
 router = APIRouter()
@@ -53,19 +52,19 @@ async def end_shift(
     """End shift and trigger intelligence pipeline."""
     try:
         # Update shift status
-        await update_shift_status(shift_id, "processing")
+        await update_shift_status(shift_id, "completed")
         
-        # Trigger intelligence pipeline in background
-        background_tasks.add_task(
-            run_shift_intelligence,
-            shift_id,
-            current_user["id"]
-        )
+        # TODO: Intelligence pipeline removed - add back if needed
+        # background_tasks.add_task(
+        #     run_shift_intelligence,
+        #     shift_id,
+        #     current_user["id"]
+        # )
         
         return ShiftEndResponse(
             shift_id=shift_id,
-            status="processing",
-            message="Shift ended. Intelligence report being generated."
+            status="completed",
+            message="Shift ended successfully."
         )
     except Exception as e:
         raise HTTPException(

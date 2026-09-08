@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.api.routes import health, auth
-from app.api.websocket import voice
+from app.api.routes import health, auth, voice_agent, deliveries, driver, shift
+# from app.api.websocket import voice
 
 
 @asynccontextmanager
@@ -29,13 +29,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_websockets=True,
 )
 
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
-app.include_router(voice.router, tags=["websocket"])
+app.include_router(voice_agent.router, prefix="/v1", tags=["voice-agent"])
+# app.include_router(voice.router, tags=["websocket"])
 
 
 @app.get("/")

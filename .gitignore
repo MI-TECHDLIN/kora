@@ -44,6 +44,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Audio recordings
+recordings/
+
 # Testing
 .pytest_cache/
 .coverage
