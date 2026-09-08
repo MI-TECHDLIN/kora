@@ -9,8 +9,7 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - **Authentication**: Supabase phone OTP authentication
 - **Logistics Adapters**: Mock adapter for demo, Onfleet adapter for production
 - **Navigation**: Google Maps integration for route optimization
-- **Communication**: Twilio integration for calls and SMS
-- **Post-Shift Intelligence**: AssemblyAI Speech Understanding + LeMUR analysis
+- **Communication**: LiveKit SIP/PSTN for calls, Vonage SMS for text notifications
 - **n8n Workflows**: Async workflow automation for operator notifications
 
 ## Tech Stack
@@ -20,9 +19,8 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Auth (phone OTP)
 - **Voice**: AssemblyAI Voice Agent API
-- **Intelligence**: AssemblyAI Speech Understanding + LeMUR
 - **Maps**: Google Maps Directions API
-- **Communication**: Twilio
+- **Communication**: LiveKit SIP/PSTN (calls), Vonage SMS (text)
 - **Workflows**: n8n
 - **Hosting**: Railway
 
@@ -33,7 +31,8 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - Python 3.11+
 - Supabase project
 - AssemblyAI API key
-- (Optional) Twilio account
+- (Optional) LiveKit account for SIP/PSTN calls
+- (Optional) Vonage account for SMS
 - (Optional) Google Maps API key
 - (Optional) n8n instance
 
@@ -76,11 +75,17 @@ ASSEMBLYAI_API_KEY=your_assemblyai_api_key
 # Supabase
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Twilio (optional)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
+# LiveKit SIP/PSTN (optional - for outbound calls)
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_SIP_TRUNK_ID=your_sip_trunk_id
+
+# Vonage SMS (optional - for customer notifications)
+VONAGE_API_KEY=your_vonage_api_key
+VONAGE_API_SECRET=your_vonage_api_secret
 
 # Google Maps (optional)
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
@@ -89,8 +94,7 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ONFLEET_API_KEY=your_onfleet_api_key
 
 # n8n (optional)
-N8N_SHIFT_WEBHOOK_URL=https://your-n8n-instance.com/webhook/shift-end
-N8N_DRIVER_SIGNUP_WEBHOOK_URL=https://your-n8n-instance.com/webhook/driver-signup
+N8N_DISPATCHER_WEBHOOK_URL=https://your-n8n-instance.com/webhook/dispatcher-alert
 
 # Environment
 ENVIRONMENT=development
@@ -161,7 +165,7 @@ AssemblyAI Voice Agent API
 Tool Orchestrator (asyncio.gather)
   ├── Delivery tools → Supabase + Onfleet/Mock
   ├── Navigation tools → Google Directions
-  └── Communication tools → Twilio
+  └── Communication tools → LiveKit (calls) + Vonage (SMS)
   │ tool_results
   ▼
 AssemblyAI TTS audio
@@ -201,7 +205,7 @@ The voice agent has 10 tools available:
 3. **log_exception** - Log delivery exception
 4. **get_best_route** - Get optimal route with traffic
 5. **start_navigation** - Open Google Maps navigation
-6. **call_customer** - Call customer via Twilio
+6. **call_customer** - Call customer via LiveKit SIP/PSTN
 7. **notify_customer** - Send SMS to customer
 8. **get_next_order** - Get next queued order
 9. **get_shift_summary** - Get shift statistics
@@ -282,10 +286,10 @@ voiceops-backend/
 │   │   ├── pipeline.py          # Intelligence pipeline
 │   │   └── report_generator.py  # Report generation
 │   ├── integrations/
-│   │   ├── base.py             # Logistics adapter base + factory
 │   │   ├── google_maps.py      # Google Maps API
-│   │   ├── n8n_client.py        # n8n webhook client
-│   │   └── twilio_client.py     # Twilio client
+│   │   ├── livekit_client.py   # LiveKit SIP/PSTN client
+│   │   ├── vonage_sms.py       # Vonage SMS client
+│   │   └── n8n_client.py       # n8n webhook client (optional)
 │   ├── config.py                # Pydantic settings
 │   ├── dependencies.py          # FastAPI dependencies
 │   ├── main.py                  # FastAPI app

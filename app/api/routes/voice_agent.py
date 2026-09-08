@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.config import settings
 from app.agents.agent_config import get_session_config
+from app.agents.tool_registry import execute_tool
 from app.utils.audio_helpers import save_wav, resample_audio
 import websockets
 
@@ -53,26 +54,46 @@ class AudioResponse(BaseModel):
     session_id: str
 
 
-async def _drain_until_reply_done(websocket, timeout: float = 30.0):
+async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 30.0):
     """
     Drain events until reply.done or session.ended is received.
     This is critical - we must wait for reply.done to get complete transcripts/audio.
+    Also handles tool_call events and executes tools in parallel.
     """
     audio_chunks = []
     user_texts = []
     agent_texts = []
     start_time = asyncio.get_event_loop().time()
     
+    # Context for tool execution
+    context = {
+        "driver_id": session_id,
+        "driver_name": "Test Driver",
+        "shift_id": session_id,
+        "current_delivery": None,
+        "session_id": session_id
+    }
+    
+    tool_was_called = False
+    message_count = 0
+    
+    print(f"[AAI DEBUG] Starting drain loop - timeout: {timeout}s", flush=True)
+    
     while True:
-        if asyncio.get_event_loop().time() - start_time > timeout:
-            print("[AAI DEBUG] Drain loop timed out waiting for next message", flush=True)
+        message_count += 1
+        elapsed = asyncio.get_event_loop().time() - start_time
+        
+        if elapsed > timeout:
+            print(f"[AAI DEBUG] Drain loop timed out after {elapsed:.1f}s, {message_count} messages", flush=True)
             break
 
         try:
             response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
         except asyncio.TimeoutError:
-            print("[AAI DEBUG] Drain loop timed out waiting for next message", flush=True)
+            print(f"[AAI DEBUG] Drain loop timed out waiting for next message after {elapsed:.1f}s", flush=True)
             break
+
+        print(f"[AAI DEBUG] Message #{message_count}: received after {elapsed:.1f}s", flush=True)
 
         if isinstance(response, (bytes, bytearray)):
             print(f"[AAI RAW] Unexpected BINARY frame: {len(response)} bytes", flush=True)
@@ -80,6 +101,10 @@ async def _drain_until_reply_done(websocket, timeout: float = 30.0):
 
         data = json.loads(response)
         msg_type = data.get("type")
+        
+        print(f"[AAI DEBUG] Event type: {msg_type}", flush=True)
+        if msg_type not in ["reply.audio", "transcript.user", "transcript.agent"]:
+            print(f"[AAI DEBUG] Full event data: {json.dumps(data, indent=2)}", flush=True)
 
         if msg_type == "reply.audio":
             # AssemblyAI uses "data" field, not "audio"
@@ -87,7 +112,7 @@ async def _drain_until_reply_done(websocket, timeout: float = 30.0):
             if raw:
                 decoded = base64.b64decode(raw)
                 audio_chunks.append(decoded)
-                print(f"[AAI DEBUG] reply.audio chunk: {len(decoded)} bytes", flush=True)
+                print(f"[AAI DEBUG] reply.audio chunk: {len(decoded)} bytes (total: {len(b''.join(audio_chunks))} bytes)", flush=True)
             else:
                 print(f"[AAI DEBUG] reply.audio with empty 'data' field: {data}", flush=True)
 
@@ -101,21 +126,73 @@ async def _drain_until_reply_done(websocket, timeout: float = 30.0):
             agent_texts.append(text)
             print(f"[AAI DEBUG] Agent transcript: {text!r}", flush=True)
 
+        elif msg_type == "tool.call":
+            # Handle tool execution
+            print(f"[AAI DEBUG] === TOOL CALL DETECTED ===", flush=True)
+            print(f"[AAI DEBUG] tool.call received: {json.dumps(data, indent=2)}", flush=True)
+            tool_call_id = data.get("call_id")
+            tool_name = data.get("name")
+            tool_arguments = data.get("arguments", {})
+            tool_was_called = True
+            
+            print(f"[AAI DEBUG] Tool: {tool_name}", flush=True)
+            print(f"[AAI DEBUG] Arguments: {json.dumps(tool_arguments, indent=2)}", flush=True)
+            
+            try:
+                result = await execute_tool(tool_name, tool_arguments, context)
+                tool_result_message = {
+                    "type": "tool.result",
+                    "call_id": tool_call_id,
+                    "result": json.dumps(result),
+                    "is_error": bool(isinstance(result, dict) and result.get("error"))
+                }
+                await websocket.send(json.dumps(tool_result_message))
+                print(f"[AAI DEBUG] Tool {tool_name} SUCCESS: {json.dumps(result, indent=2)}", flush=True)
+            except Exception as e:
+                print(f"[AAI ERROR] Tool {tool_name} FAILED: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
+                tool_result_message = {
+                    "type": "tool.result",
+                    "call_id": tool_call_id,
+                    "result": json.dumps({"success": False, "error": str(e)}),
+                    "is_error": True
+                }
+                await websocket.send(json.dumps(tool_result_message))
+            
+            print(f"[AAI DEBUG] === TOOL CALL COMPLETE ===", flush=True)
+            
+            # Don't break - continue draining to get the agent's spoken response
+            # The agent will send a new reply after processing tool results
+
         elif msg_type == "reply.done":
-            print("[AAI DEBUG] reply.done received - ending drain", flush=True)
-            break
+            print(f"[AAI DEBUG] reply.done received", flush=True)
+            # If a tool was called, we need to continue draining to get the agent's response
+            # The agent sends reply.done after the initial response, then after tool results,
+            # it sends a new reply with the spoken response
+            if tool_was_called and not agent_texts:
+                print(f"[AAI DEBUG] Tool was called but no agent transcript yet - continuing to drain", flush=True)
+                tool_was_called = False  # Reset to avoid infinite loop
+                continue
+            else:
+                print(f"[AAI DEBUG] reply.done received - ending drain (messages: {message_count})", flush=True)
+                break
 
         elif msg_type == "session.ended":
-            print("[AAI DEBUG] session.ended received - ending drain", flush=True)
+            print(f"[AAI DEBUG] session.ended received - ending drain", flush=True)
             break
 
         elif msg_type == "session.error":
-            print(f"[AAI ERROR] session.error: {data}", flush=True)
+            print(f"[AAI ERROR] session.error: {json.dumps(data, indent=2)}", flush=True)
             break
 
         else:
             print(f"[AAI DEBUG] Unhandled event: {msg_type}", flush=True)
+            print(f"[AAI DEBUG] Full event data: {json.dumps(data, indent=2)}", flush=True)
 
+    print(f"[AAI DEBUG] Drain complete - messages processed: {message_count}", flush=True)
+    print(f"[AAI DEBUG] Audio chunks: {len(audio_chunks)}, User texts: {len(user_texts)}, Agent texts: {len(agent_texts)}", flush=True)
+    
     return audio_chunks, user_texts, agent_texts, msg_type == "session.ended"
 
 
@@ -145,6 +222,7 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
             shift_id=session_id,
             agent_id=settings.assemblyai_agent_id
         )
+        print(f"[AAI DEBUG] Session config: {json.dumps(session_config, indent=2)}", flush=True)
         await websocket.send(json.dumps(session_config))
         print(f"[AAI DEBUG] Session config sent")
 
@@ -156,17 +234,21 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
             first_type = first_data.get("type")
             print(f"[AAI DEBUG] First response type: {first_type}")
             
+            if first_type == "session.error":
+                print(f"[AAI ERROR] Session error details: {json.dumps(first_data, indent=2)}", flush=True)
+                return None, [], []
+            
             if first_type not in ['session.updated', 'session.ready']:
-                print(f"[AAI ERROR] Unexpected first response: {first_type}")
+                print(f"[AAI ERROR] Unexpected first response: {first_type}", flush=True)
                 return None, [], []
             
             print(f"[AAI DEBUG] Session ready - draining greeting...")
         except asyncio.TimeoutError:
-            print(f"[AAI ERROR] Timeout waiting for session ready")
+            print(f"[AAI ERROR] Timeout waiting for session ready", flush=True)
             return None, [], []
 
         # Drain the greeting (greeting audio that server sends automatically)
-        greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(websocket)
+        greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(websocket, session_id)
         print(f"[AAI DEBUG] Greeting complete: {len(b''.join(greeting_audio))} bytes, "
               f"agent said: {' '.join(greeting_agent_text)!r}", flush=True)
 
@@ -195,7 +277,7 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
 
         # Step 5: Wait for reply.done to get complete response
         print(f"[AAI DEBUG] Waiting for reply.done...")
-        response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(websocket)
+        response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(websocket, session_id)
 
         combined_audio = b"".join(response_audio)
         print(f"[AAI DEBUG] Total response audio: {len(combined_audio)} bytes", flush=True)

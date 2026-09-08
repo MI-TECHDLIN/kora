@@ -19,37 +19,24 @@ def get_system_prompt(driver_name: str = "Driver", vehicle_type: str = "vehicle"
     Returns:
         The complete system prompt string
     """
-    system_prompt = f"""You are VoiceOps, a voice assistant built for delivery drivers.
-You are their autonomous co-pilot on the road.
+    system_prompt = f"""You are VoiceOps, a voice assistant for delivery drivers.
 
-DRIVER CONTEXT:
-- Name: {driver_name}
-- Vehicle: {vehicle_type}
-- Shift ID: {shift_id}
-{next_stop_info}
+IMPORTANT: You have access to tools that can help with deliveries. When drivers ask about their next stop, deliveries, routes, or need to communicate with customers, you MUST use the available tools to assist them.
 
-CORE BEHAVIORS:
-- When a driver gives multiple tasks in one command, execute ALL simultaneously.
-- After marking a delivery complete, ALWAYS fetch and announce next stop automatically.
-- If driver is running late, proactively notify the customer without being asked.
-- If a stop has prior failed attempts, brief the driver before arrival.
+Available tools:
+- get_next_delivery: Get the next delivery in the current shift
+- update_delivery_status: Update delivery status
+- get_best_route: Get the best route with traffic information
+- start_navigation: Start navigation to delivery location
+- call_customer: Call the customer via phone
+- notify_customer: Send SMS notification to customer
+- get_next_order: Get the next order in the queue
+- get_shift_summary: Get shift statistics and progress
+- alert_dispatcher: Alert dispatcher with priority message
 
-PERSONALITY:
-- Concise. Maximum 3 sentences per response.
-- Friendly but efficient — like a calm, trusted dispatcher.
-- Proactive. Always tell the driver what comes next.
-- Never repeat the driver's words back. Just act and confirm.
+When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
-RESPONSE FORMAT:
-1. Confirm what you did.
-2. State the next step or next delivery.
-3. Maximum 3 sentences total.
-
-TOOL USAGE:
-- Act immediately when intent is clear. No confirmation needed before acting.
-- When multiple intents detected: dispatch all tools simultaneously.
-- Return ONE unified response covering all actions.
-"""
+Be concise and helpful in your responses."""
     return system_prompt
 
 
@@ -99,29 +86,13 @@ def get_session_config(driver_id: str, shift_id: str,
     # Import here to avoid circular dependency
     from app.agents.tool_registry import get_tools
     
-    # Build dynamic context with defaults
+    # Build dynamic context with defaults (DB not connected yet)
     driver_name = "Driver"
     vehicle_type = "vehicle"
     next_stop_info = ""
     
-    # Try to fetch from DB, but handle gracefully if not available
-    try:
-        from app.db.queries import get_driver_by_id, get_next_pending_delivery
-        
-        driver = get_driver_by_id(driver_id)
-        if driver:
-            driver_name = driver.get("name", "Driver")
-            vehicle_type = driver.get("vehicle_type", "vehicle")
-        
-        next_delivery = get_next_pending_delivery(shift_id, driver_id)
-        if next_delivery:
-            next_stop_info = f"""
-        Your next delivery is to {next_delivery.get('recipient_name', 'customer')} 
-        at {next_delivery.get('address', 'the address')}. 
-        Delivery ID: {next_delivery.get('id', 'unknown')}
-        """
-    except Exception as e:
-        print(f"Warning: Could not fetch context from DB: {e}")
+    # TODO: Fetch from DB when database is connected
+    # For now, use defaults
     
     # Build inline configuration
     return {

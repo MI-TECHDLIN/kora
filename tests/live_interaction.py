@@ -102,7 +102,9 @@ try:
                 # Play the PCM audio directly (without WAV header)
                 print("Playing agent response...")
                 try:
-                    sd.play(output_data, SAMPLE_RATE)
+                    # Convert bytes to numpy array for playback
+                    audio_array = np.frombuffer(output_data, dtype=np.int16)
+                    sd.play(audio_array, SAMPLE_RATE)
                     sd.wait()
                     print("Playback complete!")
                 except Exception as e:

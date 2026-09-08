@@ -73,10 +73,10 @@ async def notify_customer_endpoint(
     current_user: dict = Depends(get_current_driver)
 ):
     """Send customer notification (SMS/call)."""
-    # This will be implemented with Twilio integration
+    # This will be implemented with Vonage SMS and LiveKit SIP integration
     # For now, return a placeholder
     return {
-        "message": "Customer notification feature requires Twilio integration",
+        "message": "Customer notification feature requires Vonage/LiveKit integration",
         "delivery_id": delivery_id,
         "message_type": request.message_type
     }

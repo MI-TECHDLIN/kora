@@ -21,17 +21,20 @@ class Settings(BaseSettings):
     livekit_sip_trunk_id: Optional[str] = None
     
     
-    # Google Maps
+    # Google Maps (Directions API for routes + deeplink for navigation)
     google_maps_api_key: Optional[str] = None
     google_directions_base_url: str = "https://maps.googleapis.com/maps/api/directions/json"
     
-    # Onfleet
+    # Vonage SMS (Customer text notifications - global coverage)
+    vonage_api_key: Optional[str] = None
+    vonage_api_secret: Optional[str] = None
+    
+    # Onfleet (Optional - External logistics platform, use mock if not provided)
     onfleet_api_key: Optional[str] = None
     onfleet_base_url: str = "https://onfleet.com/api/v2"
     
-    # n8n
-    n8n_shift_webhook_url: Optional[str] = None
-    n8n_driver_signup_webhook_url: Optional[str] = None
+    # n8n (Optional - Async dispatcher alerts via webhook)
+    n8n_dispatcher_webhook_url: Optional[str] = None
     
     
     # App Configuration

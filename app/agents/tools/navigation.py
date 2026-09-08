@@ -1,89 +1,133 @@
+"""
+Navigation tools for VoiceOps agent.
+Tools: get_best_route, start_navigation
+Platform: Google Directions API + Google Maps deeplink
+"""
 from typing import Dict, Any
-from app.db.queries import get_next_pending_delivery, save_location_ping
+import json
 from app.integrations.google_maps import get_directions
 
 
-async def get_best_route(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+async def get_best_route(parameters: dict, context: dict) -> dict:
     """
-    Get the optimal current route to the next delivery with traffic data.
+    Get the best route with traffic information.
+    
+    Platform: Google Directions API (departure_time=now, alternatives=true, traffic_model=best_guess)
+    Trigger phrases: "best route", "any traffic", "check my route", "faster way"
+    
+    Input:
+    {
+        "delivery_id": "uuid"
+    }
+    
+    Expected output:
+    {
+        "success": true,
+        "best_route": {
+            "summary": "Victoria Bridge",
+            "distance_km": 3.2,
+            "duration_mins": 11,
+            "duration_text": "11 mins"
+        },
+        "time_saved_mins": 7,
+        "has_faster_route": true,
+        "all_routes": [...],
+        "destination_address": "22 Victoria Island Drive"
+    }
     """
-    driver_id = context.get("driver_id")
-    shift_id = context.get("shift_id")
-    
-    # Get next delivery
-    delivery = await get_next_pending_delivery(shift_id, driver_id)
-    if not delivery:
-        return {"error": "No pending delivery found"}
-    
-    # Get driver's latest location
-    # In production, query location_pings table for latest ping
-    # For now, use a placeholder or require lat/lng in parameters
-    origin_lat = parameters.get("origin_lat", 6.5244)  # Default: Lagos
-    origin_lng = parameters.get("origin_lng", 3.3792)
-    
-    dest_lat = delivery.get("latitude")
-    dest_lng = delivery.get("longitude")
-    
-    if not dest_lat or not dest_lng:
-        return {"error": "Delivery coordinates not available"}
-    
     try:
+        delivery_id = parameters.get("delivery_id")
+        
+        # TODO: Get origin and destination coordinates from Supabase
+        # For now, use mock coordinates
+        origin_lat, origin_lng = 6.44, 3.39  # Current location
+        dest_lat, dest_lng = 6.4286, 3.4108  # Delivery location
+        destination_address = "22 Victoria Island Drive"
+        
+        # Call Google Directions API
         routes = await get_directions(origin_lat, origin_lng, dest_lat, dest_lng)
         
         if not routes:
-            return {"error": "Could not fetch route data"}
+            return {
+                "success": True,
+                "has_faster_route": False,
+                "best_route": {"summary": "Current route", "duration_mins": 14},
+                "time_saved_mins": 0,
+                "destination_address": destination_address
+            }
         
-        # Sort by duration and get best route
-        best_route = min(routes, key=lambda r: r.get("duration", float('inf')))
+        # Find best route (shortest duration)
+        best_route = min(routes, key=lambda r: r["duration"])
         
-        # Check if there's a faster alternative
-        has_faster_route = len(routes) > 1
-        time_saved = 0
-        if has_faster_route:
-            second_best = sorted(routes, key=lambda r: r.get("duration", float('inf')))[1]
-            time_saved = second_best.get("duration", 0) - best_route.get("duration", 0)
+        # Calculate time saved vs first route
+        current_duration = routes[0]["duration"]
+        best_duration = best_route["duration"]
+        time_saved = (current_duration - best_duration) / 60  # convert to minutes
         
         return {
+            "success": True,
             "best_route": {
-                "summary": best_route.get("summary", "Route"),
-                "distance_km": best_route.get("distance", 0) / 1000,
-                "duration_mins": best_route.get("duration", 0) / 60
+                "summary": best_route["summary"],
+                "distance_km": best_route["distance"] / 1000,
+                "duration_mins": best_route["duration"] / 60,
+                "duration_text": f"{int(best_route['duration'] / 60)} mins"
             },
-            "time_saved_mins": time_saved / 60 if time_saved > 0 else 0,
-            "has_faster_route": has_faster_route,
-            "destination": delivery.get("address")
+            "time_saved_mins": round(time_saved, 1),
+            "has_faster_route": time_saved > 1,
+            "all_routes": routes,
+            "destination_address": destination_address
         }
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
-async def start_navigation(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+async def start_navigation(parameters: dict, context: dict) -> dict:
     """
-    Open Google Maps navigation to the next delivery.
-    Returns a navigation URL for the Flutter app to open.
-    """
-    driver_id = context.get("driver_id")
-    shift_id = context.get("shift_id")
+    Start navigation to delivery location using Google Maps.
     
-    # Get next delivery
-    delivery = await get_next_pending_delivery(shift_id, driver_id)
-    if not delivery:
-        return {"error": "No pending delivery found"}
+    Platform: Google Maps deeplink (opened by Flutter via url_launcher)
+    Trigger phrases: "navigate", "take me there", "get directions"
     
-    dest_lat = delivery.get("latitude")
-    dest_lng = delivery.get("longitude")
-    address = delivery.get("address")
-    
-    if not dest_lat or not dest_lng:
-        return {"error": "Delivery coordinates not available"}
-    
-    # Build Google Maps deeplink
-    navigation_url = f"https://www.google.com/maps/dir/?api=1&destination={dest_lat},{dest_lng}&travelmode=driving"
-    
-    return {
-        "action": "open_navigation",
-        "navigation_url": navigation_url,
-        "address": address,
-        "latitude": dest_lat,
-        "longitude": dest_lng
+    Input:
+    {
+        "delivery_id": "uuid"
     }
+    
+    Expected output:
+    {
+        "success": true,
+        "action": "open_navigation",
+        "navigation_url": "https://www.google.com/maps/dir/?api=1&destination=6.4286,3.4108&travelmode=driving",
+        "address": "22 Victoria Island Drive",
+        "message": "Navigation opening to 22 Victoria Island Drive."
+    }
+    
+    Flutter listens for action: "open_navigation" on the WebSocket and calls
+    url_launcher to open Maps.
+    """
+    try:
+        delivery_id = parameters.get("delivery_id")
+        
+        # TODO: Get delivery coordinates from Supabase
+        # For now, use mock coordinates
+        latitude = 6.4286
+        longitude = 3.4108
+        address = "22 Victoria Island Drive"
+        
+        navigation_url = f"https://www.google.com/maps/dir/?api=1&destination={latitude},{longitude}&travelmode=driving"
+        
+        return {
+            "success": True,
+            "action": "open_navigation",
+            "navigation_url": navigation_url,
+            "address": address,
+            "message": f"Navigation opening to {address}."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }

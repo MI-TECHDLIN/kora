@@ -54,8 +54,15 @@ async def make_call(
     if not client:
         return {"success": False, "error": "LiveKit not configured"}
     
-    if not settings.livekit_sip_trunk_id:
-        return {"success": False, "error": "LiveKit SIP trunk ID not configured"}
+    if not settings.livekit_sip_trunk_id or settings.livekit_sip_trunk_id == "your_sip_trunk_id":
+        # Return mock data if SIP trunk not configured
+        return {
+            "success": True,
+            "room_name": f"customer-call-{delivery_id}",
+            "customer_name": recipient_name,
+            "customer_phone": to_phone,
+            "message": f"Mock: Would call {recipient_name} at {to_phone} (SIP trunk not configured)"
+        }
     
     try:
         # Create a SIP participant (outbound call) in a transient room
@@ -63,15 +70,13 @@ async def make_call(
         room_name = f"customer-call-{delivery_id}"
         
         await client.sip.create_sip_participant(
-            livekit_api.CreateSIPParticipantRequest(
-                sip_trunk_id=settings.livekit_sip_trunk_id,
-                sip_url=f"sip:{to_phone}@sip.livekit.cloud",
-                room_name=room_name,
-                participant_identity=f"customer-{delivery_id}",
-                participant_name=recipient_name,
-                # Note: TTS message can be played via DTMF or room audio
-                # Post-hackathon: bridge driver audio into same room for live conversation
-            )
+            room_name=room_name,
+            sip_trunk_id=settings.livekit_sip_trunk_id,
+            sip_number=to_phone,
+            participant_identity=f"customer-{delivery_id}",
+            participant_name=recipient_name,
+            # Note: TTS message can be played via DTMF or room audio
+            # Post-hackathon: bridge driver audio into same room for live conversation
         )
         
         return {

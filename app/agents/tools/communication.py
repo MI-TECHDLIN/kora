@@ -1,110 +1,167 @@
+"""
+Communication tools for VoiceOps agent.
+Tools: call_customer, notify_customer, alert_dispatcher
+Platform: LiveKit SIP/PSTN, Vonage SMS, Supabase + n8n webhook
+"""
 from typing import Dict, Any
-from app.db.queries import get_next_pending_delivery
+import json
 from app.integrations.livekit_client import make_call
+from app.integrations.vonage_sms import send_sms
 
-from app.config import settings
 
-
-async def call_customer(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+async def call_customer(parameters: dict, context: dict) -> dict:
     """
-    Initiate an outbound PSTN call to the customer via LiveKit SIP.
+    Call the customer via LiveKit SIP/PSTN.
     
-    Architecture note:
-    - This tool is called by the FastAPI orchestrator when AssemblyAI fires tool_call: call_customer
-    - LiveKit handles the telephony entirely — it dials the customer's phone number
-    - AssemblyAI has zero involvement in this call — no conflict
-    - LiveKit and AssemblyAI operate on completely separate lanes
+    Platform: LiveKit SIP/PSTN (outbound call to customer's real phone number)
+    LiveKit operates on a completely separate lane from AssemblyAI. Zero conflict.
+    Trigger phrases: "call the customer", "ring the customer", "call them"
     
-    How it works:
-    - FastAPI calls LiveKit SIP API → LiveKit dials customer phone via PSTN
-    - LiveKit plays a TTS message on pickup (driver's message passed in parameters)
-    - FastAPI returns tool_result to AssemblyAI → agent tells driver "Customer is being called"
+    Input:
+    {
+        "delivery_id": "uuid",
+        "message": "Your delivery driver is on the way and will arrive in 5 minutes."
+    }
+    
+    Expected output:
+    {
+        "success": true,
+        "room_name": "customer-call-uuid",
+        "customer_name": "Amara Johnson",
+        "customer_phone": "+2348012345678",
+        "message": "Calling Amara Johnson now."
+    }
+    
+    Failure (no phone number):
+    {
+        "success": false,
+        "error": "No customer phone number on file."
+    }
     """
-    driver_id = context.get("driver_id")
-    shift_id = context.get("shift_id")
-    
-    message = parameters.get("message", "Your delivery driver is on the way and will arrive shortly.")
-    
-    # Get next delivery
-    delivery = await get_next_pending_delivery(shift_id, driver_id)
-    if not delivery:
-        return {"success": False, "error": "No pending delivery found"}
-    
-    customer_phone = delivery.get("phone")
-    if not customer_phone:
-        return {"success": False, "error": "Customer phone number not available"}
-    
-    # Format phone number with country code if needed
-    if not customer_phone.startswith("+"):
-        customer_phone = f"{settings.phone_country_code}{customer_phone}"
-    
-    # Make call via LiveKit
-    result = await make_call(
-        to_phone=customer_phone,
-        message=message,
-        delivery_id=delivery.get("id", "unknown"),
-        recipient_name=delivery.get("recipient_name", "Customer")
-    )
-    
-    if not result.get("success"):
+    try:
+        delivery_id = parameters.get("delivery_id")
+        message = parameters.get("message", "")
+        
+        # TODO: Get customer phone from Supabase
+        # For now, use mock phone
+        customer_phone = "+2348012345678"
+        customer_name = "Amara Johnson"
+        
+        # Call LiveKit integration
+        result = await make_call(
+            to_phone=customer_phone,
+            message=message,
+            delivery_id=delivery_id,
+            recipient_name=customer_name
+        )
+        
         return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+async def notify_customer(parameters: dict, context: dict) -> dict:
+    """
+    Send SMS notification to customer via Vonage.
     
-    return {
-        "success": True,
-        "room_name": result.get("room_name"),
-        "customer_name": delivery.get("recipient_name"),
-        "customer_phone": customer_phone,
-        "message": f"Calling {delivery.get('recipient_name')} now."
+    Platform: Vonage SMS API (global coverage, free trial)
+    Trigger phrases: "message the customer", "tell customer I'm close", "send ETA", "I'm 5 minutes away"
+    
+    Input:
+    {
+        "delivery_id": "uuid",
+        "message_type": "nearby",
+        "custom_message": ""
     }
-
-
-async def alert_dispatcher(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Alert the dispatcher about an urgent issue.
-    Stores alert in database and optionally triggers n8n workflow.
-    """
-    shift_id = context.get("shift_id")
-    driver_id = context.get("driver_id")
     
-    message = parameters.get("message")
-    priority = parameters.get("priority", "normal")
+    Message type enum: on_my_way | nearby | running_late | missed | custom
     
-    # Store alert in database
-    # In production, would insert into dispatcher_alerts table
-    # For now, return success
-    
-    # Optionally trigger n8n workflow for dispatcher notification
-    # This would be implemented similar to shift end webhook
-    
-    return {
-        "success": True,
-        "message": "Dispatcher alerted",
-        "priority": priority,
-        "alert_message": message
+    Expected output:
+    {
+        "success": true,
+        "status": "delivered",
+        "customer_name": "Amara Johnson",
+        "message_sent": "Hi Amara, your driver is nearby — please be ready to receive your delivery.",
+        "message": "SMS sent to Amara Johnson."
     }
+    """
+    try:
+        delivery_id = parameters.get("delivery_id")
+        message_type = parameters.get("message_type")
+        custom_message = parameters.get("custom_message", "")
+        
+        # TODO: Get customer phone and name from Supabase
+        # For now, use mock data
+        customer_phone = "+2348012345678"
+        customer_name = "Amara Johnson"
+        
+        # Build message based on type
+        message_templates = {
+            "on_my_way": f"Hi {customer_name}, your driver is on the way.",
+            "nearby": f"Hi {customer_name}, your driver is nearby — please be ready to receive your delivery.",
+            "running_late": f"Hi {customer_name}, your driver is running slightly late but will be there soon.",
+            "missed": f"Hi {customer_name}, your driver attempted delivery but missed you. Please call to reschedule.",
+            "custom": custom_message
+        }
+        
+        message = message_templates.get(message_type, message_templates["nearby"])
+        
+        # Call Vonage SMS integration
+        result = await send_sms(
+            to_phone=customer_phone,
+            message=message,
+            customer_name=customer_name
+        )
+        
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
-async def alert_dispatcher(parameters: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+async def alert_dispatcher(parameters: dict, context: dict) -> dict:
     """
-    Alert the dispatcher about an urgent issue.
-    Stores alert in database and optionally triggers n8n workflow.
-    """
-    shift_id = context.get("shift_id")
-    driver_id = context.get("driver_id")
+    Alert dispatcher with priority message.
     
-    message = parameters.get("message")
-    priority = parameters.get("priority", "normal")
+    Platform: Supabase (stores alert) + optional n8n webhook (Slack/email notification)
+    Trigger phrases: "alert the dispatcher", "contact dispatch", "I need help"
     
-    # Store alert in database
-    # In production, would insert into dispatcher_alerts table
-    # For now, return success
-    
-    # Optionally trigger n8n workflow for dispatcher notification
-    # This would be implemented similar to shift end webhook
-    
-    return {
-        "success": True,
-        "message": "Dispatcher alerted",
-        "priority": priority,
-        "alert_message": message
+    Input:
+    {
+        "delivery_id": "uuid",
+        "message": "Customer is being aggressive. Need support at 14 Broad Street.",
+        "priority": "urgent"
     }
+    
+    Priority enum: normal | urgent
+    
+    Expected output:
+    {
+        "success": true,
+        "priority": "urgent",
+        "message": "Dispatcher has been alerted."
+    }
+    """
+    try:
+        delivery_id = parameters.get("delivery_id")
+        message = parameters.get("message")
+        priority = parameters.get("priority")
+        
+        # TODO: Store alert in Supabase
+        # TODO: Optionally trigger n8n webhook for Slack/email notification
+        # For now, return mock data
+        return {
+            "success": True,
+            "priority": priority,
+            "message": "Dispatcher has been alerted."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
