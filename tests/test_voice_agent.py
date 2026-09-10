@@ -18,12 +18,13 @@ request_data = {
     "session_id": "test_session"
 }
 
-print("Testing AssemblyAI Voice Agent API...")
-print(f"Sending to: {API_URL}")
+if __name__ == "__main__":
+    print("Testing AssemblyAI Voice Agent API...")
+    print(f"Sending to: {API_URL}")
 
-try:
-    response = requests.post(API_URL, json=request_data, timeout=60)
-    print(f"Status Code: {response.status_code}")
-    print(f"Response: {response.text}")
-except Exception as e:
-    print(f"Error: {e}")
+    try:
+        response = requests.post(API_URL, json=request_data, timeout=60)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.text}")
+    except Exception as e:
+        print(f"Error: {e}")

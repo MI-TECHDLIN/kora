@@ -2,6 +2,10 @@
 Direct tool testing without AssemblyAI Voice Agent.
 Tests each tool individually with mock parameters.
 """
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import asyncio
 import json
 from app.agents.tool_registry import execute_tool
@@ -101,5 +105,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import json
     asyncio.run(main())

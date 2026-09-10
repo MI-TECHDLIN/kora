@@ -2,6 +2,10 @@
 Test tools that have credentials in .env
 Tests: AssemblyAI, Supabase, Twilio, Google Maps
 """
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import asyncio
 from app.config import settings
 from app.integrations.twilio_client import get_twilio_client, make_call, send_sms
