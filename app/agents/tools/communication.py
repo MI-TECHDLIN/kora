@@ -169,7 +169,8 @@ async def alert_dispatcher(parameters: dict, context: dict) -> dict:
             else:
                 location = "unknown"
                 
-        # Trigger n8n dispatcher alert workflow asynchronously (fire-and-forget)
+        # Trigger n8n dispatcher alert workflow in the background (fire-and-forget).
+        # n8n is async/post-shift — must never block the real-time voice path.
         trigger_dispatcher_alert_background(
             driver_id=str(driver_id),
             driver_name=str(driver_name),

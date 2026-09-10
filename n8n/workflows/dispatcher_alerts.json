@@ -22,22 +22,22 @@
         "duplicateItem": false,
         "assignments": {
           "assignments": [
-            { "id": "f1", "name": "driver_id", "value": "={{ $json.body.driver_id }}", "type": "string" },
-            { "id": "f2", "name": "driver_name", "value": "={{ $json.body.driver_name }}", "type": "string" },
-            { "id": "f3", "name": "alert_type", "value": "={{ $json.body.alert_type }}", "type": "string" },
-            { "id": "f4", "name": "message", "value": "={{ $json.body.message }}", "type": "string" },
-            { "id": "f5", "name": "severity", "value": "={{ $json.body.severity || 'normal' }}", "type": "string" },
-            { "id": "f6", "name": "location", "value": "={{ $json.body.location || 'unknown' }}", "type": "string" },
-            { "id": "f7", "name": "shift_id", "value": "={{ $json.body.shift_id }}", "type": "string" },
-            { "id": "f8", "name": "timestamp", "value": "={{ $json.body.timestamp || $now.toISO() }}", "type": "string" },
+            { "id": "f1",  "name": "driver_id",           "value": "={{ $json.body.driver_id }}",          "type": "string" },
+            { "id": "f2",  "name": "driver_name",          "value": "={{ $json.body.driver_name }}",         "type": "string" },
+            { "id": "f3",  "name": "alert_type",           "value": "={{ $json.body.alert_type }}",          "type": "string" },
+            { "id": "f4",  "name": "message",              "value": "={{ $json.body.message }}",             "type": "string" },
+            { "id": "f5",  "name": "severity",             "value": "={{ $json.body.severity || 'normal' }}", "type": "string" },
+            { "id": "f6",  "name": "location",             "value": "={{ $json.body.location || 'unknown' }}", "type": "string" },
+            { "id": "f7",  "name": "shift_id",             "value": "={{ $json.body.shift_id }}",            "type": "string" },
+            { "id": "f8",  "name": "timestamp",            "value": "={{ $json.body.timestamp || $now.toISO() }}", "type": "string" },
             {
               "id": "f9",
               "name": "is_critical",
               "value": "={{ $json.body.severity === 'critical' || ['safety_incident','emergency','accident'].includes($json.body.alert_type) }}",
               "type": "boolean"
             },
-            { "id": "f10", "name": "dispatcher_email", "value": "={{ $json.body.dispatcher_email || 'dispatcher@voiceops.app' }}", "type": "string" },
-            { "id": "f11", "name": "supabase_url", "value": "={{ $json.body.supabase_url || '' }}", "type": "string" },
+            { "id": "f10", "name": "dispatcher_email",    "value": "={{ $json.body.dispatcher_email || 'dispatcher@voiceops.app' }}", "type": "string" },
+            { "id": "f11", "name": "supabase_url",         "value": "={{ $json.body.supabase_url || '' }}",  "type": "string" },
             { "id": "f12", "name": "supabase_service_key", "value": "={{ $json.body.supabase_service_key || '' }}", "type": "string" }
           ]
         },
@@ -51,19 +51,20 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "={{ $json.supabase_url }}/rest/v1/dispatcher_alerts",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $json.supabase_service_key }}" },
+            { "name": "apikey",        "value": "={{ $json.supabase_service_key }}" },
             { "name": "Authorization", "value": "=Bearer {{ $json.supabase_service_key }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=representation" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"driver_id\": $json.driver_id, \"driver_name\": $json.driver_name, \"alert_type\": $json.alert_type, \"message\": $json.message, \"severity\": $json.severity, \"location\": $json.location, \"shift_id\": $json.shift_id, \"created_at\": $json.timestamp, \"is_critical\": $json.is_critical } }}",
+        "jsonBody": "={{ JSON.stringify({ \"driver_id\": $json.driver_id, \"driver_name\": $json.driver_name, \"alert_type\": $json.alert_type, \"message\": $json.message, \"severity\": $json.severity, \"location\": $json.location, \"shift_id\": $json.shift_id, \"created_at\": $json.timestamp, \"is_critical\": $json.is_critical }) }}",
         "options": {}
       },
       "id": "1a2b3c4d-0007-0000-0000-000000000007",

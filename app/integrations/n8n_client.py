@@ -100,6 +100,13 @@ async def send_dispatcher_alert(
         }
 
 
+# Module-level set that holds strong references to background tasks.
+# Without this, asyncio tasks with no other references are eligible for GC
+# as soon as the caller's stack frame exits (e.g. when a WebSocket session
+# closes), which kills the HTTP POST before it reaches n8n.
+_background_tasks: set = set()
+
+
 def trigger_dispatcher_alert_background(
     driver_id: str,
     driver_name: str,
@@ -113,12 +120,13 @@ def trigger_dispatcher_alert_background(
     webhook_url: Optional[str] = None
 ) -> None:
     """
-    Fire-and-forget trigger for n8n alert webhook to ensure zero latency impact
-    on real-time voice streaming agent.
+    Fire-and-forget trigger for n8n alert webhook.
+    Zero latency impact on the real-time voice path — n8n runs fully async.
+    Task is anchored in _background_tasks so it survives WebSocket teardown.
     """
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(
+        task = loop.create_task(
             send_dispatcher_alert(
                 driver_id=driver_id,
                 driver_name=driver_name,
@@ -132,8 +140,11 @@ def trigger_dispatcher_alert_background(
                 webhook_url=webhook_url
             )
         )
+        # Keep a strong reference until the task completes, then release it.
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
     except RuntimeError:
-        # If running outside an active event loop, run synchronously or log
+        # No running event loop (e.g. called from a sync test) — run directly.
         asyncio.run(
             send_dispatcher_alert(
                 driver_id=driver_id,
