@@ -6,6 +6,7 @@ Platform: Twilio Voice & SMS, Supabase + n8n webhook
 from typing import Dict, Any
 import json
 from app.integrations.twilio_client import make_call, send_sms
+from app.integrations.n8n_client import trigger_dispatcher_alert_background
 
 
 async def call_customer(parameters: dict, context: dict) -> dict:
@@ -148,12 +149,37 @@ async def alert_dispatcher(parameters: dict, context: dict) -> dict:
     """
     try:
         delivery_id = parameters.get("delivery_id")
-        message = parameters.get("message")
-        priority = parameters.get("priority")
+        message = parameters.get("message", "")
+        priority = parameters.get("priority", "normal")
         
-        # TODO: Store alert in Supabase
-        # TODO: Optionally trigger n8n webhook for Slack/email notification
-        # For now, return mock data
+        # Determine severity and alert_type matching n8n workflow spec
+        severity = "critical" if str(priority).lower() in ["urgent", "critical"] else "normal"
+        alert_type = "safety_incident" if severity == "critical" else "driver_alert"
+        
+        driver_id = context.get("driver_id", "unknown_driver")
+        driver_name = context.get("driver_name", "Driver")
+        shift_id = context.get("shift_id", "unknown_shift")
+        
+        # Derive location from context delivery if available
+        location = context.get("location")
+        if not location:
+            current_delivery = context.get("current_delivery")
+            if isinstance(current_delivery, dict):
+                location = current_delivery.get("address", "unknown")
+            else:
+                location = "unknown"
+                
+        # Trigger n8n dispatcher alert workflow asynchronously (fire-and-forget)
+        trigger_dispatcher_alert_background(
+            driver_id=str(driver_id),
+            driver_name=str(driver_name),
+            alert_type=alert_type,
+            message=str(message),
+            severity=severity,
+            location=str(location),
+            shift_id=str(shift_id)
+        )
+        
         return {
             "success": True,
             "priority": priority,

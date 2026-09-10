@@ -219,7 +219,7 @@ The agent will execute all 3 tools simultaneously and provide a unified response
   - Twilio: ✅ Configured (Calls & SMS)
   - Google Maps: ⚠️ Placeholder (using mock data)
   - Onfleet: ⚠️ Placeholder (using mock data)
-  - n8n: ⚠️ Placeholder (using mock data)
+  - n8n: ✅ Integrated (Dispatcher alert workflow connected via webhook)
 
 - **To Use Real APIs**: Add the respective API keys to `.env` file
 

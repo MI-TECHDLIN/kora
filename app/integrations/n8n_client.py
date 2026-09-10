@@ -1,0 +1,150 @@
+import asyncio
+from datetime import datetime, timezone
+import logging
+from typing import Dict, Any, Optional
+import httpx
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+async def send_dispatcher_alert(
+    driver_id: str,
+    driver_name: str,
+    alert_type: str,
+    message: str,
+    severity: str = "normal",
+    location: str = "unknown",
+    shift_id: Optional[str] = None,
+    timestamp: Optional[str] = None,
+    dispatcher_email: Optional[str] = None,
+    webhook_url: Optional[str] = None,
+    timeout: float = 5.0
+) -> Dict[str, Any]:
+    """
+    Trigger the n8n dispatcher alert webhook.
+    
+    Payload schema matches the n8n workflow 'Normalize Alert Payload' node:
+    {
+        "driver_id": str,
+        "driver_name": str,
+        "alert_type": str,
+        "message": str,
+        "severity": str ("normal" | "critical"),
+        "location": str,
+        "shift_id": str,
+        "timestamp": str (ISO 8601),
+        "dispatcher_email": str,
+        "supabase_url": str,
+        "supabase_service_key": str
+    }
+    
+    Returns:
+        Dict with success status and details.
+    """
+    target_url = webhook_url or settings.n8n_dispatcher_webhook_url
+    
+    if not target_url or "your-n8n-instance.com" in target_url:
+        logger.warning("n8n dispatcher webhook URL is not configured.")
+        return {
+            "success": False,
+            "error": "n8n webhook URL not configured",
+            "mock": True
+        }
+    
+    if not timestamp:
+        timestamp = datetime.now(timezone.utc).isoformat()
+        
+    payload = {
+        "driver_id": driver_id or "unknown_driver",
+        "driver_name": driver_name or "Driver",
+        "alert_type": alert_type or "dispatcher_alert",
+        "message": message,
+        "severity": severity,
+        "location": location or "unknown",
+        "shift_id": shift_id or "unknown_shift",
+        "timestamp": timestamp,
+        "dispatcher_email": dispatcher_email or settings.dispatcher_escalation_email or "dispatcher@voiceops.app",
+        "supabase_url": settings.supabase_url or "",
+        "supabase_service_key": settings.supabase_service_key or ""
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(target_url, json=payload, timeout=timeout)
+            response.raise_for_status()
+            
+            try:
+                data = response.json()
+            except Exception:
+                data = {"status": "received", "raw_text": response.text}
+                
+            logger.info(f"n8n alert sent successfully: {response.status_code}")
+            return {
+                "success": True,
+                "status_code": response.status_code,
+                "response": data
+            }
+    except httpx.HTTPStatusError as e:
+        logger.error(f"n8n webhook HTTP error: {e.response.status_code} - {e.response.text}")
+        return {
+            "success": False,
+            "error": f"HTTP {e.response.status_code}: {e.response.text}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to post to n8n webhook: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+def trigger_dispatcher_alert_background(
+    driver_id: str,
+    driver_name: str,
+    alert_type: str,
+    message: str,
+    severity: str = "normal",
+    location: str = "unknown",
+    shift_id: Optional[str] = None,
+    timestamp: Optional[str] = None,
+    dispatcher_email: Optional[str] = None,
+    webhook_url: Optional[str] = None
+) -> None:
+    """
+    Fire-and-forget trigger for n8n alert webhook to ensure zero latency impact
+    on real-time voice streaming agent.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(
+            send_dispatcher_alert(
+                driver_id=driver_id,
+                driver_name=driver_name,
+                alert_type=alert_type,
+                message=message,
+                severity=severity,
+                location=location,
+                shift_id=shift_id,
+                timestamp=timestamp,
+                dispatcher_email=dispatcher_email,
+                webhook_url=webhook_url
+            )
+        )
+    except RuntimeError:
+        # If running outside an active event loop, run synchronously or log
+        asyncio.run(
+            send_dispatcher_alert(
+                driver_id=driver_id,
+                driver_name=driver_name,
+                alert_type=alert_type,
+                message=message,
+                severity=severity,
+                location=location,
+                shift_id=shift_id,
+                timestamp=timestamp,
+                dispatcher_email=dispatcher_email,
+                webhook_url=webhook_url
+            )
+        )

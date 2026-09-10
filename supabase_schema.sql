@@ -156,3 +156,41 @@ CREATE POLICY "Users can view own intelligence reports" ON intelligence_reports
 -- Operator codes are public read
 CREATE POLICY "Anyone can view operator codes" ON operator_codes
     FOR SELECT USING (true);
+
+-- Dispatcher alerts table (used by n8n escalation workflow and voice agent)
+CREATE TABLE IF NOT EXISTS dispatcher_alerts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    driver_id TEXT,
+    driver_name VARCHAR(255),
+    alert_type VARCHAR(100) NOT NULL,
+    message TEXT NOT NULL,
+    severity VARCHAR(50) DEFAULT 'normal',
+    location TEXT,
+    shift_id TEXT,
+    is_critical BOOLEAN DEFAULT FALSE,
+    resolved BOOLEAN DEFAULT FALSE,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for dispatcher alerts
+CREATE INDEX IF NOT EXISTS idx_dispatcher_alerts_created_at ON dispatcher_alerts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dispatcher_alerts_severity ON dispatcher_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_dispatcher_alerts_driver_id ON dispatcher_alerts(driver_id);
+CREATE INDEX IF NOT EXISTS idx_dispatcher_alerts_is_critical ON dispatcher_alerts(is_critical);
+
+-- Enable Row Level Security
+ALTER TABLE dispatcher_alerts ENABLE ROW LEVEL SECURITY;
+
+-- Allow service role (used by n8n webhook and backend) full access
+CREATE POLICY "Service role full access on dispatcher_alerts" ON dispatcher_alerts
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Allow authenticated users to view their alerts
+CREATE POLICY "Drivers can view their own alerts" ON dispatcher_alerts
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid()::text = driver_id);

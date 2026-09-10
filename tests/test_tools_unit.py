@@ -67,6 +67,16 @@ def test_notify_customer(mock_context):
     assert result.get("status") == "delivered"
 
 
+def test_alert_dispatcher(mock_context):
+    result = asyncio.run(execute_tool(
+        "alert_dispatcher",
+        {"delivery_id": "del-123", "message": "Customer is aggressive", "priority": "urgent"},
+        mock_context
+    ))
+    assert result.get("success") is True
+    assert result.get("priority") == "urgent"
+
+
 def test_unknown_tool(mock_context):
     result = asyncio.run(execute_tool("nonexistent_tool", {}, mock_context))
     assert result.get("success") is False

@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     
     # n8n (Optional - Async dispatcher alerts via webhook)
     n8n_dispatcher_webhook_url: Optional[str] = None
+    dispatcher_escalation_email: Optional[str] = "tomarianoor@gmail.com"
     
     
     # App Configuration
