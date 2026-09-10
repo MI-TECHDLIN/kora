@@ -10,8 +10,8 @@ plugins {
 
 android {
     namespace = "com.example.voiceops"
-    compileSdk = 35
-    ndkVersion = "27.0.12077973"
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
