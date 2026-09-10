@@ -9,11 +9,11 @@ class GreetingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text('Hello, $name!', style: VoiceOpsText.greetingSmall),
-        const SizedBox(height: 2),
+        Text('Hello, $name!', style: VoiceOpsText.bodyMuted),
+        const SizedBox(height: VoiceOpsSpacing.xs),
         Text(
           'How can I help you today?',
-          style: VoiceOpsText.greetingLarge,
+          style: VoiceOpsText.headline,
           textAlign: TextAlign.center,
         ),
       ],

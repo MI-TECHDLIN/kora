@@ -1,36 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens — matches VoiceOps SDD v2.0 §8.
+/// VoiceOps design tokens — the single source for every colour, spacing,
+/// radius, size, duration and text style. Widgets reference these; they
+/// never hardcode a value. Authority: CLAUDE.md § Design System and
+/// `.firstmate/rules/frontend.md`. Dark-mode-first.
 class VoiceOpsColors {
   VoiceOpsColors._();
 
-  static const primary = Color(0xFF7C3AED);
-  static const primaryLight = Color(0xFFA78BFA);
+  // ── Surfaces (dark, lowest → highest elevation) ──────────────────────
+  static const canvas = Color(0xFF07060B);
+  static const raised = Color(0xFF0E0B18);
+  static const elevated = Color(0xFF151126);
+  static const overlay = Color(0xFF1D1834);
+
+  // ── Brand violet ─────────────────────────────────────────────────────
+  static const primary = Color(0xFF8B5CF6);
+  static const primaryLight = Color(0xFFC4B5FD);
   static const primaryDark = Color(0xFF4C1D95);
+  static const primaryTint = Color(0x298B5CF6); // primary @ 16%
+  static const primaryGlow = Color(0x598B5CF6); // primary @ 35%
 
-  static const grad1 = Color(0xFFC084FC); // idle
-  static const grad2 = Color(0xFF818CF8); // idle
-  static const grad3 = Color(0xFFF472B6); // creating/celebrating
-  static const grad4 = Color(0xFF34D399); // task done
-  static const grad5 = Color(0xFF38BDF8); // translating
-  static const gradAmber = Color(0xFFFBBF24); // summarizing/ideas
+  // ── Live (mic-hot) ───────────────────────────────────────────────────
+  // Reserved for the mic-hot / recording state ONLY; not a general accent.
+  // This is a safety property: a driver must be able to tell at a glance
+  // that the mic is live, so nothing else in the app may be lime.
+  static const live = Color(0xFFC8F250);
+  static const liveGlow = Color(0x66C8F250); // live @ 40%, recording halo only
+  static const onLive = canvas;
 
-  static const orbViolet = Color(0xFFC4B5FD);
-  static const orbPink = Color(0xFFF9A8D4);
-  static const orbBlue = Color(0xFFBAE6FF);
-  static const orbLilac = Color(0xFFF0D2FF);
+  // ── Secondary accents (card use only, sparing) ───────────────────────
+  static const pink = Color(0xFFF9A8D4);
+  static const blue = Color(0xFF7DD3FC);
+  static const amber = Color(0xFFFBBF24);
+  static const success = Color(0xFF34D399);
+  static const danger = Color(0xFFF87171); // error states
 
-  static const glassWhite = Color(0x62FFFFFF);
-  static const glassWhiteStrong = Color(0xE0FFFFFF);
-  static const glassBorder = Color(0xBFFFFFFF);
+  // ── Text / ink ───────────────────────────────────────────────────────
+  static const textPrimary = Color(0xFFF4F1FF);
+  static const textMuted = Color(0xFFA7A1C4);
+  static const textFaint = Color(0xFF7C7797); // ≥4.5:1 on canvas
+  static const onPrimary = Color(0xFFFFFFFF);
+  static const onAccent = canvas; // dark ink on pastel accents
 
-  static const textPrimary = Color(0xFF3B0764);
-  static const textMuted = Color(0xFF7C3AED);
-  static const textFaint = Color(0xFFA78BFA);
+  // ── Lines ────────────────────────────────────────────────────────────
+  static const divider = Color(0x14FFFFFF); // white @ 8%
+  static const scrim = Color(0xB307060B); // canvas @ 70%
+}
 
-  static const success = Color(0xFF059669);
-  static const warning = Color(0xFFF59E0B);
+/// Restrained glass. Readability and 60fps on a mid-range Android come
+/// before the effect: one capped blur, near-transparent fill, hairline
+/// border. Prefer an unblurred glass fill for repeated items (lists, chip
+/// grids); reserve the backdrop blur for a few large surfaces.
+class VoiceOpsGlass {
+  VoiceOpsGlass._();
+
+  /// Capped for perf + readability — restrained glass. Never exceed this.
+  static const blur = 12.0;
+
+  static const fillOpacity = 0.05;
+  static const fill = Color(0x0DFFFFFF); // white @ 5%
+  static const border = Color(0x1FFFFFFF); // white @ 12%
+  static const borderWidth = 1.0;
+
+  /// Soft violet shadow under glass surfaces.
+  static const shadow = [
+    BoxShadow(
+      color: Color(0x2E8B5CF6), // primary @ 18%
+      blurRadius: 24,
+      offset: Offset(0, 8),
+    ),
+  ];
+}
+
+/// Co-rider orb palettes — CLAUDE.md's two distinct orb materials.
+/// Holographic bubble for onboarding, chrome/mercury for the main app.
+class VoiceOpsOrbColors {
+  VoiceOpsOrbColors._();
+
+  static const holographic = [
+    Color(0xFFC4B5FD),
+    Color(0xFFF9A8D4),
+    Color(0xFF7DD3FC),
+    Color(0xFFA7F3D0),
+    Color(0xFFC4B5FD),
+  ];
+
+  static const chrome = [
+    Color(0xFFEDEBF5),
+    Color(0xFF8E8AA6),
+    Color(0xFF2B2740),
+    Color(0xFFD3CFE6),
+    Color(0xFF5E5A78),
+    Color(0xFFEDEBF5),
+  ];
+
+  static const specular = Color(0xFFFFFFFF);
+  static const shade = Color(0xA607060B); // canvas @ 65%, sphere depth
 }
 
 class VoiceOpsSpacing {
@@ -41,60 +107,157 @@ class VoiceOpsSpacing {
   static const lg = 16.0;
   static const xl = 24.0;
   static const xxl = 32.0;
+
+  /// Horizontal screen gutter.
+  static const gutter = 22.0;
 }
 
 class VoiceOpsRadius {
   VoiceOpsRadius._();
-  static const sm = 14.0;
-  static const md = 18.0;
-  static const lg = 28.0;
+  static const control = 14.0;
   static const card = 20.0;
-  static const pill = 54.0;
+  static const sheet = 28.0;
+
+  /// Pills and the push-to-talk button.
+  static const pill = 999.0;
 }
 
+class VoiceOpsSize {
+  VoiceOpsSize._();
+
+  static const iconSm = 16.0;
+  static const iconMd = 20.0;
+  static const iconLg = 24.0;
+  static const iconXl = 32.0;
+
+  /// Minimum touch target for any tappable control.
+  static const touchTarget = 48.0;
+
+  /// Height of buttons and single-line controls.
+  static const control = 52.0;
+
+  /// Push-to-talk diameter. Never below [pushToTalkMin] (frontend rules).
+  static const pushToTalk = 88.0;
+  static const pushToTalkMin = 80.0;
+
+  /// Co-rider orb sizes.
+  static const orbHero = 150.0;
+  static const orbBubble = 60.0;
+  static const orbBubbleSmall = 40.0;
+}
+
+class VoiceOpsMotion {
+  VoiceOpsMotion._();
+  static const fast = Duration(milliseconds: 150);
+  static const base = Duration(milliseconds: 250);
+  static const slow = Duration(milliseconds: 400);
+
+  /// Co-rider orb morph between agent states.
+  static const orbMorph = Duration(milliseconds: 600);
+
+  static const standard = Curves.easeOutCubic;
+  static const emphasized = Curves.easeInOutCubic;
+}
+
+/// Type scale. Plus Jakarta Sans substitutes for Circular Std / Sofia Pro
+/// (proprietary) per CLAUDE.md — if licensed font files are supplied later,
+/// swap them in here only.
 class VoiceOpsText {
   VoiceOpsText._();
 
-  static TextStyle get greetingSmall => GoogleFonts.inter(
+  static final display = GoogleFonts.plusJakartaSans(
+    fontSize: 40,
+    fontWeight: FontWeight.w800,
+    height: 1.05,
+    letterSpacing: -1.2,
+    color: VoiceOpsColors.textPrimary,
+  );
+
+  static final headline = GoogleFonts.plusJakartaSans(
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.4,
+    color: VoiceOpsColors.textPrimary,
+  );
+
+  static final title = GoogleFonts.plusJakartaSans(
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+    color: VoiceOpsColors.textPrimary,
+  );
+
+  static final body = GoogleFonts.plusJakartaSans(
     fontSize: 15,
     fontWeight: FontWeight.w400,
-    color: VoiceOpsColors.textMuted,
-  );
-
-  static TextStyle get greetingLarge => GoogleFonts.inter(
-    fontSize: 19,
-    fontWeight: FontWeight.w700,
+    height: 1.45,
     color: VoiceOpsColors.textPrimary,
   );
 
-  static TextStyle get chipLabel => GoogleFonts.inter(
-    fontSize: 12.5,
-    fontWeight: FontWeight.w500,
+  static final bodyMuted = body.copyWith(color: VoiceOpsColors.textMuted);
+
+  static final label = GoogleFonts.plusJakartaSans(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+    letterSpacing: 0.1,
     color: VoiceOpsColors.textPrimary,
   );
 
-  static TextStyle get inputHint => GoogleFonts.inter(
-    fontSize: 13.5,
-    fontWeight: FontWeight.w400,
-    color: VoiceOpsColors.textFaint,
-  );
-
-  static TextStyle get mascotLabel => GoogleFonts.inter(
+  /// Small uppercase status text (e.g. the co-rider state pill).
+  static final caption = GoogleFonts.plusJakartaSans(
     fontSize: 11,
     fontWeight: FontWeight.w700,
+    height: 1.3,
+    letterSpacing: 0.8,
     color: VoiceOpsColors.textMuted,
-    letterSpacing: 0.4,
+  );
+
+  /// Stats, ETAs, counts — tabular figures so digits don't jitter.
+  static final numeric = GoogleFonts.plusJakartaSans(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    height: 1.1,
+    color: VoiceOpsColors.textPrimary,
+    fontFeatures: const [FontFeature.tabularFigures()],
   );
 }
 
 ThemeData buildVoiceOpsTheme() {
-  return ThemeData(
+  // `live` is deliberately absent from the ColorScheme so no Material
+  // component can pick it up as an accent.
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: VoiceOpsColors.primary,
+    brightness: Brightness.dark,
+    primary: VoiceOpsColors.primary,
+    onPrimary: VoiceOpsColors.onPrimary,
+    surface: VoiceOpsColors.raised,
+    onSurface: VoiceOpsColors.textPrimary,
+    error: VoiceOpsColors.danger,
+  );
+  final base = ThemeData(
     useMaterial3: true,
-    scaffoldBackgroundColor: Colors.transparent,
-    fontFamily: GoogleFonts.inter().fontFamily,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: VoiceOpsColors.primary,
-      brightness: Brightness.light,
+    brightness: Brightness.dark,
+    colorScheme: colorScheme,
+  );
+
+  return base.copyWith(
+    scaffoldBackgroundColor: VoiceOpsColors.canvas,
+    canvasColor: VoiceOpsColors.canvas,
+    dividerColor: VoiceOpsColors.divider,
+    iconTheme: const IconThemeData(
+      color: VoiceOpsColors.textPrimary,
+      size: VoiceOpsSize.iconMd,
+    ),
+    textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
+      bodyColor: VoiceOpsColors.textPrimary,
+      displayColor: VoiceOpsColors.textPrimary,
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: VoiceOpsColors.primaryLight,
+      selectionColor: VoiceOpsColors.primaryGlow,
+      selectionHandleColor: VoiceOpsColors.primary,
     ),
   );
 }
