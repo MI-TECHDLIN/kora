@@ -1,20 +1,19 @@
 """
 Communication tools for VoiceOps agent.
 Tools: call_customer, notify_customer, alert_dispatcher
-Platform: LiveKit SIP/PSTN, Vonage SMS, Supabase + n8n webhook
+Platform: Twilio Voice & SMS, Supabase + n8n webhook
 """
 from typing import Dict, Any
 import json
-from app.integrations.livekit_client import make_call
-from app.integrations.vonage_sms import send_sms
+from app.integrations.twilio_client import make_call, send_sms
 
 
 async def call_customer(parameters: dict, context: dict) -> dict:
     """
-    Call the customer via LiveKit SIP/PSTN.
+    Call the customer via Twilio Voice API.
     
-    Platform: LiveKit SIP/PSTN (outbound call to customer's real phone number)
-    LiveKit operates on a completely separate lane from AssemblyAI. Zero conflict.
+    Platform: Twilio Voice (outbound call to customer's real phone number)
+    Twilio operates on a completely separate lane from AssemblyAI. Zero conflict.
     Trigger phrases: "call the customer", "ring the customer", "call them"
     
     Input:
@@ -26,10 +25,10 @@ async def call_customer(parameters: dict, context: dict) -> dict:
     Expected output:
     {
         "success": true,
-        "room_name": "customer-call-uuid",
+        "call_sid": "CA123456789...",
         "customer_name": "Amara Johnson",
         "customer_phone": "+2348012345678",
-        "message": "Calling Amara Johnson now."
+        "message": "Calling Amara Johnson now via Twilio."
     }
     
     Failure (no phone number):
@@ -47,7 +46,7 @@ async def call_customer(parameters: dict, context: dict) -> dict:
         customer_phone = "+2348012345678"
         customer_name = "Amara Johnson"
         
-        # Call LiveKit integration
+        # Call Twilio integration
         result = await make_call(
             to_phone=customer_phone,
             message=message,
@@ -65,9 +64,9 @@ async def call_customer(parameters: dict, context: dict) -> dict:
 
 async def notify_customer(parameters: dict, context: dict) -> dict:
     """
-    Send SMS notification to customer via Vonage.
+    Send SMS notification to customer via Twilio.
     
-    Platform: Vonage SMS API (global coverage, free trial)
+    Platform: Twilio Messages API (global coverage)
     Trigger phrases: "message the customer", "tell customer I'm close", "send ETA", "I'm 5 minutes away"
     
     Input:
@@ -85,7 +84,7 @@ async def notify_customer(parameters: dict, context: dict) -> dict:
         "status": "delivered",
         "customer_name": "Amara Johnson",
         "message_sent": "Hi Amara, your driver is nearby — please be ready to receive your delivery.",
-        "message": "SMS sent to Amara Johnson."
+        "message": "SMS sent to Amara Johnson via Twilio."
     }
     """
     try:
@@ -109,7 +108,7 @@ async def notify_customer(parameters: dict, context: dict) -> dict:
         
         message = message_templates.get(message_type, message_templates["nearby"])
         
-        # Call Vonage SMS integration
+        # Call Twilio SMS integration
         result = await send_sms(
             to_phone=customer_phone,
             message=message,

@@ -9,7 +9,7 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - **Authentication**: Supabase phone OTP authentication
 - **Logistics Adapters**: Mock adapter for demo, Onfleet adapter for production
 - **Navigation**: Google Maps integration for route optimization
-- **Communication**: LiveKit SIP/PSTN for calls, Vonage SMS for text notifications
+- **Communication**: Twilio for outbound phone calls and SMS notifications
 - **n8n Workflows**: Async workflow automation for operator notifications
 
 ## Tech Stack
@@ -20,7 +20,7 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - **Auth**: Supabase Auth (phone OTP)
 - **Voice**: AssemblyAI Voice Agent API
 - **Maps**: Google Maps Directions API
-- **Communication**: LiveKit SIP/PSTN (calls), Vonage SMS (text)
+- **Communication**: Twilio (Voice Calls & SMS)
 - **Workflows**: n8n
 - **Hosting**: Railway
 
@@ -31,8 +31,7 @@ FastAPI backend for VoiceOps - a voice-first logistics driver companion powered 
 - Python 3.11+
 - Supabase project
 - AssemblyAI API key
-- (Optional) LiveKit account for SIP/PSTN calls
-- (Optional) Vonage account for SMS
+- (Optional) Twilio account for Voice calls and SMS
 - (Optional) Google Maps API key
 - (Optional) n8n instance
 
@@ -77,15 +76,12 @@ SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# LiveKit SIP/PSTN (optional - for outbound calls)
-LIVEKIT_URL=wss://your-project.livekit.cloud
-LIVEKIT_API_KEY=your_livekit_api_key
-LIVEKIT_API_SECRET=your_livekit_api_secret
-LIVEKIT_SIP_TRUNK_ID=your_sip_trunk_id
-
-# Vonage SMS (optional - for customer notifications)
-VONAGE_API_KEY=your_vonage_api_key
-VONAGE_API_SECRET=your_vonage_api_secret
+# Twilio (optional - for outbound calls & SMS notifications)
+Account_SID=your_twilio_account_sid
+Primary_auth_Token=your_twilio_auth_token
+SID=your_twilio_api_key_sid
+Client_secret=your_twilio_api_key_secret
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
 # Google Maps (optional)
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
@@ -165,7 +161,7 @@ AssemblyAI Voice Agent API
 Tool Orchestrator (asyncio.gather)
   ├── Delivery tools → Supabase + Onfleet/Mock
   ├── Navigation tools → Google Directions
-  └── Communication tools → LiveKit (calls) + Vonage (SMS)
+  └── Communication tools → Twilio (calls & SMS)
   │ tool_results
   ▼
 AssemblyAI TTS audio
@@ -205,8 +201,8 @@ The voice agent has 10 tools available:
 3. **log_exception** - Log delivery exception
 4. **get_best_route** - Get optimal route with traffic
 5. **start_navigation** - Open Google Maps navigation
-6. **call_customer** - Call customer via LiveKit SIP/PSTN
-7. **notify_customer** - Send SMS to customer
+6. **call_customer** - Call customer via Twilio Voice
+7. **notify_customer** - Send SMS to customer via Twilio
 8. **get_next_order** - Get next queued order
 9. **get_shift_summary** - Get shift statistics
 10. **alert_dispatcher** - Alert dispatcher about issues
@@ -287,8 +283,7 @@ voiceops-backend/
 │   │   └── report_generator.py  # Report generation
 │   ├── integrations/
 │   │   ├── google_maps.py      # Google Maps API
-│   │   ├── livekit_client.py   # LiveKit SIP/PSTN client
-│   │   ├── vonage_sms.py       # Vonage SMS client
+│   │   ├── twilio_client.py    # Twilio Voice & SMS client
 │   │   └── n8n_client.py       # n8n webhook client (optional)
 │   ├── config.py                # Pydantic settings
 │   ├── dependencies.py          # FastAPI dependencies

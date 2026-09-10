@@ -14,20 +14,41 @@ class Settings(BaseSettings):
     supabase_service_key: Optional[str] = None
     supabase_anon_key: Optional[str] = None
     
-    # LiveKit (for outbound customer calls via SIP/PSTN)
-    livekit_url: Optional[str] = None
-    livekit_api_key: Optional[str] = None
-    livekit_api_secret: Optional[str] = None
-    livekit_sip_trunk_id: Optional[str] = None
+    # Twilio (Outbound Calls & SMS notifications)
+    account_sid: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    primary_auth_token: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    sid: Optional[str] = None
+    twilio_api_key_sid: Optional[str] = None
+    client_secret: Optional[str] = None
+    twilio_api_key_secret: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+    twilio_from_number: Optional[str] = None
     
+    @property
+    def effective_twilio_account_sid(self) -> Optional[str]:
+        return self.twilio_account_sid or self.account_sid
+
+    @property
+    def effective_twilio_auth_token(self) -> Optional[str]:
+        return self.twilio_auth_token or self.primary_auth_token
+
+    @property
+    def effective_twilio_api_key_sid(self) -> Optional[str]:
+        return self.twilio_api_key_sid or self.sid
+
+    @property
+    def effective_twilio_api_key_secret(self) -> Optional[str]:
+        return self.twilio_api_key_secret or self.client_secret
+
+    @property
+    def effective_twilio_from_number(self) -> Optional[str]:
+        return self.twilio_phone_number or self.twilio_from_number
     
     # Google Maps (Directions API for routes + deeplink for navigation)
     google_maps_api_key: Optional[str] = None
     google_directions_base_url: str = "https://maps.googleapis.com/maps/api/directions/json"
-    
-    # Vonage SMS (Customer text notifications - global coverage)
-    vonage_api_key: Optional[str] = None
-    vonage_api_secret: Optional[str] = None
     
     # Onfleet (Optional - External logistics platform, use mock if not provided)
     onfleet_api_key: Optional[str] = None

@@ -119,7 +119,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "call_customer",
-            "description": "Call the customer via LiveKit SIP/PSTN. Trigger phrases: 'call the customer', 'ring the customer', 'call them'",
+            "description": "Call the customer via Twilio. Trigger phrases: 'call the customer', 'ring the customer', 'call them'",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -138,7 +138,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "notify_customer",
-            "description": "Send SMS notification to customer via Vonage. Trigger phrases: 'message the customer', 'tell customer I'm close', 'send ETA', 'I'm 5 minutes away'",
+            "description": "Send SMS notification to customer via Twilio. Trigger phrases: 'message the customer', 'tell customer I'm close', 'send ETA', 'I'm 5 minutes away'",
             "parameters": {
                 "type": "object",
                 "properties": {

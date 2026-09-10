@@ -1,10 +1,10 @@
 """
 Test tools that have credentials in .env
-Tests: AssemblyAI, Supabase, LiveKit
+Tests: AssemblyAI, Supabase, Twilio, Google Maps
 """
 import asyncio
 from app.config import settings
-from app.integrations.livekit_client import get_livekit_client, make_call
+from app.integrations.twilio_client import get_twilio_client, make_call, send_sms
 from app.integrations.google_maps import get_directions
 
 
@@ -36,38 +36,43 @@ async def test_supabase_credentials():
         print("[FAIL] Supabase Service Key not configured")
 
 
-async def test_livekit_credentials():
-    """Test LiveKit credentials and connection."""
-    print("\n=== Testing LiveKit Credentials ===")
-    if settings.livekit_url:
-        print(f"[OK] LiveKit URL: {settings.livekit_url}")
+async def test_twilio_credentials():
+    """Test Twilio credentials and connection."""
+    print("\n=== Testing Twilio Credentials ===")
+    account_sid = settings.effective_twilio_account_sid
+    auth_token = settings.effective_twilio_auth_token
+    api_key_sid = settings.effective_twilio_api_key_sid
+    api_key_secret = settings.effective_twilio_api_key_secret
+    from_number = settings.effective_twilio_from_number
+
+    if account_sid:
+        print(f"[OK] Twilio Account SID: {account_sid[:10]}...")
     else:
-        print("[FAIL] LiveKit URL not configured")
+        print("[FAIL] Twilio Account SID not configured")
         return
-    
-    if settings.livekit_api_key:
-        print(f"[OK] LiveKit API Key: {settings.livekit_api_key}")
+
+    if auth_token:
+        print(f"[OK] Twilio Auth Token: {auth_token[:10]}...")
+    elif api_key_sid and api_key_secret:
+        print(f"[OK] Twilio API Key SID: {api_key_sid[:10]}...")
     else:
-        print("[FAIL] LiveKit API Key not configured")
+        print("[FAIL] Twilio Auth Token or API Key not configured")
         return
-    
-    if settings.livekit_api_secret:
-        print(f"[OK] LiveKit API Secret: {settings.livekit_api_secret[:20]}...")
+
+    if from_number:
+        print(f"[OK] Twilio Phone Number: {from_number}")
     else:
-        print("[FAIL] LiveKit API Secret not configured")
-        return
-    
-    if settings.livekit_sip_trunk_id:
-        print(f"[OK] LiveKit SIP Trunk ID: {settings.livekit_sip_trunk_id}")
-    else:
-        print("[WARN] LiveKit SIP Trunk ID not configured (will fail call tests)")
-    
-    # Try to get client
-    client = get_livekit_client()
+        print("[WARN] Twilio Phone Number not configured (calls and SMS will run in mock mode)")
+
+    client = get_twilio_client()
     if client:
-        print("[OK] LiveKit client created successfully")
+        try:
+            account = client.api.accounts(client.account_sid).fetch()
+            print(f"[OK] Twilio client connected! Account name: '{account.friendly_name}', status: {account.status}")
+        except Exception as e:
+            print(f"[FAIL] Twilio authentication check failed: {e}")
     else:
-        print("[FAIL] Failed to create LiveKit client")
+        print("[FAIL] Failed to create Twilio client")
 
 
 async def test_google_maps_credentials():
@@ -90,21 +95,6 @@ async def test_google_maps_credentials():
         print("  Using mock data for route queries")
 
 
-async def test_vonage_credentials():
-    """Test Vonage SMS credentials."""
-    print("\n=== Testing Vonage SMS Credentials ===")
-    if settings.vonage_api_key:
-        print(f"[OK] Vonage API Key: {settings.vonage_api_key}")
-    else:
-        print("[FAIL] Vonage API Key not configured")
-        print("  SMS notifications will fail")
-    
-    if settings.vonage_api_secret:
-        print(f"[OK] Vonage API Secret: {settings.vonage_api_secret[:20]}...")
-    else:
-        print("[FAIL] Vonage API Secret not configured")
-
-
 async def main():
     """Run all credential tests."""
     print("=" * 60)
@@ -113,9 +103,8 @@ async def main():
     
     await test_assemblyai_credentials()
     await test_supabase_credentials()
-    await test_livekit_credentials()
+    await test_twilio_credentials()
     await test_google_maps_credentials()
-    await test_vonage_credentials()
     
     print("\n" + "=" * 60)
     print("Credentials test complete")

@@ -109,7 +109,7 @@ Agent will provide a Google Maps navigation link to open in your browser/phone.
 ---
 
 ### 6. call_customer
-**Purpose**: Call the customer via LiveKit SIP/PSTN
+**Purpose**: Call the customer via Twilio Voice
 
 **Trigger Phrases**:
 - "Call the customer"
@@ -119,14 +119,14 @@ Agent will provide a Google Maps navigation link to open in your browser/phone.
 - "I need to call the customer"
 
 **Expected Response**:
-Agent will initiate a phone call to the customer via LiveKit SIP/PSTN.
+Agent will initiate a phone call to the customer via Twilio Voice.
 
-**Platform**: LiveKit SIP/PSTN
+**Platform**: Twilio Voice API
 
 ---
 
 ### 7. notify_customer
-**Purpose**: Send SMS notification to customer via Vonage
+**Purpose**: Send SMS notification to customer via Twilio
 
 **Trigger Phrases**:
 - "Message the customer"
@@ -139,7 +139,7 @@ Agent will initiate a phone call to the customer via LiveKit SIP/PSTN.
 **Expected Response**:
 Agent will send an SMS to the customer with your message.
 
-**Platform**: Vonage SMS API
+**Platform**: Twilio Messages API
 
 ---
 
@@ -216,9 +216,8 @@ The agent will execute all 3 tools simultaneously and provide a unified response
 - **Credentials Required**:
   - AssemblyAI: ✅ Configured
   - Supabase: ✅ Configured
-  - LiveKit: ✅ Configured (but SIP trunk ID needed for actual calls)
+  - Twilio: ✅ Configured (Calls & SMS)
   - Google Maps: ⚠️ Placeholder (using mock data)
-  - Vonage SMS: ⚠️ Placeholder (using mock data)
   - Onfleet: ⚠️ Placeholder (using mock data)
   - n8n: ⚠️ Placeholder (using mock data)
 
