@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/theme/tokens.dart';
 import '../providers/task_progress_provider.dart';
 
 class TaskProgressCard extends ConsumerWidget {
@@ -23,7 +24,10 @@ class TaskProgressCard extends ConsumerWidget {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 140),
-              child: Text('Task card placeholder — ${steps.length} steps'),
+              child: Text(
+                'Task card placeholder — ${steps.length} steps',
+                style: VoiceOpsText.label,
+              ),
             ),
           ),
         ),

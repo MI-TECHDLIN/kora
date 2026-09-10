@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../theme/tokens.dart';
 import 'glass_card.dart';
 
@@ -17,70 +18,97 @@ class VoiceInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      borderRadius: 28,
-      padding: const EdgeInsets.all(6),
+      borderRadius: VoiceOpsRadius.pill,
+      padding: const EdgeInsets.all(VoiceOpsSpacing.xs),
       child: Row(
         children: [
-          GestureDetector(
+          _RoundButton(
             onTap: onAddTap,
-            child: Container(
-              width: 28,
-              height: 28,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: VoiceOpsColors.primaryLight.withOpacity(0.2),
-                border: Border.all(
-                  color: VoiceOpsColors.primary.withOpacity(0.38),
-                  width: 1.5,
-                ),
-              ),
-              child: const Icon(
-                Icons.add,
-                size: 18,
-                color: VoiceOpsColors.primary,
-              ),
+            semanticLabel: 'Add',
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: VoiceOpsColors.primaryTint,
+            ),
+            child: const Icon(
+              TablerIcons.plus,
+              size: VoiceOpsSize.iconSm,
+              color: VoiceOpsColors.primaryLight,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: VoiceOpsSpacing.sm),
           Expanded(
             child: TextField(
               controller: controller,
-              style: VoiceOpsText.chipLabel,
+              style: VoiceOpsText.body,
               decoration: InputDecoration(
                 hintText: 'Ask me anything...',
-                hintStyle: VoiceOpsText.inputHint,
+                hintStyle: VoiceOpsText.body.copyWith(
+                  color: VoiceOpsColors.textFaint,
+                ),
                 border: InputBorder.none,
                 isDense: true,
               ),
             ),
           ),
-          GestureDetector(
+          _RoundButton(
             onTap: onMicTap,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [VoiceOpsColors.primary, VoiceOpsColors.primaryLight],
+            semanticLabel: 'Speak',
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [VoiceOpsColors.primary, VoiceOpsColors.primaryDark],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: VoiceOpsColors.primaryGlow,
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: VoiceOpsColors.primary.withOpacity(0.42),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.mic_rounded,
-                size: 18,
-                color: Colors.white,
-              ),
+              ],
+            ),
+            child: const Icon(
+              TablerIcons.microphone,
+              size: VoiceOpsSize.iconMd,
+              color: VoiceOpsColors.onPrimary,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Circular button with a full [VoiceOpsSize.touchTarget] hit area.
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.onTap,
+    required this.semanticLabel,
+    required this.decoration,
+    required this.child,
+  });
+
+  final VoidCallback? onTap;
+  final String semanticLabel;
+  final BoxDecoration decoration;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: VoiceOpsSize.touchTarget,
+          child: DecoratedBox(
+            decoration: decoration,
+            child: Center(child: child),
+          ),
+        ),
       ),
     );
   }

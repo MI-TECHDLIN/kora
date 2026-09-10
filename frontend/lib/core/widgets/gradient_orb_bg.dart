@@ -1,10 +1,12 @@
 import 'dart:math';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 
-/// Floating gradient-orb background — matches the JSX prototype's
-/// .orb / .o1-o4 / @keyframes drift.
+/// Dark canvas with slow-drifting violet glows behind every screen.
+///
+/// Glows are radial fades to transparent rather than blurred circles, so no
+/// blur filter re-runs per frame; the glow layer sits in its own repaint
+/// boundary so the drift never repaints the screen above it.
 class GradientOrbBackground extends StatefulWidget {
   const GradientOrbBackground({super.key, this.child});
   final Widget? child;
@@ -14,94 +16,100 @@ class GradientOrbBackground extends StatefulWidget {
 }
 
 class _GradientOrbBackgroundState extends State<GradientOrbBackground>
-    with TickerProviderStateMixin {
-  late final List<AnimationController> _controllers;
-  static const _durations = [9000, 7000, 11000, 8500];
-  static const _reverse = [false, true, false, true];
+    with SingleTickerProviderStateMixin {
+  // One slow controller; each glow drifts on its own phase of it.
+  late final AnimationController _drift = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 24),
+  );
+
+  static const _glows = [
+    // (colour, peak alpha, diameter, alignment, drift phase)
+    (
+      color: VoiceOpsColors.primary,
+      alpha: 0.26,
+      size: 420.0,
+      at: Alignment(-1.1, -1.0),
+      phase: 0.0,
+    ),
+    (
+      color: VoiceOpsColors.primaryDark,
+      alpha: 0.45,
+      size: 380.0,
+      at: Alignment(1.2, -0.35),
+      phase: 0.25,
+    ),
+    (
+      color: VoiceOpsColors.pink,
+      alpha: 0.08,
+      size: 300.0,
+      at: Alignment(-1.1, 0.75),
+      phase: 0.5,
+    ),
+    (
+      color: VoiceOpsColors.blue,
+      alpha: 0.07,
+      size: 280.0,
+      at: Alignment(1.0, 1.1),
+      phase: 0.75,
+    ),
+  ];
 
   @override
-  void initState() {
-    super.initState();
-    _controllers = List.generate(4, (i) {
-      return AnimationController(
-        vsync: this,
-        duration: Duration(milliseconds: _durations[i]),
-      )..repeat(reverse: true);
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduceMotion) {
+      _drift.stop();
+    } else if (!_drift.isAnimating) {
+      _drift.repeat();
+    }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
+    _drift.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFECE8F9),
-            Color(0xFFDDE8F5),
-            Color(0xFFEDE0F8),
-            Color(0xFFF5E8F8),
-            Color(0xFFEEE8FF),
-          ],
-        ),
-      ),
+    return ColoredBox(
+      color: VoiceOpsColors.canvas,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          _orb(0, VoiceOpsColors.orbViolet, 340, top: -110, left: -90),
-          _orb(1, VoiceOpsColors.orbPink, 295, top: 15, right: -85),
-          _orb(2, VoiceOpsColors.orbBlue, 235, bottom: 50, left: -65),
-          _orb(3, VoiceOpsColors.orbLilac, 215, bottom: -55, right: 25),
-          if (widget.child != null) widget.child!,
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _drift,
+              builder: (context, _) => Stack(
+                fit: StackFit.expand,
+                children: [for (final g in _glows) _glow(g)],
+              ),
+            ),
+          ),
+          if (widget.child != null) RepaintBoundary(child: widget.child),
         ],
       ),
     );
   }
 
-  Widget _orb(
-    int i,
-    Color color,
-    double size, {
-    double? top,
-    double? left,
-    double? right,
-    double? bottom,
-  }) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      bottom: bottom,
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-        child: AnimatedBuilder(
-          animation: _controllers[i],
-          builder: (context, child) {
-            final t = _controllers[i].value;
-            final dy = sin(t * pi) * (_reverse[i] ? 14 : -28);
-            final scale = 1 + sin(t * pi) * 0.07;
-            return Transform.translate(
-              offset: Offset(0, dy),
-              child: Transform.scale(scale: scale, child: child),
-            );
-          },
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [color.withOpacity(0.7), color.withOpacity(0.28)],
-              ),
-            ),
+  Widget _glow(
+    ({Color color, double alpha, double size, Alignment at, double phase}) g,
+  ) {
+    final t = (_drift.value + g.phase) * 2 * pi;
+    return Align(
+      alignment: g.at + Alignment(cos(t) * 0.08, sin(t) * 0.06),
+      child: Container(
+        width: g.size,
+        height: g.size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              g.color.withValues(alpha: g.alpha),
+              g.color.withValues(alpha: 0),
+            ],
           ),
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/voice_input_bar.dart';
 import '../../../mascot/mascot_display.dart';
 import '../../../mascot/mascot_state.dart';
@@ -19,24 +21,24 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
   static const _chips = [
     ActionChipData(
-      icon: Icons.image_rounded,
+      icon: TablerIcons.photo,
       label: 'Create an image',
-      iconBgColors: [Color(0xFFF9A8D4), Color(0xFFC084FC)],
+      accent: VoiceOpsColors.pink,
     ),
     ActionChipData(
-      icon: Icons.lightbulb_rounded,
+      icon: TablerIcons.bulb,
       label: 'Give me ideas',
-      iconBgColors: [Color(0xFFFDE68A), Color(0xFFF59E0B)],
+      accent: VoiceOpsColors.amber,
     ),
     ActionChipData(
-      icon: Icons.checklist_rounded,
+      icon: TablerIcons.checklist,
       label: 'Do the task',
-      iconBgColors: [Color(0xFF6EE7B7), Color(0xFF059669)],
+      accent: VoiceOpsColors.success,
     ),
     ActionChipData(
-      icon: Icons.translate_rounded,
+      icon: TablerIcons.language,
       label: 'Translate text',
-      iconBgColors: [Color(0xFF7DD3FC), Color(0xFF3B82F6)],
+      accent: VoiceOpsColors.blue,
     ),
   ];
 
@@ -72,14 +74,27 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 8, 22, 12),
+        padding: const EdgeInsets.fromLTRB(
+          VoiceOpsSpacing.gutter,
+          VoiceOpsSpacing.sm,
+          VoiceOpsSpacing.gutter,
+          VoiceOpsSpacing.md,
+        ),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _NavButton(icon: Icons.menu_rounded, onTap: () {}),
-                _NavButton(icon: Icons.settings_rounded, onTap: () {}),
+                _NavButton(
+                  icon: TablerIcons.menu2,
+                  label: 'Menu',
+                  onTap: () {},
+                ),
+                _NavButton(
+                  icon: TablerIcons.settings,
+                  label: 'Settings',
+                  onTap: () {},
+                ),
               ],
             ),
             const SizedBox(height: VoiceOpsSpacing.md),
@@ -89,24 +104,26 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    MascotDisplay(state: agentState, size: 150),
+                    MascotDisplay(
+                      state: agentState,
+                      size: VoiceOpsSize.orbHero,
+                    ),
                     if (agentState.label != null) ...[
                       const SizedBox(height: VoiceOpsSpacing.md),
-                      Container(
+                      GlassCard(
+                        frosted: false,
+                        shadow: false,
+                        borderRadius: VoiceOpsRadius.pill,
+                        fill: VoiceOpsColors.primaryTint,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.72),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: VoiceOpsColors.primaryLight.withOpacity(0.3),
-                          ),
+                          horizontal: VoiceOpsSpacing.lg,
+                          vertical: VoiceOpsSpacing.xs,
                         ),
                         child: Text(
                           agentState.label!.toUpperCase(),
-                          style: VoiceOpsText.mascotLabel,
+                          style: VoiceOpsText.caption.copyWith(
+                            color: VoiceOpsColors.primaryLight,
+                          ),
                         ),
                       ),
                     ],
@@ -128,23 +145,35 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 }
 
 class _NavButton extends StatelessWidget {
-  const _NavButton({required this.icon, required this.onTap});
+  const _NavButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
   final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.62),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: VoiceOpsColors.glassBorder),
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: VoiceOpsSize.touchTarget,
+          child: GlassCard(
+            frosted: false,
+            shadow: false,
+            borderRadius: VoiceOpsRadius.control,
+            child: Icon(
+              icon,
+              size: VoiceOpsSize.iconMd,
+              color: VoiceOpsColors.primaryLight,
+            ),
+          ),
         ),
-        child: Icon(icon, size: 17, color: VoiceOpsColors.primary),
       ),
     );
   }

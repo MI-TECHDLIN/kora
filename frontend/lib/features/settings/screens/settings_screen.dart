@@ -6,9 +6,6 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   @override
   Widget build(BuildContext context) => Center(
-    child: Text(
-      'Settings screen — Checkpoint 3',
-      style: VoiceOpsText.greetingLarge,
-    ),
+    child: Text('Settings screen — Checkpoint 3', style: VoiceOpsText.headline),
   );
 }
