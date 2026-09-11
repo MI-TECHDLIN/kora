@@ -1,7 +1,8 @@
 # Backend Rules — FastAPI
 
 Scope: everything under `backend/`. Do not touch `frontend/` from a
-backend task.
+backend task. `backend/` is not in `main` yet. The prototype lives on the
+orphan branch `features/backend/assemblyai-voice-agent`.
 
 ---
 
@@ -38,6 +39,11 @@ unified spoken response. Sequential execution breaks the latency budget
 
 If a tool can fail independently, use `return_exceptions=True` and handle
 partial failure — one failed tool must not sink the whole response.
+
+**Status: not built yet.** The prototype's `execute_tool()` dispatches one
+tool per `tool.call` event, and there is no orchestrator. The backend
+README's "asyncio.gather() for sub-500ms multi-tool dispatch" claim is
+inaccurate. See Open Backend Tasks.
 
 ---
 
@@ -76,8 +82,10 @@ calling, and TTS. Do not decompose it into separate service calls.
 `get_best_route`, `start_navigation`, `call_customer`, `notify_customer`,
 `get_next_order`, `get_shift_summary`, `alert_dispatcher`
 
-Exact input/output JSON shapes and handler signatures are defined in the
-**Agent Tools Reference** doc under `docs/`. That document is the
+Exact input/output JSON shapes and handler signatures are defined in
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.0, generated from the
+running code). The Flutter-facing WebSocket, REST, status-enum, and auth
+contract is `docs/contracts/interface.md`. Those documents are the
 contract. Do not invent or alter a tool shape — if the reference is
 missing something, flag it rather than guessing.
 
@@ -123,7 +131,14 @@ Report includes: failure patterns (topic detection), route issues,
 customer sentiment, driver performance summary, recommendations (LeMUR).
 
 LeMUR prompts: `failure_patterns`, `route_issues`, `recommendations`.
-Model: `anthropic/claude-3-5-sonnet`.
+Model: `anthropic/claude-sonnet-5` (current Claude Sonnet, in LeMUR's
+`anthropic/<model>` form). Check it against AssemblyAI's supported-model
+list when the pipeline is built. No post-shift code exists yet.
+
+Speech Understanding scope: transcription, topic detection (failure
+patterns), sentiment (customer mood), and LeMUR (the prompts above plus
+the shift summary). Diarization and entity extraction are not needed
+because driver and agent turns are stored separately (`voice_sessions`).
 
 ---
 
@@ -163,9 +178,32 @@ make a problem disappear.
 
 ---
 
+## Open Backend Tasks
+
+These are gaps between the contract docs and the prototype. They are
+tracked here so nobody mistakes the docs for a description of built code.
+Where a string or comment needs changing, it waits for the joint Ez +
+backend-owner review session.
+
+- **WebSocket relay** `WS /ws/voice/{shift_id}` emitting the
+  `docs/contracts/interface.md` §1 events. Today there is only the REST
+  harness `POST /v1/voice-agent`
+- **Parallel orchestrator** (`asyncio.gather(..., return_exceptions=True)`).
+  Also correct the backend README's Features line, which claims it is done
+- **`LogisticsAdapter` / `OnfleetAdapter` / `MockAdapter`**. None exist yet.
+  Tool handlers return inline mocks
+- **JWT on the voice path.** The tool context is hardcoded today. Mount the
+  unregistered `driver` / `deliveries` / `shift` routers
+- **`start_navigation`** emits `map_route` for in-app rendering instead of a
+  Google Maps deep link. Also update the "deeplink" docstrings in
+  `navigation.py` and `config.py`
+- **System prompt and greeting** say "voice assistant" / "VoiceOps
+  assistant". The locked term is **co-rider** (`agent_config.py`)
+
 ## Scope Discipline
 
-- Branch: `features/backend/<feature-slug>` off `staging`
+- Branch: `features/backend/<feature-slug>` off `staging`. PR back into
+  `staging`
 - Do not reformat files you did not otherwise change
 - Do not add a dependency without checking the stack above first
 - Do not touch `frontend/`

@@ -1,7 +1,12 @@
 # VoiceOps — Agent Context
 
-Read this fully before touching any code. Rule files in `.claude/rules/`
+Read this fully before touching any code. Rule files in `.firstmate/rules/`
 carry the detail for each layer.
+
+**Which doc wins.** This file, `.firstmate/rules/*`, `docs/product/VoiceOps_PRD_v4.0.md`,
+`docs/contracts/interface.md`, and `docs/VoiceOps_Agent_Tools_Reference.md` are current. The
+SDD, TechFeasibility, and Synopsis (all v2) are historical and marked superseded. Where they
+disagree with the current docs, the current docs win.
 
 ---
 
@@ -27,14 +32,18 @@ Two distinct value layers:
 ```
 voiceops/
 ├── frontend/          Flutter app
-├── backend/           Python FastAPI + asyncio
-├── docs/              PRD, SDD, Technical Feasibility, Presenter Guide
+├── backend/           Python FastAPI + asyncio (not imported yet, see below)
+├── docs/              PRD, SDD, TechFeasibility, Synopsis, Agent Tools Reference,
+│                      contracts/interface.md, inspiration/
 ├── CLAUDE.md          this file
 ├── AGENTS.md          pointer for Codex/other harnesses
-└── .claude/rules/     layer-specific rules
+└── .firstmate/rules/  layer-specific rules (frontend, backend, contracts)
 ```
 
-Frontend and backend live in ONE repo. Do not split them.
+Frontend and backend live in ONE repo. Do not split them. The backend
+prototype currently lives only on `features/backend/assemblyai-voice-agent`,
+an orphan branch with no shared history. Bringing it under `backend/` is
+the backend owner's call.
 
 ---
 
@@ -61,7 +70,9 @@ Three rules that must never be broken:
 
 2. **Tool calls execute in parallel via `asyncio.gather()`.**
    One voice command can trigger several tools at once. Never rewrite
-   parallel execution as sequential awaits.
+   parallel execution as sequential awaits. **Not built yet.** The
+   prototype dispatches one tool per call. The orchestrator is an open
+   backend task.
 
 3. **AssemblyAI Voice Agent API is a single WebSocket** carrying STT, LLM,
    tool calling, and TTS together. Do not split these into separate services.
@@ -76,7 +87,7 @@ Both layers must remain in the codebase.
 | Layer | API | Role |
 |---|---|---|
 | 1 — real-time | Voice Agent API | STT + LLM + tool calling + TTS over one WebSocket, ~$4.50/hr flat |
-| 2 — post-shift | Speech Understanding API | transcription, sentiment, topic detection, summarisation, speaker diarization, entity extraction, LeMUR |
+| 2 — post-shift | Speech Understanding API | transcription, topic detection (failure patterns), sentiment (customer mood), LeMUR (report prompts + shift summary). Not built yet. Diarization and entity extraction are not needed because driver and agent turns are stored separately |
 
 ---
 
@@ -88,16 +99,18 @@ Both layers must remain in the codebase.
 | `update_delivery_status` | Mark delivery complete or failed | Onfleet / MockAdapter |
 | `log_exception` | Record a delivery exception | Supabase |
 | `get_best_route` | Compute optimal route | Google Directions |
-| `start_navigation` | Push route to the Flutter map | internal |
+| `start_navigation` | Push route to the Flutter map (in-app, never a deep link) | internal |
 | `call_customer` | Outbound voice call | LiveKit SIP/PSTN |
 | `notify_customer` | Outbound SMS | Vonage |
 | `get_next_order` | Fetch upcoming orders | Onfleet / MockAdapter |
 | `get_shift_summary` | Summarise current shift stats | Supabase |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
 
-Exact input/output JSON shapes and handler signatures live in the
-**Agent Tools Reference** doc under `docs/`. That doc is the contract —
-do not invent tool shapes.
+Exact input/output JSON shapes and handler signatures live in
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.0, generated from the running
+code). The WebSocket, REST, status-enum, and auth contract is
+`docs/contracts/interface.md`. Those two docs are the contract. Do not
+invent tool shapes.
 
 **Proactive agent behaviours** that must be preserved:
 - auto-announces the next stop after a delivery completes
@@ -108,9 +121,13 @@ do not invent tool shapes.
 
 ## Tech Stack
 
-**Frontend:** Flutter — Riverpod (state), go_router (routing),
-`google_maps_flutter`, `just_audio`, `record`, `web_socket_channel`,
-`geolocator`, `tabler_icons_plus`.
+**Frontend:** Flutter. Canonical dependencies (`frontend/pubspec.yaml`):
+`flutter_riverpod` (state), `go_router` (routing), `google_maps_flutter`,
+`web_socket_channel`, `tabler_icons_plus`, `google_fonts` (Plus Jakarta
+Sans), `rive` (co-rider swap-in), and `supabase_flutter`. Also planned:
+`just_audio` (audio out), `record` (audio in), and `geolocator`. Add these
+three to `pubspec.yaml` when the voice and location work starts. They are
+not in it yet.
 
 **Backend:** Python FastAPI + asyncio, Supabase (PostgreSQL + auth +
 storage), Railway hosting, Firebase FCM.
@@ -153,7 +170,9 @@ Report contents: failure patterns (topic detection), route issues,
 customer sentiment, driver performance summary, AI recommendations (LeMUR).
 
 LeMUR prompts: `failure_patterns`, `route_issues`, `recommendations`.
-Model: `anthropic/claude-3-5-sonnet`.
+Model: `anthropic/claude-sonnet-5` (current Claude Sonnet, in LeMUR's
+`anthropic/<model>` form). Check it against AssemblyAI's supported-model
+list when the pipeline is built. No post-shift code exists yet.
 
 n8n also handles: operator email/Slack notifications, daily fleet
 summaries, driver welcome SMS.
@@ -162,10 +181,14 @@ summaries, driver welcome SMS.
 
 ## Design System
 
-- **Dark-mode-first** for the main app
+- **Dark-mode-first** for the main app. Tokens live in
+  `frontend/lib/core/theme/tokens.dart` (summarised in SDD §8). Lime
+  `#C8F250` is reserved for the mic-hot state
 - Mascot is called the **"co-rider"** — never "co-pilot" or "assistant"
 - Two orb materials: **holographic bubble** orb for onboarding,
   **chrome/mercury** orb for the main app
+- The mascot is an orb placeholder (`MascotDisplay`) for now. A Rive `.riv`
+  swap-in comes later per SDD §6.1 and touches only that widget
 - Typography: **Plus Jakarta Sans** (substitute for Circular Std /
   Sofia Pro until a licence is secured)
 - Icons: **Tabler Icons** via `tabler_icons_plus` — no emoji icons
@@ -190,14 +213,20 @@ main → dev → staging → features/frontend/*
                      → features/ai/*
 ```
 
-- One feature branch per feature, named by layer and feature slug
-- PRs target `staging` first, then `staging → dev → main`
+- `staging` is the live integration branch. It was brought level with
+  `main` on 2026-09-11
+- Cut every feature branch from `staging`, named
+  `features/<layer>/<feature-slug>`, one per feature
+- Feature PRs target `staging`. Promote upward by PR: `staging → dev`,
+  then `dev → main`. No direct pushes to `main` or `dev`
 - Frontend work goes under `features/frontend/`
 - Backend work goes under `features/backend/`
+- Agent-layer work goes under `features/ai/` and follows `backend.md`
 
 Interface contracts are **frozen**: WebSocket message types, REST
-endpoints, delivery status enum, JWT auth header. See
-`.claude/rules/contracts.md`.
+endpoints, delivery status enum, JWT auth header. They are defined in
+`docs/contracts/interface.md`. The rules are in
+`.firstmate/rules/contracts.md`.
 
 ---
 
@@ -210,6 +239,8 @@ endpoints, delivery status enum, JWT auth header. See
   frontend and backend in the same change
 - Do not modify `LogisticsAdapter` without updating `MockAdapter`
 - Do not invent tool input/output shapes — use the Agent Tools Reference
+- Do not open an external maps app or deep link for navigation. Routes
+  render in-app on the Flutter map
 - Do not commit API keys, tokens, or `.env` files
 - Do not refactor code unrelated to your assigned task
 
@@ -222,3 +253,14 @@ endpoints, delivery status enum, JWT auth header. See
 
 Working remotely. Keep changes scoped to one layer so parallel work
 does not collide.
+
+---
+
+## Firstmate Crew Notes
+
+- Crewmates implementing tool handlers use
+  `docs/VoiceOps_Agent_Tools_Reference.md`. If it is ever missing, stop
+  and flag it. Do not reconstruct it from memory.
+- To route crewmates to Codex instead of Claude Code, run
+  `echo "codex" > /workspaces/firstmate/config/crew-harness`. Leave the
+  file out to keep crewmates on Claude Code.
