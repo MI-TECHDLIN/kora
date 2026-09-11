@@ -2,6 +2,13 @@
 **Hackathon:** AssemblyAI Voice Agent Hackathon | Sept 1–30, 2026
 **Last updated:** September 2026
 
+> **Superseded by PRD v4.0 / CLAUDE.md. Historical reference only.** Where this document
+> disagrees with `docs/product/VoiceOps_PRD_v4.0.md`, `CLAUDE.md`, or `.firstmate/rules/`, those
+> win. Interfaces live in `docs/contracts/interface.md`, which supersedes §7. On 2026-09-11,
+> §2 (navigation), §3 and §6 (agent states), §4.1 (terminology), §4.4 (action chips), §6.1 (orb
+> placeholder), §8 (design tokens), §9 (folders, fonts), and §10 (branching) were brought in line
+> with current decisions. Everything else is unrevised v2.0.
+
 ---
 
 ## 1. Architecture Overview
@@ -18,7 +25,7 @@
 │  │  └─────────────────────────────────────┘    │   │
 │  │                                              │   │
 │  │  ┌─────────────────────────────────────┐    │   │
-│  │  │  MainNavigator (Bottom Nav — 4 tabs)│    │   │
+│  │  │  MainShell (go_router — 4 tabs)     │    │   │
 │  │  │  · Voice (Main Driver UI)           │    │   │
 │  │  │  · Map                              │    │   │
 │  │  │  · Summary                          │    │   │
@@ -46,82 +53,80 @@
 
 ## 2. Navigation Architecture
 
+Routing is **go_router** (`frontend/lib/app/router.dart`). This replaces the earlier Riverpod
+`IndexedStack` design.
+
 ### 2.1 Root Stack Pattern
-The root of the app is a `Stack` widget, not a simple Navigator. This allows global overlays (mascot, task card, call overlay) to sit above all screens permanently.
+`RootStack` wraps the router's output through `MaterialApp.router(builder:)`. That way the global
+overlays (co-rider, task card, call overlay) sit above every route at once. They are overlays,
+not routes.
 
 ```dart
 // main.dart
-class VoiceOpsApp extends StatelessWidget {
+class VoiceOpsApp extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: ProviderScope(
-        child: RootStack(),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
+      theme: buildVoiceOpsTheme(),               // dark-mode-first: the only theme
+      routerConfig: ref.watch(routerProvider),
+      builder: (context, child) => RootStack(child: child!),
     );
   }
 }
 
 // root_stack.dart
-class RootStack extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final showOnboarding = ref.watch(onboardingProvider);
-    
-    return Stack(
-      children: [
-        // Layer 1: Main app screens
-        showOnboarding ? OnboardingFlow() : MainNavigator(),
-        
-        // Layer 2: Mascot — always visible, always on top of screens
-        MascotOverlay(),
-        
-        // Layer 3: Task progress card — slides up globally
-        TaskProgressCard(),
-        
-        // Layer 4: Call overlay — appears over everything when LiveKit active
-        CallOverlay(),
-      ],
-    );
-  }
-}
+Stack(
+  children: [
+    child,                     // Layer 1: the router (onboarding or the main shell)
+    const MascotOverlay(),     // Layer 2: co-rider bubble on Map / Summary / Settings
+    const TaskProgressCard(),  // Layer 3: slides up globally
+    // Layer 4: CallOverlay (not built yet, see §5.3)
+  ],
+)
 ```
 
-### 2.2 Bottom Navigation
-```dart
-// main_navigator.dart
-class MainNavigator extends ConsumerWidget {
-  final tabs = [
-    VoiceScreen(),   // Tab 0 — 🎙️ Voice
-    MapScreen(),     // Tab 1 — 🗺️ Map
-    SummaryScreen(), // Tab 2 — 📊 Summary
-    SettingsScreen() // Tab 3 — ⚙️ Settings
-  ];
-}
-```
+### 2.2 Routes and the Bottom-Nav Shell
+Every route is declared in `app/router.dart`:
+
+| Route | Screen | Orb material |
+|---|---|---|
+| `/onboarding` | `OnboardingFlow` | holographic |
+| `/voice` | `VoiceScreen` (tab 0) | chrome |
+| `/map` | `MapScreen` (tab 1) | chrome |
+| `/summary` | `SummaryScreen` (tab 2) | chrome |
+| `/settings` | `SettingsScreen` (tab 3) | chrome |
+
+The four tabs are branches of a single `StatefulShellRoute.indexedStack`, so each tab keeps its
+own navigator and state alive. `MainShell` lays out the active branch and the Tabler-icon bottom
+nav. Tapping a tab calls `navigationShell.goBranch(i)`, and re-tapping the active tab pops it
+back to its root. A `redirect` guard keeps first-launch users on `/onboarding` until
+`onboardingProvider` clears. `OrbMaterialScope` sets the orb material per route. Pages
+cross-fade over the shared gradient background.
 
 ### 2.3 Agent-Driven Navigation
-FastAPI emits `screen_navigate` events that Riverpod catches and auto-switches tabs:
+The backend's `screen_navigate` event (`docs/contracts/interface.md` §1) goes through
+`navigationProvider`, which drives go_router. It never sets widget state:
 
 ```dart
-// navigation_provider.dart
-final navigationProvider = StateNotifierProvider<NavigationNotifier, int>((ref) {
-  return NavigationNotifier();
-});
+// providers/navigation_provider.dart
+final navigationProvider = Provider<NavigationActions>(
+  (ref) => NavigationActions(ref.watch(routerProvider)),
+);
 
-class NavigationNotifier extends StateNotifier<int> {
-  NavigationNotifier() : super(0);
-  
-  void navigateForAgent(String screenKey) {
-    switch (screenKey) {
-      case 'map':      state = 1; break;
-      case 'summary':  state = 2; break;
-      case 'settings': state = 3; break;
-      default:         state = 0; break;
-    }
-  }
+class NavigationActions {
+  void goTo(MainTab tab) => _router.go(tab.path);
+
+  /// 'voice' | 'map' | 'summary' | 'settings'; unknown keys fall back to voice.
+  void navigateForAgent(String screenKey) => goTo(
+    MainTab.values.firstWhere((t) => t.name == screenKey,
+        orElse: () => MainTab.voice),
+  );
 }
 ```
+
+Read the current tab from `activeTabProvider`, which is derived from go_router. Route display
+happens **in-app** on the Map tab (§4.5). The agent never hands the driver off to an external
+maps app.
 
 ---
 
@@ -130,7 +135,7 @@ class NavigationNotifier extends StateNotifier<int> {
 ```
 providers/
 ├── agent_state_provider.dart      // Current agent state (idle|thinking|calling|mapping|etc)
-├── navigation_provider.dart       // Current tab index — writable by agent events
+├── navigation_provider.dart       // go_router actions for agent navigation (§2.3)
 ├── task_progress_provider.dart    // Live task steps from FastAPI
 ├── mascot_state_provider.dart     // Rive animation state — derived from agent state
 ├── onboarding_provider.dart       // Has user completed onboarding?
@@ -148,7 +153,6 @@ enum AgentState {
   calling,
   mapping,      // navigating/routing
   taskWorking,  // general task execution
-  translating,
   summarizing,  // LeMUR processing
   celebrating,  // task complete
 }
@@ -164,7 +168,7 @@ enum AgentState {
 ```
 [Background: gradient orb system — purple/pink/lavender]
 [Top 40%: Mascot animated — floating, welcoming accessories]
-[Middle: Headline "Your hands-free co-pilot for every delivery"]
+[Middle: Headline "Your hands-free co-rider for every delivery"]
 [Below: Subtext — one line, what VoiceOps does]
 [Bottom: Progress dots (3 dots, first filled) + Next button]
 ```
@@ -175,7 +179,7 @@ OnboardingScreen1
     ├── GradientOrbBackground()
     ├── Column
     │   ├── RiveCharacter(state: 'excited')     // mascot
-    │   ├── HeadlineText("Your hands-free co-pilot...")
+    │   ├── HeadlineText("Your hands-free co-rider...")
     │   ├── SubtextWidget()
     │   └── Spacer
     └── OnboardingControls(currentPage: 0)      // dots + button
@@ -215,6 +219,10 @@ OnboardingScreen1
 ### 4.4 Main Driver UI (Voice Screen)
 **Primary interaction screen. Driver spends 80% of time here.**
 
+> The target home layout is `.firstmate/rules/frontend.md` § Home Screen Layout (map 45%, next-stop
+> card, transcript, push-to-talk, bottom nav). The layout below describes the current shell.
+> Action chips are real driver commands from PRD §7, never generic AI-assistant actions.
+
 **Layout:**
 ```
 [Status bar]
@@ -223,8 +231,8 @@ OnboardingScreen1
 [Mascot: center stage, 210px height, animated]
 [Mascot state label: slides up below character]
 [Mid area 98px: action chips behind / task card slides over]
-  [Chip: 🖼️ Create image] [Chip: 💡 Give ideas]
-  [Chip: 📋 Do task]      [Chip: 🌐 Translate]
+  [Chip: Find my next stop]      [Chip: What's left on my list]
+  [Chip: Call the customer]     [Chip: Give me my summary]
 [Input row: + | "Ask me anything..." | 🎤 voice button]
 ```
 
@@ -429,6 +437,9 @@ class CallOverlay extends ConsumerWidget {
 
 ## 6. Rive State Machine Specification
 
+**Status:** the co-rider is an orb placeholder today (`MascotDisplay`, §6.1). This Rive spec is the
+planned swap-in.
+
 **File:** `assets/rive/voiceops_mascot.riv`
 **State Machine Name:** `AgentStateMachine`
 **Input type:** String enum `taskState`
@@ -440,7 +451,6 @@ class CallOverlay extends ConsumerWidget {
 | calling | `taskState = calling` | side bounce | happy squint | raised | wide smile | phone waves |
 | mapping | `taskState = mapping` | sway | focused normal | slight furrow | neutral | globe orbit |
 | taskWorking | `taskState = task` | wiggle | squint determined | angled in | flat line | clipboard |
-| translating | `taskState = translating` | sway | glasses | one raised | hmm | globe + letters |
 | summarizing | `taskState = summarizing` | slow float | thoughtful | relaxed | slight smile | sparkles |
 | celebrating | `taskState = celebrating` | big bounce | star eyes | raised high | huge smile | confetti |
 
@@ -464,7 +474,6 @@ extension on AgentState {
       case AgentState.calling:     return 'calling';
       case AgentState.mapping:     return 'mapping';
       case AgentState.taskWorking: return 'task';
-      case AgentState.translating: return 'translating';
       case AgentState.summarizing: return 'summarizing';
       case AgentState.celebrating: return 'celebrating';
     }
@@ -472,21 +481,23 @@ extension on AgentState {
 }
 ```
 
-### 6.1 Onboarding Orb — Temporary Placeholder (until Rive asset is ready)
-**Status (Sept 2026):** Using the CSS/SVG holographic orb from `voiceops-onboarding-concept.html` as a stand-in in Flutter until a real Rive character is produced for onboarding. This is separate from the main-app chrome orb above, which remains pending regardless.
+### 6.1 Co-rider Orb: Placeholder Until the Rive Asset Is Ready
+**Status (Sept 2026):** `frontend/lib/mascot/mascot_display.dart` paints the co-rider as an
+animated orb with `CustomPaint`. The orb morphs its tint, glow, pulse, and spin for each
+`AgentState`. It comes in two materials, chosen through `OrbMaterialScope`: the **holographic
+bubble** in onboarding and **chrome/mercury** in the main app.
 
-**Implementation approach:** Port the same visual logic to Flutter natively rather than embedding a WebView:
-- Layered blob effect → `Stack` of blurred `Container`s with `RadialGradient`, animated via `AnimationController` (independent timing per blob, matching the CSS drift keyframes)
-- Blend mode → `BackdropFilter`/`ColorFiltered` with `BlendMode.screen`
-- Breathing scale → `AnimatedBuilder` + `Transform.scale`, 4.5s cycle
-- Grain texture → static noise `Image` asset at low opacity, `BlendMode.overlay`
-- Lives behind the same `MascotDisplay` widget interface as the main-app orb, so swapping in the real `.riv` file later only touches that one widget — no changes needed to layout, state wiring, or the overlay system.
-
-**Swap trigger:** Replace `MascotDisplay` internals with `RiveAnimation.asset()` once the onboarding Rive character is delivered. No other code changes required.
+**Swap trigger:** when the `.riv` file is delivered, replace the internals of `MascotDisplay`
+with `RiveAnimation.asset()` (the commented `TODO(rive)` path in that file) and add
+`assets/rive/` to `pubspec.yaml` in the same change. Callers keep passing `state` and `size`, so
+nothing else changes: not the layout, the state wiring, or the overlay system.
 
 ---
 
 ## 7. FastAPI → Flutter Event Contract
+
+> **Superseded by `docs/contracts/interface.md` §1**, the authoritative WebSocket catalogue. The
+> sketch below is the original v2.0 list and is kept for history.
 
 Events emitted by FastAPI via WebSocket to Flutter:
 
@@ -542,51 +553,61 @@ void _handleEvent(Map<String, dynamic> event) {
 
 ## 8. Design Tokens
 
-```dart
-// theme/tokens.dart
-class VoiceOpsColors {
-  // Primary palette
-  static const primary       = Color(0xFF7C3AED);  // purple
-  static const primaryLight  = Color(0xFFA78BFA);
-  static const primaryDark   = Color(0xFF4C1D95);
-  
-  // Gradient stops
-  static const grad1 = Color(0xFFC084FC);  // violet
-  static const grad2 = Color(0xFF818CF8);  // indigo
-  static const grad3 = Color(0xFFF472B6);  // pink (creating state)
-  static const grad4 = Color(0xFF34D399);  // green (task done)
-  static const grad5 = Color(0xFF38BDF8);  // sky (translating)
-  
-  // Surfaces
-  static const glassWhite  = Color(0x62FFFFFF);  // 38% white
-  static const glassBorder = Color(0xBFFFFFFF);  // 75% white
-  
-  // Text
-  static const textPrimary = Color(0xFF3B0764);
-  static const textMuted   = Color(0xFF7C3AED);
-  
-  // Semantic
-  static const success = Color(0xFF059669);
-  static const warning = Color(0xFFF59E0B);
-}
+**Dark-mode-first. The dark theme is the only theme.** The reference implementation is
+`frontend/lib/core/theme/tokens.dart`, and where this summary and that file differ, the file
+wins. Every colour, spacing, radius, size, duration, and text style lives in that file. Widgets
+reference tokens and never hardcode literals.
 
-class VoiceOpsSpacing {
-  static const xs  = 4.0;
-  static const sm  = 8.0;
-  static const md  = 12.0;
-  static const lg  = 16.0;
-  static const xl  = 24.0;
-  static const xxl = 32.0;
-}
+### 8.1 Colour: `VoiceOpsColors`
 
-class VoiceOpsRadius {
-  static const sm   = 14.0;
-  static const md   = 18.0;
-  static const lg   = 28.0;
-  static const card = 20.0;
-  static const pill = 54.0;  // phone frame
-}
-```
+| Group | Token | Value | Use |
+|---|---|---|---|
+| Surfaces | `canvas` | `#07060B` | app background, darkest |
+| | `raised` | `#0E0B18` | cards, nav-bar fill |
+| | `elevated` | `#151126` | elevated surfaces |
+| | `overlay` | `#1D1834` | highest surfaces |
+| Brand violet | `primary` | `#8B5CF6` | the accent |
+| | `primaryLight` | `#C4B5FD` | icons and labels on dark |
+| | `primaryDark` | `#4C1D95` | deep violet |
+| | `primaryTint` | primary @ 16% | pill fills |
+| | `primaryGlow` | primary @ 35% | selection, glow |
+| **Live (mic-hot)** | `live` | **`#C8F250`** | push-to-talk `recording` state **only** |
+| | `liveGlow` | live @ 40% | recording halo only |
+| Accents (sparing, cards) | `pink` / `blue` / `amber` | `#F9A8D4` / `#7DD3FC` / `#FBBF24` | |
+| Semantic | `success` / `danger` | `#34D399` / `#F87171` | done / error states |
+| Text | `textPrimary` / `textMuted` / `textFaint` | `#F4F1FF` / `#A7A1C4` / `#7C7797` | `textFaint` is ≥ 4.5:1 on canvas |
+| | `onPrimary` / `onAccent` | `#FFFFFF` / canvas | ink on violet / on pastel accents |
+| Lines | `divider` / `scrim` | white @ 8% / canvas @ 70% | |
+
+**Lime is reserved.** `live` (`#C8F250`) means "the mic is hot". It is a driver-safety signal,
+so nothing else in the app may be lime: not an accent, not the orb, and not the Material
+`ColorScheme`. Tests enforce this.
+
+### 8.2 Restrained glass: `VoiceOpsGlass`
+Blur is capped at **12** and must never go higher. Fill is white @ 5%, the border is a white
+@ 12% 1 px hairline, and the shadow is a soft violet (primary @ 18%, blur 24, y-offset 8).
+Repeated items (chip grids, list rows) use unblurred glass (`GlassCard(frosted: false)`). Keep
+the backdrop blur for a few large surfaces such as the nav bar and input bar. Readability and
+60 fps on a mid-range Android come before the effect.
+
+### 8.3 Orb palettes: `VoiceOpsOrbColors`
+- **Holographic** (onboarding): lavender `#C4B5FD` → pink `#F9A8D4` → sky `#7DD3FC` → mint `#A7F3D0`
+- **Chrome** (main app): mercury greys `#EDEBF5`, `#8E8AA6`, `#2B2740`, `#D3CFE6`, `#5E5A78`
+
+### 8.4 Spacing, radius, size, motion
+
+| Scale | Tokens |
+|---|---|
+| `VoiceOpsSpacing` | xs 4 · sm 8 · md 12 · lg 16 · xl 24 · xxl 32 · gutter 22 |
+| `VoiceOpsRadius` | control 14 · card 20 · sheet 28 · pill 999 |
+| `VoiceOpsSize` | touchTarget 48 · control 52 · pushToTalk 88 (min 80) · orbHero 150 · orbBubble 60 · orbBubbleSmall 40 · icons 16/20/24/32 |
+| `VoiceOpsMotion` | fast 150 ms · base 250 ms · slow 400 ms · orbMorph 600 ms · curves `easeOutCubic` / `easeInOutCubic` |
+
+### 8.5 Type: `VoiceOpsText` (Plus Jakarta Sans via `google_fonts`)
+display 40 / w800 · headline 24 / w700 · title 17 / w600 · body 15 / w400 (+ `bodyMuted`) ·
+label 13 / w600 · caption 11 / w700 (uppercase status pills) · numeric 28 / w700 with tabular
+figures. Plus Jakarta Sans stands in for Circular Std / Sofia Pro. If licensed files arrive, swap
+them in `tokens.dart` only.
 
 ---
 
@@ -596,7 +617,9 @@ class VoiceOpsRadius {
 lib/
 ├── main.dart
 ├── app/
-│   └── root_stack.dart
+│   ├── router.dart                  // every route (go_router)
+│   ├── main_shell.dart              // bottom-nav shell
+│   └── root_stack.dart              // global overlays above the router
 ├── core/
 │   ├── theme/
 │   │   └── tokens.dart
@@ -653,37 +676,33 @@ lib/
     └── onboarding_provider.dart
 
 assets/
-├── rive/
-│   └── voiceops_mascot.riv
-└── fonts/
-    └── Inter/
+└── rive/
+    └── voiceops_mascot.riv          // added together with the .riv, not before (§6.1)
 ```
+
+Fonts are not bundled. Plus Jakarta Sans loads through `google_fonts`, and tests disable
+runtime fetching.
 
 ---
 
 ## 10. GitHub Branching Strategy
 
+This is the same flow as `CLAUDE.md` and `AGENTS.md`:
+
 ```
 main
-  └── dev
-        ├── staging
-        ├── features/frontend/onboarding
-        ├── features/frontend/voice-screen
-        ├── features/frontend/map-screen
-        ├── features/frontend/summary-screen
-        ├── features/frontend/settings-screen
-        ├── features/frontend/mascot-overlay
-        ├── features/frontend/task-progress-card
-        ├── features/backend/voice-agent
-        ├── features/backend/websocket-events
-        ├── features/backend/lemur-summary
-        └── features/ai/agent-workflows
+ └── dev
+      └── staging                         ← live integration branch
+           ├── features/frontend/<slug>
+           ├── features/backend/<slug>
+           └── features/ai/<slug>
 ```
 
 **Merge rules:**
-- `features/*` → `dev` via PR only
-- `dev` → `staging` at each integration checkpoint
-- `staging` → `main` only after checkpoint sign-off
+- Cut feature branches from `staging`, named `features/<layer>/<slug>`
+- Features land in `staging` via PR. `staging` is the live integration branch. It was brought
+  level with `main` on 2026-09-11
+- Promote upward by PR only: `staging → dev`, then `dev → main`
 - No direct pushes to `main` or `dev`
 
 ---
@@ -701,7 +720,7 @@ main
 
 ### Checkpoint 2 — Sept 18
 **Goal:** Agent-driven navigation + map screen working
-- [ ] Ez: Rive mascot integrated, all 8 states wired to Riverpod
+- [ ] Ez: Rive mascot integrated, every `AgentState` wired to Riverpod
 - [ ] Ez: Task progress card global overlay working
 - [ ] Ez: Map screen with Google Maps, pin drop animation, route draw
 - [ ] Ez: Agent-driven navigation (FastAPI screen_navigate → tab switch)
