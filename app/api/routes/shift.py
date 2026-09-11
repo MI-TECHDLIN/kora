@@ -1,12 +1,15 @@
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel
+from datetime import datetime, timezone
 from app.dependencies import get_current_driver
 from app.db.queries import (
     create_shift,
     update_shift_status,
     get_shift_stats,
+    get_shift_voice_sessions,
     get_intelligence_report_by_shift
 )
+from app.integrations.n8n_client import trigger_post_shift_report_background
 
 
 router = APIRouter()
@@ -49,22 +52,34 @@ async def end_shift(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_driver)
 ):
-    """End shift and trigger intelligence pipeline."""
+    """End shift and trigger post-shift intelligence pipeline via n8n."""
     try:
-        # Update shift status
+        # Mark shift as completed in Supabase
         await update_shift_status(shift_id, "completed")
-        
-        # TODO: Intelligence pipeline removed - add back if needed
-        # background_tasks.add_task(
-        #     run_shift_intelligence,
-        #     shift_id,
-        #     current_user["id"]
-        # )
-        
+
+        # Pull real stats to build the intelligence payload
+        stats = await get_shift_stats(shift_id)
+        sessions = await get_shift_voice_sessions(shift_id)
+
+        # Trigger post-shift intelligence — fire-and-forget, zero API latency impact
+        trigger_post_shift_report_background(
+            shift_id=shift_id,
+            driver_id=current_user["id"],
+            driver_name=current_user.get("full_name") or current_user.get("email", "Driver"),
+            total_deliveries=stats.get("total", 0),
+            delivered_count=stats.get("delivered", 0),
+            failed_count=stats.get("failed", 0),
+            shift_duration_min=0,        # TODO: compute from shift.started_at → now
+            dispatcher_alerts=0,         # TODO: query dispatcher_alerts table by shift_id
+            voice_sessions=len(sessions),
+            shift_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            ended_at=datetime.now(timezone.utc).isoformat(),
+        )
+
         return ShiftEndResponse(
             shift_id=shift_id,
             status="completed",
-            message="Shift ended successfully."
+            message="Shift ended. Intelligence report is being generated."
         )
     except Exception as e:
         raise HTTPException(
@@ -80,10 +95,10 @@ async def get_shift_report(
 ):
     """Get intelligence report for shift."""
     report = await get_intelligence_report_by_shift(shift_id)
-    
+
     if not report:
         return {"status": "processing", "message": "Report is being generated"}
-    
+
     return report
 
 
