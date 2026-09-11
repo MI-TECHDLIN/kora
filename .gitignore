@@ -1,0 +1,15 @@
+# Repo-wide ignores. Layer-specific rules live in frontend/.gitignore
+# (and backend/.gitignore once the backend is imported).
+
+# Secrets — never commit (CLAUDE.md § What NOT to Do)
+.env
+.env.*
+!.env.example
+
+# Flutter / Dart build output
+frontend/build/
+.dart_tool/
+
+# Backend runtime audio: app/api/routes/voice_agent.py creates
+# recordings/input and recordings/output at import time.
+recordings/
