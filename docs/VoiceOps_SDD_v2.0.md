@@ -705,7 +705,7 @@ runtime fetching.
 
 ## 10. GitHub Branching Strategy
 
-This is the same flow as `CLAUDE.md` and `AGENTS.md`:
+This is the same flow as the repo-root `AGENTS.md` (which `CLAUDE.md` imports):
 
 ```
 main

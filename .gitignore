@@ -1,7 +1,7 @@
 # Repo-wide ignores. Layer-specific rules live in frontend/.gitignore
 # (and backend/.gitignore once the backend is imported).
 
-# Secrets — never commit (CLAUDE.md § What NOT to Do)
+# Secrets — never commit (AGENTS.md § What NOT to Do)
 .env
 .env.*
 !.env.example
