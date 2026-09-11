@@ -5,7 +5,6 @@ enum AgentState {
   calling,
   mapping,
   taskWorking,
-  translating,
   summarizing,
   celebrating,
 }
@@ -23,8 +22,6 @@ extension AgentStateX on AgentState {
         return 'mapping';
       case AgentState.taskWorking:
         return 'task';
-      case AgentState.translating:
-        return 'translating';
       case AgentState.summarizing:
         return 'summarizing';
       case AgentState.celebrating:
@@ -44,8 +41,6 @@ extension AgentStateX on AgentState {
         return 'Finding route...';
       case AgentState.taskWorking:
         return 'On it!';
-      case AgentState.translating:
-        return 'Translating...';
       case AgentState.summarizing:
         return 'Summarizing...';
       case AgentState.celebrating:
