@@ -346,7 +346,7 @@ class _NextStopCard extends StatelessWidget {
           // Kept to two short rows: the front card covers the rest of this
           // one, and the stop itself must stay readable above it.
           Text(
-            'Lekki Phase 1',
+            'Capitol Hill',
             style: VoiceOpsText.title.copyWith(color: VoiceOpsMood.ink),
             overflow: TextOverflow.ellipsis,
           ),
