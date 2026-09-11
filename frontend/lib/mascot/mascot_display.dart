@@ -241,14 +241,6 @@ class _OrbMood {
       pulseDepth: 0.035,
       spin: 1.2,
     ),
-    AgentState.translating => const _OrbMood(
-      tint: VoiceOpsColors.blue,
-      tintStrength: 0.30,
-      glow: 0.50,
-      pulseHz: 0.7,
-      pulseDepth: 0.03,
-      spin: -0.8,
-    ),
     AgentState.summarizing => const _OrbMood(
       tint: VoiceOpsColors.amber,
       tintStrength: 0.30,
