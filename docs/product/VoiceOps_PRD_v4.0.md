@@ -71,7 +71,7 @@ Last-mile delivery drivers operate in high-pressure, hands-free environments. Ex
 ### 4.7 Onboarding Flow (3 Screens) — Finalized Concept v1
 **Mascot is referred to as the driver's "co-rider" throughout onboarding and in-app copy** — not "co-pilot" (implies hierarchy/cockpit) or "assistant" (too generic). Locked terminology, September 2026.
 
-Visual material for onboarding: **holographic bubble orb** (translucent, iridescent, continuous hue-rotation) — distinct from the chrome/mercury orb used in the main app (see §4.2). See `voiceops-onboarding-concept.html` for the built concept.
+Visual material for onboarding: **holographic bubble orb** (translucent, iridescent, continuous hue-rotation) — distinct from the chrome/mercury orb used in the main app (see §4.2).
 
 - **Screen 1 — The Hook** (dark navy background)
   - Eyebrow pill: "Waking up your co-rider"
