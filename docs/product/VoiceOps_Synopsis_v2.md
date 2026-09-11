@@ -3,7 +3,8 @@
 
 > **Superseded by PRD v4.0 / CLAUDE.md. Historical reference only.** Where this synopsis
 > disagrees with `docs/product/VoiceOps_PRD_v4.0.md` or `CLAUDE.md`, those win. "The Tech" was
-> touched on 2026-09-11 (n8n, Speech Understanding scope).
+> touched on 2026-09-11 (n8n, Speech Understanding scope), and so was the onboarding count in "The
+> Screens".
 
 ---
 
@@ -33,7 +34,7 @@ A live task progress card slides up whenever the agent is working, showing each 
 
 ## The Screens
 
-**Onboarding (3 screens)** — Fast, judge-friendly intro. The mascot shows a different emotion on each screen. Judges understand the product in under 60 seconds.
+**Onboarding (4 screens)** — A splash ("Meet your co-rider for every delivery route"), then hook, power, and trust. It's a fast, judge-friendly intro, and the mascot shows a different emotion on each of the three story screens. Judges understand the product in under 60 seconds.
 
 **Main Driver UI** — Where the driver lives. Voice input at the bottom, mascot center stage, task progress card slides up over the action buttons when the agent fires.
 

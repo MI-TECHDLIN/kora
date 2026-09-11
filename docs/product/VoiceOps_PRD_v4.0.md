@@ -68,11 +68,17 @@ Last-mile delivery drivers operate in high-pressure, hands-free environments. Ex
 - Flagged issues, customer interaction highlights
 - Mascot in relaxed/celebrating emotion throughout
 
-### 4.7 Onboarding Flow (3 Screens) — Finalized Concept v1
+### 4.7 Onboarding Flow (4 Screens) — Finalized Concept v1
 **Mascot is referred to as the driver's "co-rider" throughout onboarding and in-app copy** — not "co-pilot" (implies hierarchy/cockpit) or "assistant" (too generic). Locked terminology, September 2026.
 
 Visual material for onboarding: **holographic bubble orb** (translucent, iridescent, continuous hue-rotation) — distinct from the chrome/mercury orb used in the main app (see §4.2).
 
+Four screens: a splash, then hook, power, and trust. This matches `CLAUDE.md` and `.firstmate/rules/frontend.md`, and `CLAUDE.md` is canonical for the splash copy.
+
+- **Screen 0 — Splash**
+  - Giant editorial type with inline holographic pills
+  - Headline: "Meet your co-rider for every delivery route"
+  - CTA: white "Get started" button
 - **Screen 1 — The Hook** (dark navy background)
   - Eyebrow pill: "Waking up your co-rider"
   - Orb: breathing gently at rest, warm and unhurried
@@ -104,6 +110,7 @@ Visual material for onboarding: **holographic bubble orb** (translucent, iridesc
 
 | Screen | Type | Mascot Emotion | Agent Role |
 |--------|------|---------------|-----------|
+| Onboarding 0 (Splash) | Static flow | N/A (editorial type + holographic pills) | N/A |
 | Onboarding 1 | Static flow | Excited / welcoming | N/A |
 | Onboarding 2 | Animated | Focused / working | Demo only |
 | Onboarding 3 | Static flow | Happy / celebrating | N/A |
