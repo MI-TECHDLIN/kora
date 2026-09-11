@@ -3,6 +3,16 @@ from typing import List, Dict, Any, Optional
 from app.config import settings
 
 
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=8.0)
+    return _http_client
+
+
 async def get_directions(
     origin_lat: float,
     origin_lng: float,
@@ -44,25 +54,26 @@ async def get_directions(
     }
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get("status") != "OK":
-                return []
-            
-            routes = []
-            for route in data.get("routes", []):
-                leg = route.get("legs", [{}])[0]
-                routes.append({
-                    "summary": route.get("summary", "Route"),
-                    "distance": leg.get("distance", {}).get("value", 0),
-                    "duration": leg.get("duration", {}).get("value", 0),
-                    "polyline": route.get("overview_polyline", {}).get("points", "")
-                })
-            
-            return routes
+        client = _get_client()
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") != "OK":
+
+            return []
+        
+        routes = []
+        for route in data.get("routes", []):
+            leg = route.get("legs", [{}])[0]
+            routes.append({
+                "summary": route.get("summary", "Route"),
+                "distance": leg.get("distance", {}).get("value", 0),
+                "duration": leg.get("duration", {}).get("value", 0),
+                "polyline": route.get("overview_polyline", {}).get("points", "")
+            })
+        
+        return routes
+
             
     except Exception as e:
         print(f"Google Maps API error: {e}")

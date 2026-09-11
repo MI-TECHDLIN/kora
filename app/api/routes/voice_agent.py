@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from app.config import settings
 from app.agents.agent_config import get_session_config
 from app.agents.tool_registry import execute_tool
+from app.agents.orchestrator import ToolOrchestrator
 from app.utils.audio_helpers import save_wav, resample_audio
 import websockets
 
@@ -84,6 +85,7 @@ async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 3
     }
     
     tool_was_called = False
+    pending_tool_tasks = []
     message_count = 0
     
     last_msg_type = ""
@@ -139,30 +141,30 @@ async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 3
             tool_was_called = True
             print(f"[VoiceOps] 🔧 Tool call: {tool_name} | args: {tool_arguments}")
 
-            try:
-                result = await execute_tool(tool_name, tool_arguments, context)
+            async def _execute_and_reply(t_name, t_args, t_id):
+                tool_res = await ToolOrchestrator.execute_single_tool(
+                    tool_name=t_name,
+                    parameters=t_args,
+                    context=context,
+                    call_id=t_id
+                )
                 tool_result_message = {
                     "type": "tool.result",
-                    "call_id": tool_call_id,
-                    "result": json.dumps(result),
-                    "is_error": bool(isinstance(result, dict) and result.get("error"))
+                    "call_id": tool_res["call_id"],
+                    "result": tool_res["result"],
+                    "is_error": tool_res["is_error"]
                 }
                 await websocket.send(json.dumps(tool_result_message))
-                print(f"[VoiceOps] ✅ Tool {tool_name} done: {result}")
-            except Exception as e:
-                print(f"[VoiceOps] ❌ Tool {tool_name} FAILED: {e}")
-                import traceback
-                traceback.print_exc()
-                tool_result_message = {
-                    "type": "tool.result",
-                    "call_id": tool_call_id,
-                    "result": json.dumps({"success": False, "error": str(e)}),
-                    "is_error": True
-                }
-                await websocket.send(json.dumps(tool_result_message))
-            
+                print(f"[VoiceOps] ✅ Tool {t_name} completed in {tool_res['duration_ms']}ms: {tool_res['parsed_result']}")
+
+            # Schedule task so multiple tool calls run concurrently via asyncio
+            task = asyncio.create_task(_execute_and_reply(tool_name, tool_arguments, tool_call_id))
+            pending_tool_tasks.append(task)
 
         elif msg_type == "reply.done":
+            if pending_tool_tasks:
+                await asyncio.gather(*pending_tool_tasks, return_exceptions=True)
+                pending_tool_tasks = []
             total_audio = sum(len(c) for c in audio_chunks)
             print(f"[VoiceOps] Reply complete — {len(audio_chunks)} chunks, {total_audio // 1024}KB audio")
             if tool_was_called and not agent_texts:

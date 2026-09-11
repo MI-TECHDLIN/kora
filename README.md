@@ -84,6 +84,7 @@ graph TD
 | :--- | :---: | :---: | :--- |
 | **AssemblyAI Voice Agent** | 🟢 **100% Live** | **Live** | Real-time voice agent session configuration, prompt injection, bi-directional audio streaming (PCM16 24kHz), dynamic tool calling dispatch. |
 | **AssemblyAI LeMUR** | 🟢 **100% Live** | **Live** | Post-shift intelligence pipeline analyzing full multi-turn shift transcripts. Extracts executive summaries, driver sentiment scoring (0.0-1.0), route bottlenecks, and actionable coaching recommendations. Persists into Supabase `intelligence_reports`. |
+| **FastAPI + asyncio (Orchestrator)** | 🟢 **100% Live** | **Live** | Parallel multi-tool dispatch via `asyncio.gather()`. Dispatches concurrent delivery, navigation, progress, and dispatch tools simultaneously in sub-500ms. |
 | **Supabase (PostgreSQL & Auth)** | 🟢 **100% Live** | **Live** | Tables (`drivers`, `shifts`, `deliveries`, `voice_sessions`, `dispatcher_alerts`, `intelligence_reports`), Phone OTP verification, and JWT session handling. |
 | **n8n Automation Engine** | 🟢 **100% Live** | **Live** | 3 production workflows with background fire-and-forget triggers. Tested and operational against local/remote n8n webhooks. |
 | **Twilio (Voice & SMS)** | 🟡 **Partially Live** | **Live Credentials Ready** | Twilio client configured for voice bridge calls (`call_customer`) and SMS (`notify_customer`). Works live with valid Twilio credentials; falls back safely when credentials missing. |
@@ -97,6 +98,8 @@ graph TD
 ### ✅ Completed & Operational Features (100%)
 - [x] **Live AssemblyAI Voice Agent Engine**: Bidirectional audio turn handling with prompt engineering tailored for logistics drivers.
 - [x] **AssemblyAI LeMUR Intelligence Pipeline**: Automated speech and transcript synthesis generating driver sentiment scores, operational incidents, route issues, and coaching advice directly stored in Supabase.
+- [x] **Parallel Tool Orchestrator (`asyncio.gather`)**: High-performance concurrent tool execution keeping multi-tool response latency well under 500ms SLA.
+
 - [x] **10 Voice Agent Tools**:
   1. `get_next_delivery` — Fetch next pending stop with customer info and gate notes.
   2. `update_delivery_status` — Mark delivered, failed, or rescheduled via voice.
@@ -193,8 +196,12 @@ All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
 - `GET /v1/shift/{shift_id}/report` — Fetch generated intelligence report from Supabase.
 - `GET /v1/shift/{shift_id}/stats` — Live shift delivery counts.
 
+### Parallel Tool Dispatch (`/v1/tools`)
+- `POST /v1/tools/execute-parallel` — Executes a batch of tools concurrently using `asyncio.gather()`. Returns timing telemetry, tool results, and validates under-500ms response SLA.
+- `POST /v1/tools/benchmark` — Compares sequential vs `asyncio.gather()` parallel tool execution side-by-side, displaying latency reduction and speedup factor.
+
 ### Voice Agent (`/v1`)
-- `POST /v1/voice-agent/chat` — REST turn-based voice interaction with audio (PCM16 24kHz).
+- `POST /v1/voice-agent` — REST turn-based voice interaction with audio (PCM16 24kHz). Concurrently runs multiple tool calls using `asyncio` task scheduling.
 - `GET /v1/voice-agent/session-config` — AssemblyAI session configuration schema.
 
 ---
@@ -312,6 +319,21 @@ res = asyncio.run(send_post_shift_report(
 ))
 print(res)
 "
+```
+
+**3. Benchmark Parallel Tool Execution (`asyncio.gather` sub-500ms):**
+```bash
+python scripts/benchmark_tools.py
+```
+
+**4. Run Live Network API Tool Test:**
+```bash
+python scripts/test_live_api_network.py
+```
+
+**5. Run Automated Pytest Suite:**
+```bash
+python -m pytest tests/test_parallel_tools.py -v
 ```
 
 ---
