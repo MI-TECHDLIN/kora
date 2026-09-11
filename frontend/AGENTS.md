@@ -9,7 +9,8 @@ Flutter app. Authority: repo-root `CLAUDE.md` and `.firstmate/rules/frontend.md`
 - **go_router is pinned to ^17.5** — 18.x needs Flutter ≥3.44 and the captain's local SDK is older. Don't bump without checking his `flutter --version`.
 - **`pubspec.lock` tracks the captain's SDK.** A plain `flutter analyze`/`test` in the Codespace runs `pub get` and re-resolves the lock; run `git checkout pubspec.lock` before committing (or pass `--no-pub` once `.dart_tool/` exists).
 - **Co-rider orb:** `lib/mascot/mascot_display.dart` is the only file that changes when the Rive asset lands (see its `TODO(rive)`); add `assets/rive/` to pubspec in that same change.
-- **Tests:** the orb and background animate forever — step time with `pump(duration)`, never `pumpAndSettle`. Use `test/test_fonts.dart` to stop google_fonts fetching, and size the view like a phone (see `test/widget_test.dart`).
+- **Font weights:** google_fonts registers one family per weight, so `style.copyWith(fontWeight: …)` silently keeps the old weight. Use `VoiceOpsText.weight(style, w)`.
+- **Tests:** the orb and background animate forever — step time with `pump(duration)`, never `pumpAndSettle`. Use `test/test_fonts.dart` to stop google_fonts fetching, and size the view like a phone (see `test/widget_test.dart`). Its square test glyphs run far wider than real type, so for a visual check render a throwaway golden with the real TTFs (`fonts.gstatic.com/s/a/<hash>.ttf`, hashes in google_fonts' generated parts) loaded through `FontLoader` as `PlusJakartaSans_<weight>`; don't commit it.
 - `const` widgets can't assert on `Color` equality in constructors (not a constant expression) — put such asserts in `build()`.
 
 ## Maintaining this file
