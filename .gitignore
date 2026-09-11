@@ -13,3 +13,9 @@ frontend/build/
 # Backend runtime audio: app/api/routes/voice_agent.py creates
 # recordings/input and recordings/output at import time.
 recordings/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
