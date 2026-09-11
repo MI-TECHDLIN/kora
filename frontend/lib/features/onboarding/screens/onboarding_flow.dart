@@ -6,7 +6,8 @@ import '../../../mascot/mascot_display.dart';
 import '../../../mascot/mascot_state.dart';
 import '../../../providers/onboarding_provider.dart';
 
-/// Full 3-screen mascot-emotion flow (PRD v4.0 §4.7) lands in Checkpoint 3.
+/// Full 4-screen flow — splash, hook, power, trust (CLAUDE.md, PRD v4.0 §4.7)
+/// — lands in Checkpoint 3.
 /// The co-rider here takes the holographic material from the onboarding
 /// route's OrbMaterialScope.
 class OnboardingFlow extends ConsumerWidget {

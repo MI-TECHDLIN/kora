@@ -19,34 +19,35 @@ class VoiceScreen extends ConsumerStatefulWidget {
 class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   final _inputController = TextEditingController();
 
+  // Real driver commands (PRD v4.0 §7), never generic assistant actions.
   static const _chips = [
     ActionChipData(
-      icon: TablerIcons.photo,
-      label: 'Create an image',
-      accent: VoiceOpsColors.pink,
+      icon: TablerIcons.mapPin,
+      label: 'Find my next stop',
+      accent: VoiceOpsColors.blue,
     ),
     ActionChipData(
-      icon: TablerIcons.bulb,
-      label: 'Give me ideas',
+      icon: TablerIcons.listCheck,
+      label: "What's left on my list",
       accent: VoiceOpsColors.amber,
     ),
     ActionChipData(
-      icon: TablerIcons.checklist,
-      label: 'Do the task',
+      icon: TablerIcons.phoneCall,
+      label: 'Call the customer',
       accent: VoiceOpsColors.success,
     ),
     ActionChipData(
-      icon: TablerIcons.language,
-      label: 'Translate text',
-      accent: VoiceOpsColors.blue,
+      icon: TablerIcons.chartBar,
+      label: 'Give me my summary',
+      accent: VoiceOpsColors.pink,
     ),
   ];
 
   static const _chipStates = [
+    AgentState.mapping,
     AgentState.taskWorking,
-    AgentState.thinking,
-    AgentState.taskWorking,
-    AgentState.translating,
+    AgentState.calling,
+    AgentState.summarizing,
   ];
 
   void _onChipTap(int i) {
