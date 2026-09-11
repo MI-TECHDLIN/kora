@@ -291,3 +291,112 @@ def trigger_post_shift_report_background(
                 webhook_url=webhook_url
             )
         )
+
+
+async def send_driver_onboarding(
+    driver_id: str,
+    driver_name: str,
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+    vehicle_type: Optional[str] = None,
+    operator_name: Optional[str] = "VoiceOps",
+    operator_email: Optional[str] = None,
+    registered_at: Optional[str] = None,
+    webhook_url: Optional[str] = None,
+    timeout: float = 8.0
+) -> Dict[str, Any]:
+    """
+    Trigger the n8n driver onboarding webhook.
+
+    Payload schema matches the workflow's 'Normalize Driver Payload' node.
+    Triggers automated welcome SMS instructions + operator notifications.
+    """
+    target_url = webhook_url or settings.n8n_driver_onboarding_webhook_url
+
+    if not target_url:
+        logger.warning("n8n driver onboarding webhook URL is not configured.")
+        return {"success": False, "error": "n8n driver onboarding webhook URL not configured", "mock": True}
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    payload = {
+        "driver_id": driver_id,
+        "driver_name": driver_name,
+        "phone": phone or "",
+        "email": email or "",
+        "vehicle_type": vehicle_type or "Not set",
+        "operator_name": operator_name or "VoiceOps",
+        "operator_email": operator_email or settings.operator_report_email or "ops@voiceops.app",
+        "registered_at": registered_at or now,
+        "twilio_from": settings.effective_twilio_from_number or "",
+        "twilio_account_sid": settings.twilio_account_sid or "",
+        "twilio_auth_token": settings.twilio_auth_token or "",
+        "supabase_url": settings.supabase_url or "",
+        "supabase_service_key": settings.supabase_service_key or ""
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(target_url, json=payload, timeout=timeout)
+            response.raise_for_status()
+            try:
+                data = response.json()
+            except Exception:
+                data = {"status": "received", "raw_text": response.text}
+            logger.info(f"Driver onboarding sent to n8n: {response.status_code}")
+            return {"success": True, "status_code": response.status_code, "response": data}
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Driver onboarding n8n HTTP error: {e.response.status_code} - {e.response.text}")
+        return {"success": False, "error": f"HTTP {e.response.status_code}: {e.response.text}"}
+    except Exception as e:
+        logger.error(f"Failed to post driver onboarding to n8n: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def trigger_driver_onboarding_background(
+    driver_id: str,
+    driver_name: str,
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+    vehicle_type: Optional[str] = None,
+    operator_name: Optional[str] = "VoiceOps",
+    operator_email: Optional[str] = None,
+    registered_at: Optional[str] = None,
+    webhook_url: Optional[str] = None
+) -> None:
+    """
+    Fire-and-forget driver onboarding trigger.
+    Task is anchored in _background_tasks to survive event loop garbage collection.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(
+            send_driver_onboarding(
+                driver_id=driver_id,
+                driver_name=driver_name,
+                phone=phone,
+                email=email,
+                vehicle_type=vehicle_type,
+                operator_name=operator_name,
+                operator_email=operator_email,
+                registered_at=registered_at,
+                webhook_url=webhook_url
+            )
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+    except RuntimeError:
+        asyncio.run(
+            send_driver_onboarding(
+                driver_id=driver_id,
+                driver_name=driver_name,
+                phone=phone,
+                email=email,
+                vehicle_type=vehicle_type,
+                operator_name=operator_name,
+                operator_email=operator_email,
+                registered_at=registered_at,
+                webhook_url=webhook_url
+            )
+        )
+

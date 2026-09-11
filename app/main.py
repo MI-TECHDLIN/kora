@@ -34,6 +34,9 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
+app.include_router(driver.router, prefix="/v1/driver", tags=["driver"])
+app.include_router(deliveries.router, prefix="/v1/deliveries", tags=["deliveries"])
+app.include_router(shift.router, prefix="/v1/shift", tags=["shift"])
 app.include_router(voice_agent.router, prefix="/v1", tags=["voice-agent"])
 # app.include_router(voice.router, tags=["websocket"])
 

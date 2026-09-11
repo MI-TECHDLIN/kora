@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime, timezone
 from app.dependencies import get_current_driver
 from app.db.queries import get_driver_by_id
 from app.db.client import get_supabase_client
+from app.integrations.n8n_client import trigger_driver_onboarding_background
 
 
 router = APIRouter()
@@ -12,6 +14,16 @@ router = APIRouter()
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
     vehicle_type: Optional[str] = None
+    trigger_onboarding: Optional[bool] = False
+
+
+class OnboardDriverRequest(BaseModel):
+    driver_id: Optional[str] = None
+    driver_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    operator_name: Optional[str] = "VoiceOps"
 
 
 class ConnectPlatformRequest(BaseModel):
@@ -125,3 +137,57 @@ async def connect_platform(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to connect platform: {str(e)}"
         )
+
+
+@router.post("/onboard")
+async def onboard_driver(
+    request: OnboardDriverRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Trigger driver onboarding workflow (Twilio welcome SMS + operator notifications).
+    Supports either an authenticated driver bearer token or direct payload parameters.
+    """
+    driver_id = request.driver_id
+    driver_name = request.driver_name
+    phone = request.phone
+    email = request.email
+    vehicle_type = request.vehicle_type
+
+    # If Authorization header provided, extract driver info from Supabase session
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            supabase = get_supabase_client()
+            user_resp = supabase.auth.get_user(authorization[7:])
+            if user_resp and user_resp.user:
+                u = user_resp.user
+                driver_id = driver_id or u.id
+                phone = phone or getattr(u, "phone", None)
+                email = email or getattr(u, "email", None)
+                metadata = getattr(u, "user_metadata", {}) or {}
+                driver_name = driver_name or metadata.get("name") or metadata.get("full_name")
+        except Exception:
+            pass
+
+    # Defaults for onboarding
+    driver_id = driver_id or f"drv_{int(datetime.now(timezone.utc).timestamp())}"
+    driver_name = driver_name or "VoiceOps Driver"
+
+    # Fire-and-forget onboarding trigger
+    trigger_driver_onboarding_background(
+        driver_id=driver_id,
+        driver_name=driver_name,
+        phone=phone,
+        email=email,
+        vehicle_type=vehicle_type,
+        operator_name=request.operator_name or "VoiceOps"
+    )
+
+    return {
+        "status": "success",
+        "message": "Driver onboarding triggered",
+        "driver_id": driver_id,
+        "driver_name": driver_name,
+        "phone": phone
+    }
+
