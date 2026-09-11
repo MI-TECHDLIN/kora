@@ -25,16 +25,13 @@
             { "id": "f1",  "name": "driver_id",       "value": "={{ $json.body.driver_id }}",       "type": "string" },
             { "id": "f2",  "name": "driver_name",     "value": "={{ $json.body.driver_name }}",     "type": "string" },
             { "id": "f3",  "name": "phone",           "value": "={{ $json.body.phone || '' }}",     "type": "string" },
-            { "id": "f4",  "name": "email",           "value": "={{ $json.body.email || '' }}",     "type": "string" },
+            { "id": "f4",  "name": "email",           "value": "={{ $json.body.email || $json.body.operator_email || 'driver@voiceops.app' }}", "type": "string" },
             { "id": "f5",  "name": "vehicle_type",    "value": "={{ $json.body.vehicle_type || 'Not set' }}", "type": "string" },
             { "id": "f6",  "name": "operator_name",   "value": "={{ $json.body.operator_name || 'VoiceOps' }}", "type": "string" },
             { "id": "f7",  "name": "registered_at",   "value": "={{ $json.body.registered_at || $now.toISO() }}", "type": "string" },
-            { "id": "f8",  "name": "twilio_from",     "value": "={{ $json.body.twilio_from || '' }}", "type": "string" },
-            { "id": "f9",  "name": "twilio_account_sid",  "value": "={{ $json.body.twilio_account_sid || '' }}", "type": "string" },
-            { "id": "f10", "name": "twilio_auth_token",    "value": "={{ $json.body.twilio_auth_token || '' }}", "type": "string" },
-            { "id": "f11", "name": "operator_email",  "value": "={{ $json.body.operator_email || 'ops@voiceops.app' }}", "type": "string" },
-            { "id": "f12", "name": "supabase_url",    "value": "={{ $json.body.supabase_url || '' }}", "type": "string" },
-            { "id": "f13", "name": "supabase_service_key", "value": "={{ $json.body.supabase_service_key || '' }}", "type": "string" }
+            { "id": "f8",  "name": "operator_email",  "value": "={{ $json.body.operator_email || 'tomarianoor@gmail.com' }}", "type": "string" },
+            { "id": "f9",  "name": "supabase_url",    "value": "={{ $json.body.supabase_url || '' }}", "type": "string" },
+            { "id": "f10", "name": "supabase_service_key", "value": "={{ $json.body.supabase_service_key || '' }}", "type": "string" }
           ]
         },
         "options": {}
@@ -52,7 +49,7 @@
           "conditions": [
             {
               "id": "cond1",
-              "leftValue": "={{ $json.phone }}",
+              "leftValue": "={{ $json.email }}",
               "rightValue": "",
               "operator": { "type": "string", "operation": "notEmpty" }
             }
@@ -62,43 +59,26 @@
         "options": {}
       },
       "id": "dob-0003-0000-0000-000000000003",
-      "name": "IF Has Phone",
+      "name": "IF Has Email",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [-800, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $json.twilio_account_sid }}/Messages.json",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Basic {{ Buffer.from($json.twilio_account_sid + ':' + $json.twilio_auth_token).toString('base64') }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            { "name": "From", "value": "={{ $json.twilio_from }}" },
-            { "name": "To",   "value": "={{ $json.phone }}" },
-            {
-              "name": "Body",
-              "value": "=Welcome to VoiceOps, {{ $json.driver_name }}! 🚀\n\nYou're all set to start your shifts.\n\nQuick Voice Commands:\n• \"Next stop\" → get delivery details & address\n• \"Call customer\" → connect via masked Twilio bridge\n• \"Alert dispatcher\" → immediate priority escalation\n• \"How am I doing?\" → live shift stats & completion rate\n\nDrive safe! 🙌\n— {{ $json.operator_name }}"
-            }
-          ]
-        },
+        "fromEmail": "welcome@voiceops.app",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=🚀 Welcome to VoiceOps, {{ $json.driver_name }} — Your Smart Voice Companion",
+        "emailFormat": "html",
+        "html": "=<h2>Welcome aboard, {{ $json.driver_name }}! 🚚</h2><p>You're all set to begin your shifts with <strong>VoiceOps</strong>, the hands-free voice companion built specifically for logistics and delivery drivers.</p><hr/><h3>Key Features Available During Your Shift:</h3><ul><li><strong>📍 Hands-Free Stop & Route Guidance:</strong> Instant access to upcoming stop addresses, package counts, customer access codes, and turn-by-turn directions without looking down at your phone.</li><li><strong>📞 Privacy-Safe Customer Communication:</strong> Direct two-way voice bridging with masked numbers to coordinate customer arrivals safely.</li><li><strong>🚨 Instant Dispatcher Priority Escalation:</strong> Real-time alerts for road blockages, access issues, or safety incidents routed immediately to dispatch with live tracking.</li><li><strong>📊 Live Shift Intelligence & Metrics:</strong> On-demand delivery completion rates, package counts, and shift performance summaries at any point during your workday.</li><li><strong>✅ Frictionless Delivery Confirmation:</strong> Complete drop-offs, record gate notes, or reschedule stops completely hands-free.</li></ul><br/><p>Drive safe and have a productive shift!</p><p>— <em>The VoiceOps Team</em></p>",
         "options": {}
       },
       "id": "dob-0004-0000-0000-000000000004",
-      "name": "SMS - Welcome Message",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "Email - Driver Welcome",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [-560, 160],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
       "onError": "continueRegularOutput"
     },
     {
@@ -107,7 +87,7 @@
         "toEmail": "={{ $json.operator_email }}",
         "subject": "=👋 New Driver Registered — {{ $json.driver_name }}",
         "emailFormat": "text",
-        "text": "=A new driver has registered on VoiceOps.\n\nDriver Details:\nName:         {{ $json.driver_name }}\nPhone:        {{ $json.phone }}\nEmail:        {{ $json.email || 'Not provided' }}\nVehicle Type: {{ $json.vehicle_type }}\nRegistered:   {{ $json.registered_at }}\nDriver ID:    {{ $json.driver_id }}\n\nThe driver has been sent a welcome SMS with voice assistant instructions.\n\n— VoiceOps Onboarding System",
+        "text": "=A new driver has registered on VoiceOps.\n\nDriver Details:\nName:         {{ $json.driver_name }}\nPhone:        {{ $json.phone || 'Not provided' }}\nEmail:        {{ $json.email }}\nVehicle Type: {{ $json.vehicle_type }}\nRegistered:   {{ $json.registered_at }}\nDriver ID:    {{ $json.driver_id }}\n\nA welcoming feature overview email has been sent to the driver.\n\n— VoiceOps Onboarding System",
         "options": {}
       },
       "id": "dob-0005-0000-0000-000000000005",
@@ -124,7 +104,7 @@
         "operation": "post",
         "select": "channel",
         "channelId": { "__rl": true, "mode": "name", "value": "#driver-onboarding" },
-        "text": "=👋 *New Driver Registered*\n*Name:* {{ $json.driver_name }}\n*Phone:* {{ $json.phone }}\n*Vehicle:* {{ $json.vehicle_type }}\n*Registered:* {{ $json.registered_at }}\n*Driver ID:* {{ $json.driver_id }}\n\nWelcome SMS has been sent. ✅",
+        "text": "=👋 *New Driver Registered*\n*Name:* {{ $json.driver_name }}\n*Email:* {{ $json.email }}\n*Phone:* {{ $json.phone || 'N/A' }}\n*Vehicle:* {{ $json.vehicle_type }}\n*Registered:* {{ $json.registered_at }}\n*Driver ID:* {{ $json.driver_id }}\n\nWelcoming email with full feature overview sent to driver. ✅",
         "otherOptions": {}
       },
       "id": "dob-0006-0000-0000-000000000006",
@@ -139,13 +119,13 @@
       "parameters": {
         "fromEmail": "welcome@voiceops.app",
         "toEmail": "={{ $json.operator_email }}",
-        "subject": "=⚠️ New Driver Registered (No Phone) — {{ $json.driver_name }}",
+        "subject": "=⚠️ New Driver Registered (No Email) — {{ $json.driver_name }}",
         "emailFormat": "text",
-        "text": "=A new driver registered but has no phone number on file. Welcome SMS could not be sent.\n\nDriver Details:\nName:       {{ $json.driver_name }}\nEmail:      {{ $json.email || 'Not provided' }}\nRegistered: {{ $json.registered_at }}\nDriver ID:  {{ $json.driver_id }}\n\nPlease follow up manually to ensure they can receive shift instructions.\n\n— VoiceOps Onboarding System",
+        "text": "=A new driver registered without an email address. Welcome feature guide could not be sent.\n\nDriver Details:\nName:       {{ $json.driver_name }}\nPhone:      {{ $json.phone || 'Not provided' }}\nRegistered: {{ $json.registered_at }}\nDriver ID:  {{ $json.driver_id }}\n\nPlease update driver email to ensure they receive feature guides and shift summaries.\n\n— VoiceOps Onboarding System",
         "options": {}
       },
       "id": "dob-0007-0000-0000-000000000007",
-      "name": "Email - No Phone Fallback",
+      "name": "Email - No Email Fallback",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [-560, 780],
@@ -164,19 +144,19 @@
     "Normalize Driver Payload": {
       "main": [
         [
-          { "node": "IF Has Phone", "type": "main", "index": 0 }
+          { "node": "IF Has Email", "type": "main", "index": 0 }
         ]
       ]
     },
-    "IF Has Phone": {
+    "IF Has Email": {
       "main": [
         [
-          { "node": "SMS - Welcome Message", "type": "main", "index": 0 },
+          { "node": "Email - Driver Welcome", "type": "main", "index": 0 },
           { "node": "Email - Notify Operator", "type": "main", "index": 0 },
           { "node": "Slack - New Driver Alert", "type": "main", "index": 0 }
         ],
         [
-          { "node": "Email - No Phone Fallback", "type": "main", "index": 0 }
+          { "node": "Email - No Email Fallback", "type": "main", "index": 0 }
         ]
       ]
     }

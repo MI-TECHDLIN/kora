@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from app.db.client import get_supabase_client
+from app.integrations.n8n_client import trigger_driver_onboarding_background
 
 
 router = APIRouter()
@@ -57,10 +58,34 @@ async def verify_otp(request: VerifyOTPRequest):
                 detail="Invalid OTP"
             )
         
+        user_dict = response.user.model_dump() if hasattr(response.user, 'model_dump') else dict(response.user)
+        user_id = user_dict.get("id")
+
+        # Check if driver is already registered; if new, trigger onboarding workflow
+        try:
+            driver_check = supabase.table("drivers").select("id").eq("id", user_id).execute()
+            if not driver_check.data:
+                metadata = user_dict.get("user_metadata", {}) or {}
+                driver_name = metadata.get("name") or metadata.get("full_name") or f"Driver {request.phone[-4:]}"
+                supabase.table("drivers").upsert({
+                    "id": user_id,
+                    "phone": request.phone,
+                    "name": driver_name
+                }).execute()
+
+                trigger_driver_onboarding_background(
+                    driver_id=user_id,
+                    driver_name=driver_name,
+                    phone=request.phone,
+                    email=user_dict.get("email")
+                )
+        except Exception:
+            pass  # Avoid blocking login if onboarding trigger encounters any issue
+
         return AuthResponse(
             access_token=response.session.access_token,
             refresh_token=response.session.refresh_token,
-            user=response.user.model_dump() if hasattr(response.user, 'model_dump') else dict(response.user)
+            user=user_dict
         )
     except Exception as e:
         raise HTTPException(
