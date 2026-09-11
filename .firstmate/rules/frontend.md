@@ -7,16 +7,20 @@ frontend task.
 
 ## Stack
 
-- **State:** Riverpod. Do not introduce Provider, Bloc, GetX, or setState
-  for shared state.
-- **Routing:** go_router. All routes declared in one router file.
+- **State:** Riverpod (`flutter_riverpod`). Do not introduce Provider, Bloc,
+  GetX, or setState for shared state.
+- **Routing:** go_router. All routes declared in one router file
+  (`lib/app/router.dart`).
 - **Map:** `google_maps_flutter`
-- **Audio out:** `just_audio`
-- **Audio in:** `record`
 - **Realtime:** `web_socket_channel`
-- **Location:** `geolocator`
 - **Icons:** `tabler_icons_plus` — never emoji, never Material icons for
   stat cards
+- **Type:** `google_fonts` (Plus Jakarta Sans)
+- **Co-rider:** `rive`, for the planned `.riv` swap-in
+- **Auth / data:** `supabase_flutter`
+- **Audio out:** `just_audio`, **Audio in:** `record`, **Location:**
+  `geolocator`. These are planned and not in `pubspec.yaml` yet. Add them
+  when the voice and location work starts
 
 Do not add a package without checking whether one of the above already
 covers the need.
@@ -36,9 +40,14 @@ to match.
 - **Orb materials:** holographic bubble orb in onboarding,
   chrome/mercury orb in the main app. These are two distinct moods; do
   not unify them.
+- **Mascot implementation:** an orb placeholder (`MascotDisplay`) for now.
+  A Rive `.riv` swap-in comes later per SDD §6.1 and touches only that
+  widget.
 
-Design tokens live in a single tokens file. Never hardcode a colour,
-spacing value, or font size in a widget — reference the token.
+Design tokens live in a single tokens file
+(`lib/core/theme/tokens.dart`, summarised in SDD §8). Never hardcode a
+colour, spacing value, or font size in a widget — reference the token.
+Lime (`VoiceOpsColors.live`) is reserved for the mic-hot state.
 
 ---
 
@@ -92,7 +101,10 @@ Four screens:
 - One connection, owned by a single Riverpod provider
 - Handle: connect, reconnect with backoff, disconnect, error
 - Never open a second socket from a widget
-- Message types are frozen — see `contracts.md`
+- Message types are frozen — see `docs/contracts/interface.md` §1
+- Agent navigation renders **in-app**: `screen_navigate` switches the tab
+  and `map_route` draws the route on the Flutter map. Never launch an
+  external maps app or deep link
 
 If the socket drops mid-shift, the UI must show a clear degraded state,
 not fail silently.
@@ -129,7 +141,8 @@ because it compiles.
 
 ## Scope Discipline
 
-- Branch: `features/frontend/<feature-slug>` off `staging`
+- Branch: `features/frontend/<feature-slug>` off `staging`. PR back into
+  `staging`
 - Do not reformat files you did not otherwise change
 - Do not upgrade package versions as part of a feature task
 - Do not touch `backend/`
