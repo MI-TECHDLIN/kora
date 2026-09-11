@@ -83,7 +83,8 @@ graph TD
 | Platform / Service | Status | Live / Mock | Details |
 | :--- | :---: | :---: | :--- |
 | **AssemblyAI Voice Agent** | 🟢 **100% Live** | **Live** | Real-time voice agent session configuration, prompt injection, bi-directional audio streaming (PCM16 24kHz), dynamic tool calling dispatch. |
-| **Supabase (PostgreSQL & Auth)** | 🟢 **100% Live** | **Live** | Tables (`drivers`, `shifts`, `deliveries`, `voice_sessions`, `dispatcher_alerts`, `shift_intelligence`), Phone OTP verification, and JWT session handling. |
+| **AssemblyAI LeMUR** | 🟢 **100% Live** | **Live** | Post-shift intelligence pipeline analyzing full multi-turn shift transcripts. Extracts executive summaries, driver sentiment scoring (0.0-1.0), route bottlenecks, and actionable coaching recommendations. Persists into Supabase `intelligence_reports`. |
+| **Supabase (PostgreSQL & Auth)** | 🟢 **100% Live** | **Live** | Tables (`drivers`, `shifts`, `deliveries`, `voice_sessions`, `dispatcher_alerts`, `intelligence_reports`), Phone OTP verification, and JWT session handling. |
 | **n8n Automation Engine** | 🟢 **100% Live** | **Live** | 3 production workflows with background fire-and-forget triggers. Tested and operational against local/remote n8n webhooks. |
 | **Twilio (Voice & SMS)** | 🟡 **Partially Live** | **Live Credentials Ready** | Twilio client configured for voice bridge calls (`call_customer`) and SMS (`notify_customer`). Works live with valid Twilio credentials; falls back safely when credentials missing. |
 | **Google Maps API** | 🟡 **Partially Live** | **Live + Fallback** | Directions API queries for real traffic times and navigation deep-links (`google.navigation:q=`). Falls back to mock Lagos coordinates if API key is not present. |
@@ -95,6 +96,7 @@ graph TD
 
 ### ✅ Completed & Operational Features (100%)
 - [x] **Live AssemblyAI Voice Agent Engine**: Bidirectional audio turn handling with prompt engineering tailored for logistics drivers.
+- [x] **AssemblyAI LeMUR Intelligence Pipeline**: Automated speech and transcript synthesis generating driver sentiment scores, operational incidents, route issues, and coaching advice directly stored in Supabase.
 - [x] **10 Voice Agent Tools**:
   1. `get_next_delivery` — Fetch next pending stop with customer info and gate notes.
   2. `update_delivery_status` — Mark delivered, failed, or rescheduled via voice.
@@ -125,8 +127,7 @@ graph TD
   - `app/api/websocket/voice.py` contains the WebSocket skeleton for continuous raw PCM16 microphone streaming. Needs final frontend client sync.
 - [ ] **Dynamic Shift Duration**:
   - Shifts track start and end timestamps; duration calculation is currently simplified to minutes elapsed and can be augmented with active GPS motion tracking.
-- [ ] **Batch Speech Summaries (LeMUR)**:
-  - AssemblyAI batch LeMUR pipeline code exists in `app/intelligence/`; live reporting is currently handled by the n8n post-shift intelligence workflow.
+
 
 ### ⏳ To Be Added (Future Roadmap)
 - [ ] **Live GPS Geofencing**: Auto-detecting when a driver arrives within 50m of delivery coordinates to trigger auto-arrival prompts.
@@ -187,7 +188,8 @@ All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
 
 ### Shifts (`/v1/shift`)
 - `POST /v1/shift/start` — Start a new delivery shift.
-- `POST /v1/shift/{shift_id}/end` — End shift and trigger post-shift intelligence pipeline.
+- `POST /v1/shift/{shift_id}/end` — End shift and trigger AssemblyAI LeMUR intelligence + n8n reporting.
+- `POST /v1/shift/{shift_id}/analyze-lemur` — Run on-demand AssemblyAI LeMUR intelligence analysis on shift transcripts.
 - `GET /v1/shift/{shift_id}/report` — Fetch generated intelligence report from Supabase.
 - `GET /v1/shift/{shift_id}/stats` — Live shift delivery counts.
 

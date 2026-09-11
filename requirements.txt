@@ -16,3 +16,4 @@ pytest-asyncio==0.23.0
 numpy==1.26.4
 sounddevice==0.4.6
 requests==2.31.0
+assemblyai>=1.5.0

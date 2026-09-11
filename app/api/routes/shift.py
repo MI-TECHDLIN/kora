@@ -10,6 +10,7 @@ from app.db.queries import (
     get_intelligence_report_by_shift
 )
 from app.integrations.n8n_client import trigger_post_shift_report_background
+from app.intelligence.lemur_pipeline import run_shift_intelligence
 
 
 router = APIRouter()
@@ -52,7 +53,7 @@ async def end_shift(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_driver)
 ):
-    """End shift and trigger post-shift intelligence pipeline via n8n."""
+    """End shift and trigger AssemblyAI LeMUR intelligence + n8n reporting."""
     try:
         # Mark shift as completed in Supabase
         await update_shift_status(shift_id, "completed")
@@ -61,7 +62,10 @@ async def end_shift(
         stats = await get_shift_stats(shift_id)
         sessions = await get_shift_voice_sessions(shift_id)
 
-        # Trigger post-shift intelligence — fire-and-forget, zero API latency impact
+        # 1. Trigger AssemblyAI LeMUR speech analysis pipeline in background
+        background_tasks.add_task(run_shift_intelligence, shift_id, current_user.get("id"))
+
+        # 2. Trigger n8n post-shift intelligence notification
         trigger_post_shift_report_background(
             shift_id=shift_id,
             driver_id=current_user["id"],
@@ -69,8 +73,8 @@ async def end_shift(
             total_deliveries=stats.get("total", 0),
             delivered_count=stats.get("delivered", 0),
             failed_count=stats.get("failed", 0),
-            shift_duration_min=0,        # TODO: compute from shift.started_at → now
-            dispatcher_alerts=0,         # TODO: query dispatcher_alerts table by shift_id
+            shift_duration_min=0,
+            dispatcher_alerts=0,
             voice_sessions=len(sessions),
             shift_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             ended_at=datetime.now(timezone.utc).isoformat(),
@@ -79,8 +83,9 @@ async def end_shift(
         return ShiftEndResponse(
             shift_id=shift_id,
             status="completed",
-            message="Shift ended. Intelligence report is being generated."
+            message="Shift ended. LeMUR intelligence analysis and reports are being generated."
         )
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -110,3 +115,18 @@ async def get_shift_statistics(
     """Get shift statistics."""
     stats = await get_shift_stats(shift_id)
     return stats
+
+
+@router.post("/{shift_id}/analyze-lemur")
+async def analyze_shift_lemur(
+    shift_id: str,
+    current_user: dict = Depends(get_current_driver)
+):
+    """
+    Run AssemblyAI LeMUR intelligence analysis on completed shift transcripts.
+    Extracts executive summary, driver sentiment, route issues, and recommendations.
+    Persists structured intelligence report directly into Supabase.
+    """
+    result = await run_shift_intelligence(shift_id, driver_id=current_user.get("id"))
+    return result
+

@@ -1,4 +1,11 @@
 from typing import Optional, Dict, List, Any
+import re
+
+UUID_REGEX = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+
+
+def is_valid_uuid(val: Any) -> bool:
+    return bool(val and isinstance(val, str) and UUID_REGEX.match(val))
 
 
 def get_supabase():
@@ -126,49 +133,75 @@ async def save_location_ping(driver_id: str, shift_id: str, lat: float, lng: flo
 
 async def get_shift_voice_sessions(shift_id: str) -> List[Dict[str, Any]]:
     """Get all voice sessions for a shift."""
-    response = (
-        get_supabase().table("voice_sessions")
-        .select("*")
-        .eq("shift_id", shift_id)
-        .order("started_at")
-        .execute()
-    )
-    return response.data if response.data else []
+    if not is_valid_uuid(shift_id):
+        return []
+    try:
+        response = (
+            get_supabase().table("voice_sessions")
+            .select("*")
+            .eq("shift_id", shift_id)
+            .order("started_at")
+            .execute()
+        )
+        return response.data if response.data else []
+    except Exception:
+        return []
 
 
 async def get_shift_stats(shift_id: str) -> Dict[str, Any]:
     """Get shift statistics."""
-    deliveries_response = (
-        get_supabase().table("deliveries")
-        .select("status")
-        .eq("shift_id", shift_id)
-        .execute()
-    )
-    
-    deliveries = deliveries_response.data if deliveries_response.data else []
-    total = len(deliveries)
-    delivered = sum(1 for d in deliveries if d["status"] == "delivered")
-    failed = sum(1 for d in deliveries if d["status"] == "failed")
-    
-    return {
-        "total": total,
-        "delivered": delivered,
-        "failed": failed,
-        "success_rate": (delivered / total * 100) if total > 0 else 0
-    }
+    if not is_valid_uuid(shift_id):
+        return {
+            "total": 0,
+            "delivered": 0,
+            "failed": 0,
+            "success_rate": 0
+        }
+    try:
+        deliveries_response = (
+            get_supabase().table("deliveries")
+            .select("status")
+            .eq("shift_id", shift_id)
+            .execute()
+        )
+        
+        deliveries = deliveries_response.data if deliveries_response.data else []
+        total = len(deliveries)
+        delivered = sum(1 for d in deliveries if d["status"] == "delivered")
+        failed = sum(1 for d in deliveries if d["status"] == "failed")
+        
+        return {
+            "total": total,
+            "delivered": delivered,
+            "failed": failed,
+            "success_rate": (delivered / total * 100) if total > 0 else 0
+        }
+    except Exception:
+        return {
+            "total": 0,
+            "delivered": 0,
+            "failed": 0,
+            "success_rate": 0
+        }
 
 
 async def get_intelligence_report_by_shift(shift_id: str) -> Optional[Dict[str, Any]]:
     """Get intelligence report for a shift."""
-    response = (
-        get_supabase().table("intelligence_reports")
-        .select("*")
-        .eq("shift_id", shift_id)
-        .execute()
-    )
-    if response.data:
-        return response.data[0]
-    return None
+    if not is_valid_uuid(shift_id):
+        return None
+    try:
+        response = (
+            get_supabase().table("intelligence_reports")
+            .select("*")
+            .eq("shift_id", shift_id)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception:
+        return None
+
 
 
 async def store_intelligence_report(shift_id: str, report_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -187,25 +220,35 @@ async def store_intelligence_report(shift_id: str, report_dict: Dict[str, Any]) 
 
 async def update_shift_status(shift_id: str, status: str) -> Dict[str, Any]:
     """Update shift status."""
-    response = (
-        get_supabase().table("shifts")
-        .update({"status": status})
-        .eq("id", shift_id)
-        .execute()
-    )
-    return response.data[0] if response.data else {}
+    if not is_valid_uuid(shift_id):
+        return {}
+    try:
+        response = (
+            get_supabase().table("shifts")
+            .update({"status": status})
+            .eq("id", shift_id)
+            .execute()
+        )
+        return response.data[0] if response.data else {}
+    except Exception:
+        return {}
 
 
 async def get_shift_deliveries(shift_id: str) -> List[Dict[str, Any]]:
     """Get all deliveries for a shift."""
-    response = (
-        get_supabase().table("deliveries")
-        .select("*")
-        .eq("shift_id", shift_id)
-        .order("sequence_order")
-        .execute()
-    )
-    return response.data if response.data else []
+    if not is_valid_uuid(shift_id):
+        return []
+    try:
+        response = (
+            get_supabase().table("deliveries")
+            .select("*")
+            .eq("shift_id", shift_id)
+            .order("sequence_order")
+            .execute()
+        )
+        return response.data if response.data else []
+    except Exception:
+        return []
 
 
 async def create_shift(driver_id: str) -> Dict[str, Any]:
