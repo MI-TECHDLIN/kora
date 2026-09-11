@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/features/map/screens/map_screen.dart';
+import 'package:voiceops/features/onboarding/screens/onboarding_flow.dart';
 import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
@@ -37,7 +38,7 @@ void main() {
     expect(theme.scaffoldBackgroundColor, VoiceOpsColors.canvas);
 
     // Onboarding redirect: holographic co-rider, no main shell yet.
-    expect(find.text('Start Driving'), findsOneWidget);
+    expect(find.byType(OnboardingFlow), findsOneWidget);
     expect(find.byType(MainShell), findsNothing);
     final onboardingOrb = find.byType(MascotDisplay);
     expect(onboardingOrb, findsOneWidget);
@@ -46,8 +47,16 @@ void main() {
       OrbMaterial.holographic,
     );
 
-    // Completing onboarding redirects into the voice tab.
-    await tester.tap(find.text('Start Driving'));
+    // Walking the flow and completing it redirects into the voice tab
+    // (test/onboarding_test.dart covers each screen).
+    await tester.tap(find.text('Get started'));
+    await settle(tester);
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await settle(tester);
+    }
+    await tester.ensureVisible(find.text('Start driving'));
+    await tester.tap(find.text('Start driving'));
     await settle(tester);
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(VoiceScreen), findsOneWidget);

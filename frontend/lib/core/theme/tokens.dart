@@ -99,6 +99,71 @@ class VoiceOpsOrbColors {
   static const shade = Color(0xA607060B); // canvas @ 65%, sphere depth
 }
 
+/// Onboarding mood backgrounds and surfaces (PRD v4.0 §4.7): dark navy for
+/// Hook and Trust, a lavender gradient for Power, holographic editorial for
+/// the splash. Onboarding only; the main app stays on [VoiceOpsColors.canvas].
+class VoiceOpsMood {
+  VoiceOpsMood._();
+
+  // Each mood is three top → bottom stops so moods lerp stop-for-stop.
+  static const editorial = [
+    Color(0x0007060B), // clear: the splash shows the root glow background
+    Color(0x0007060B),
+    Color(0x0007060B),
+  ];
+  static const navy = [Color(0xFF151C44), Color(0xFF0B1030), Color(0xFF060919)];
+  static const lavender = [
+    Color(0xFFEEE8FF),
+    Color(0xFFD5C9FF),
+    Color(0xFFB9A5F6),
+  ];
+
+  /// Dark ink for text and icons on the lavender mood and pastel surfaces.
+  static const ink = Color(0xFF1B1538);
+  static const inkMuted = Color(0xFF4F4677);
+
+  /// White "paper": the splash CTA and the Power screen's front card.
+  static const paper = Color(0xFFFFFFFF);
+  static const paperGlass = Color(0xB3FFFFFF); // paper @ 70%, cards behind
+  static const paperBorder = Color(0x99FFFFFF); // paper @ 60%, hairline
+
+  /// Holographic film for pills and teaser/CTA cards. Built from the
+  /// holographic orb palette so the surfaces and the orb read as one material.
+  static const holographic = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFC4B5FD),
+      Color(0xFFF9A8D4),
+      Color(0xFF7DD3FC),
+      Color(0xFFA7F3D0),
+    ],
+  );
+
+  /// Iridescent light streaks behind the splash's editorial type:
+  /// (colour, peak alpha, diameter, alignment).
+  static const splashSheen = [
+    (
+      color: Color(0xFF7DD3FC),
+      alpha: 0.22,
+      size: 360.0,
+      at: Alignment(-1.2, -0.2),
+    ),
+    (
+      color: Color(0xFFF9A8D4),
+      alpha: 0.16,
+      size: 320.0,
+      at: Alignment(1.1, 0.35),
+    ),
+    (
+      color: Color(0xFFA7F3D0),
+      alpha: 0.10,
+      size: 260.0,
+      at: Alignment(-0.6, 0.95),
+    ),
+  ];
+}
+
 class VoiceOpsSpacing {
   VoiceOpsSpacing._();
   static const xs = 4.0;
@@ -140,10 +205,19 @@ class VoiceOpsSize {
   static const pushToTalk = 88.0;
   static const pushToTalkMin = 80.0;
 
-  /// Co-rider orb sizes.
+  /// Co-rider orb sizes. [orbOnboarding] is the Hook screen's waking orb;
+  /// Trust settles back to the smaller [orbHero].
+  static const orbOnboarding = 220.0;
   static const orbHero = 150.0;
   static const orbBubble = 60.0;
   static const orbBubbleSmall = 40.0;
+
+  /// Driver avatar in headers.
+  static const avatar = 48.0;
+
+  /// Onboarding progress dots; the current step stretches to a pill.
+  static const progressDot = 8.0;
+  static const progressDotActive = 24.0;
 }
 
 class VoiceOpsMotion {
@@ -155,6 +229,12 @@ class VoiceOpsMotion {
   /// Co-rider orb morph between agent states.
   static const orbMorph = Duration(milliseconds: 600);
 
+  /// One slow in-or-out breath of the resting co-rider (onboarding Hook).
+  static const breath = Duration(milliseconds: 4200);
+
+  /// Entrance of the onboarding Power screen's card stack.
+  static const stagger = Duration(milliseconds: 900);
+
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubic;
 }
@@ -165,12 +245,28 @@ class VoiceOpsMotion {
 class VoiceOpsText {
   VoiceOpsText._();
 
+  /// Giant, light editorial type — the onboarding splash headline only.
+  static final editorial = GoogleFonts.plusJakartaSans(
+    fontSize: 50,
+    fontWeight: FontWeight.w300,
+    height: 1.12,
+    letterSpacing: -1.6,
+    color: VoiceOpsColors.textPrimary,
+  );
+
   static final display = GoogleFonts.plusJakartaSans(
     fontSize: 40,
     fontWeight: FontWeight.w800,
     height: 1.05,
     letterSpacing: -1.2,
     color: VoiceOpsColors.textPrimary,
+  );
+
+  /// [display] on short phones, where the full size would push a screen's
+  /// call to action below the fold.
+  static final displayCompact = display.copyWith(
+    fontSize: 30,
+    letterSpacing: -0.9,
   );
 
   static final headline = GoogleFonts.plusJakartaSans(
@@ -213,6 +309,14 @@ class VoiceOpsText {
     letterSpacing: 0.8,
     color: VoiceOpsColors.textMuted,
   );
+
+  /// [style] at another [weight]. google_fonts registers one font family per
+  /// weight, so `copyWith(fontWeight: …)` alone keeps rendering the original
+  /// weight; change weights through this instead.
+  static TextStyle weight(TextStyle style, FontWeight weight) =>
+      GoogleFonts.plusJakartaSans(
+        textStyle: style.copyWith(fontWeight: weight),
+      );
 
   /// Stats, ETAs, counts — tabular figures so digits don't jitter.
   static final numeric = GoogleFonts.plusJakartaSans(
