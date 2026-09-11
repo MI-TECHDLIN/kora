@@ -16,9 +16,15 @@ by either layer's tests.
 3. **Delivery status enum** — the shared vocabulary for delivery state
 4. **JWT auth header** — the auth scheme on every authenticated call
 
-The authoritative definitions live in `docs/` — the SDD and the
-**Agent Tools Reference**. Those documents are the source of truth, not
-whatever a given file happens to contain.
+The authoritative definitions live in **`docs/contracts/interface.md`**
+(WebSocket catalogue, REST endpoints, delivery-status enum, JWT header)
+and **`docs/VoiceOps_Agent_Tools_Reference.md`** (the 10 tool shapes).
+Those two documents are the source of truth, not whatever a given file
+happens to contain. The SDD's old event list (§7) is historical.
+
+`interface.md` stays a **draft** until both owners sign it off. Build
+against it now anyway, and treat its "open items for sign-off" as
+unfrozen.
 
 ---
 
@@ -51,8 +57,9 @@ around a frozen contract by adding a parallel undocumented channel.
 
 ## Delivery Status
 
-The status enum is shared vocabulary across Flutter, FastAPI, Supabase,
-and the logistics adapters. A value added in one place and not the others
+The status enum (`pending | delivered | failed | rescheduled`, defined in
+`docs/contracts/interface.md` §3) is shared vocabulary across Flutter,
+FastAPI, Supabase, and the logistics adapters. A value added in one place and not the others
 produces silent data corruption rather than a clean failure.
 
 Treat every status value as load-bearing.
@@ -61,7 +68,8 @@ Treat every status value as load-bearing.
 
 ## Auth
 
-- JWT in the auth header on every authenticated request
+- `Authorization: Bearer <access_token>` on every authenticated request
+  (details in `docs/contracts/interface.md` §4)
 - The same scheme applies to REST and to the WebSocket handshake
 - Never accept an unauthenticated write path "temporarily for testing"
 
