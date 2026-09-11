@@ -1,6 +1,13 @@
 # VoiceOps — Technical Feasibility Document v2.0
 **Last updated:** September 2026
 
+> **Superseded by PRD v4.0 / CLAUDE.md. Historical reference only.** Where this document
+> disagrees with `docs/product/VoiceOps_PRD_v4.0.md`, `CLAUDE.md`, or `.firstmate/rules/`, those
+> win. The main differences: navigation is go_router (SDD §2), the UI is dark-mode-first (SDD §8),
+> the co-rider is an orb placeholder until the Rive asset lands, and interfaces live in
+> `docs/contracts/interface.md`. The risk register (§10) and performance targets (§9) still
+> hold. §4 and §8 were touched on 2026-09-11.
+
 ---
 
 ## 1. Overview
@@ -101,7 +108,7 @@ void _animateRouteLine(List<LatLng> fullRoute) {
       _routePolyline = Polyline(
         polylineId: PolylineId('route'),
         points: fullRoute.sublist(0, pointsToShow),
-        color: Color(0xFF7C3AED),
+        color: VoiceOpsColors.primary,  // token, never a literal
         width: 4,
       );
     });
@@ -205,7 +212,7 @@ n8n is HTTP-only with no WebSocket support and adds 2,000–3,500ms latency. It 
 | Database | Supabase | Latest | Auth + data storage |
 | Hosting | Railway | — | FastAPI deployment |
 | Voice input | AssemblyAI Voice Agent API | — | ~$4.50/hr, core requirement |
-| Post-shift AI | AssemblyAI LeMUR | — | Streaming summary |
+| Post-shift AI | AssemblyAI Speech Understanding + LeMUR | — | Topic detection (failure patterns), sentiment, LeMUR report prompts + streaming summary. Not built yet |
 | Outbound calls | LiveKit SIP/PSTN | Build tier | Free for hackathon |
 | SMS | Vonage | Free trial | Global coverage |
 | Logistics | Onfleet | — | MockAdapter fallback |

@@ -1,7 +1,11 @@
 # VoiceOps — Project Synopsis v2
 *For sharing with teammates, collaborators, or anyone who needs the full picture fast.*
 
----on
+> **Superseded by PRD v4.0 / CLAUDE.md. Historical reference only.** Where this synopsis
+> disagrees with `docs/product/VoiceOps_PRD_v4.0.md` or `CLAUDE.md`, those win. "The Tech" was
+> touched on 2026-09-11 (n8n, Speech Understanding scope).
+
+---
 
 ## What is VoiceOps?
 
@@ -44,7 +48,7 @@ A live task progress card slides up whenever the agent is working, showing each 
 ## The Tech
 
 - **AssemblyAI Voice Agent API** — The core of everything. Real-time voice transcription and intent extraction. This is the mandatory hackathon technology and it's front and center in the product.
-- **AssemblyAI LeMUR** — Generates the post-shift summary by analyzing the full shift transcript.
+- **AssemblyAI Speech Understanding + LeMUR** — Post-shift intelligence. Topic detection surfaces failure patterns, sentiment tracks customer mood, and LeMUR writes the shift summary and recommendations from the full shift transcript. Planned, not built yet.
 - **FastAPI + asyncio** — The backend brain. Runs all tool calls in parallel (not one by one), keeping response time under 500ms.
 - **Flutter + Riverpod** — The frontend. One codebase, clean state management, smooth 60fps animations.
 - **Rive** — The mascot animation engine. A State Machine in Rive means Flutter can trigger emotion changes in under 100ms just by sending a string.
@@ -54,11 +58,12 @@ A live task progress card slides up whenever the agent is working, showing each 
 - **Supabase** — Auth and data storage.
 - **Railway** — FastAPI hosting.
 - **Onfleet** — Logistics platform with MockAdapter fallback.
+- **n8n** — The async layer, kept out of the real-time path. It runs post-shift reports and fire-and-forget dispatcher alerts and operator notifications.
 
 **What we deliberately dropped:**
 - n8n from the real-time path (too slow — HTTP only, 2-3s latency vs 200ms with asyncio)
 - Twilio (too expensive)
-- Africa's Talking (regional only, VoiceOps is global)ad
+- Africa's Talking (regional only, VoiceOps is global)
 - Lottie for the mascot (no interactive state machine support)
 - Spline/Blender (too heavy for mobile)
 
