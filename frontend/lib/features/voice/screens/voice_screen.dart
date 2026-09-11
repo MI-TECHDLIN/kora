@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
-import '../../../core/widgets/voice_input_bar.dart';
+import '../../../core/widgets/push_to_talk_button.dart';
 import '../../../mascot/mascot_display.dart';
 import '../../../mascot/mascot_state.dart';
 import '../../../providers/agent_state_provider.dart';
 import '../widgets/action_chips_grid.dart';
-import '../widgets/greeting_widget.dart';
 
 class VoiceScreen extends ConsumerStatefulWidget {
   const VoiceScreen({super.key});
@@ -17,8 +16,6 @@ class VoiceScreen extends ConsumerStatefulWidget {
 }
 
 class _VoiceScreenState extends ConsumerState<VoiceScreen> {
-  final _inputController = TextEditingController();
-
   // Real driver commands (PRD v4.0 §7), never generic assistant actions.
   static const _chips = [
     ActionChipData(
@@ -64,79 +61,123 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   }
 
   @override
-  void dispose() {
-    _inputController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final agentState = ref.watch(agentStateProvider);
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSpacing.sm,
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSpacing.md,
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _MapPreview(state: agentState),
+                  Padding(
+                    padding: const EdgeInsets.all(VoiceOpsSpacing.gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _NextStopCard(),
+                        const SizedBox(height: VoiceOpsSpacing.lg),
+                        const _TranscriptCard(),
+                        const SizedBox(height: VoiceOpsSpacing.lg),
+                        Text('Quick actions', style: VoiceOpsText.title),
+                        const SizedBox(height: VoiceOpsSpacing.sm),
+                        ActionChipsGrid(chips: _chips, onSelect: _onChipTap),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Keep the primary control reachable while the operations scroll.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.md),
+            child: Column(
               children: [
-                _NavButton(
-                  icon: TablerIcons.menu2,
-                  label: 'Menu',
-                  onTap: () {},
-                ),
-                _NavButton(
-                  icon: TablerIcons.settings,
-                  label: 'Settings',
-                  onTap: () {},
+                const PushToTalkButton(),
+                const SizedBox(height: VoiceOpsSpacing.sm),
+                Text(
+                  'Voice preview · no audio captured',
+                  style: VoiceOpsText.caption,
                 ),
               ],
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
-            const GreetingWidget(name: 'Mary'),
-            Expanded(
-              child: Center(
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Illustrative surface only: no location, map tiles or live route data.
+class _MapPreview extends StatelessWidget {
+  const _MapPreview({required this.state});
+  final AgentState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: const Key('map-preview'),
+      height: MediaQuery.sizeOf(context).height * 0.45,
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [VoiceOpsColors.overlay, VoiceOpsColors.canvas],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: ExcludeSemantics(child: CustomPaint(painter: _MapGrid())),
+            ),
+            Positioned(
+              top: VoiceOpsSpacing.lg,
+              left: VoiceOpsSpacing.gutter,
+              right: VoiceOpsSpacing.gutter,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Your route, together', style: VoiceOpsText.headline),
+                  const SizedBox(height: VoiceOpsSpacing.xs),
+                  Text(
+                    'Map preview · sample route',
+                    style: VoiceOpsText.bodyMuted,
+                  ),
+                ],
+              ),
+            ),
+            const Align(
+              alignment: Alignment(0.65, -0.15),
+              child: Icon(
+                TablerIcons.mapPin,
+                color: VoiceOpsColors.primaryLight,
+                size: VoiceOpsSize.iconXl,
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: VoiceOpsSpacing.md),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     MascotDisplay(
-                      state: agentState,
+                      state: state,
                       size: VoiceOpsSize.orbHero,
+                      material: OrbMaterial.chrome,
                     ),
-                    if (agentState.label != null) ...[
-                      const SizedBox(height: VoiceOpsSpacing.md),
-                      GlassCard(
-                        frosted: false,
-                        shadow: false,
-                        borderRadius: VoiceOpsRadius.pill,
-                        fill: VoiceOpsColors.primaryTint,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: VoiceOpsSpacing.lg,
-                          vertical: VoiceOpsSpacing.xs,
-                        ),
-                        child: Text(
-                          agentState.label!.toUpperCase(),
-                          style: VoiceOpsText.caption.copyWith(
-                            color: VoiceOpsColors.primaryLight,
-                          ),
-                        ),
-                      ),
-                    ],
+                    Text(
+                      state.label ?? 'Your co-rider is ready',
+                      style: VoiceOpsText.label,
+                    ),
                   ],
                 ),
               ),
-            ),
-            ActionChipsGrid(chips: _chips, onSelect: _onChipTap),
-            const SizedBox(height: VoiceOpsSpacing.md),
-            VoiceInputBar(
-              controller: _inputController,
-              onMicTap: () => _onChipTap(1),
             ),
           ],
         ),
@@ -145,37 +186,98 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   }
 }
 
-class _NavButton extends StatelessWidget {
-  const _NavButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+class _NextStopCard extends StatelessWidget {
+  const _NextStopCard();
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: GestureDetector(
-        onTap: onTap,
-        child: SizedBox.square(
-          dimension: VoiceOpsSize.touchTarget,
-          child: GlassCard(
-            frosted: false,
-            shadow: false,
-            borderRadius: VoiceOpsRadius.control,
-            child: Icon(
-              icon,
-              size: VoiceOpsSize.iconMd,
-              color: VoiceOpsColors.primaryLight,
-            ),
+    return GlassCard(
+      frosted: false,
+      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('NEXT STOP · SAMPLE', style: VoiceOpsText.caption),
+          const SizedBox(height: VoiceOpsSpacing.sm),
+          Text('24 Adeola Odeku Street', style: VoiceOpsText.title),
+          Text('Victoria Island, Lagos', style: VoiceOpsText.bodyMuted),
+          const SizedBox(height: VoiceOpsSpacing.md),
+          Wrap(
+            spacing: VoiceOpsSpacing.lg,
+            runSpacing: VoiceOpsSpacing.sm,
+            children: [
+              Text('Customer: Ada O.', style: VoiceOpsText.label),
+              Text('ETA · 8 min', style: VoiceOpsText.label),
+            ],
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _TranscriptCard extends StatelessWidget {
+  const _TranscriptCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      frosted: false,
+      shadow: false,
+      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('CONVERSATION · SAMPLE', style: VoiceOpsText.caption),
+          const SizedBox(height: VoiceOpsSpacing.md),
+          Text('You', style: VoiceOpsText.label),
+          Text('Where am I heading next?', style: VoiceOpsText.bodyMuted),
+          const SizedBox(height: VoiceOpsSpacing.md),
+          Text(
+            'Co-rider',
+            style: VoiceOpsText.label.copyWith(
+              color: VoiceOpsColors.primaryLight,
+            ),
+          ),
+          Text(
+            'Your next stop is Ada on Adeola Odeku Street. '
+            'You’re about 8 minutes away.',
+            style: VoiceOpsText.body,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapGrid extends CustomPainter {
+  const _MapGrid();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = VoiceOpsColors.divider
+      ..strokeWidth = VoiceOpsGlass.borderWidth;
+    for (double x = 0; x < size.width; x += VoiceOpsSpacing.xxl) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+    }
+    for (double y = 0; y < size.height; y += VoiceOpsSpacing.xxl) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    final route = Path()
+      ..moveTo(size.width * 0.15, size.height * 0.7)
+      ..lineTo(size.width * 0.15, size.height * 0.4)
+      ..lineTo(size.width * 0.8, size.height * 0.4);
+    canvas.drawPath(
+      route,
+      Paint()
+        ..color = VoiceOpsColors.primaryTint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = VoiceOpsSpacing.sm
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MapGrid oldDelegate) => false;
 }
