@@ -5,9 +5,10 @@
 > **Superseded by PRD v4.0 / CLAUDE.md. Historical reference only.** Where this document
 > disagrees with `docs/product/VoiceOps_PRD_v4.0.md`, `CLAUDE.md`, or `.firstmate/rules/`, those
 > win. Interfaces live in `docs/contracts/interface.md`, which supersedes §7. On 2026-09-11,
-> §2 (navigation), §3 and §6 (agent states), §4.1 (terminology), §4.4 (action chips), §6.1 (orb
-> placeholder), §8 (design tokens), §9 (folders, fonts), and §10 (branching) were brought in line
-> with current decisions. Everything else is unrevised v2.0.
+> §2 (navigation), §3 and §6 (agent states), §4.0-4.3 (onboarding is 4 screens, PRD §4.7 copy),
+> §4.4 (action chips), §6.1 (orb placeholder), §8 (design tokens), §9 (folders, fonts), §10
+> (branching), and the onboarding counts in §11-12 were brought in line with current decisions.
+> Everything else is unrevised v2.0.
 
 ---
 
@@ -162,15 +163,30 @@ enum AgentState {
 
 ## 4. Screen Specifications
 
+Onboarding is **4 screens**: splash, hook, power, and trust (`CLAUDE.md`,
+`.firstmate/rules/frontend.md`). The copy deck is PRD §4.7, and `CLAUDE.md` is canonical for the
+splash. The co-rider uses the holographic orb material throughout onboarding.
+
+### 4.0 Onboarding Screen 0 — Splash
+**Layout:**
+```
+[Giant editorial type with inline holographic pills]
+[Headline: "Meet your co-rider for every delivery route"]
+[CTA: white "Get started" button]
+```
+
+---
+
 ### 4.1 Onboarding Screen 1 — The Hook
 **Mascot emotion:** Excited / welcoming (raised brows, wide eyes, big smile, blush)
 **Layout:**
 ```
-[Background: gradient orb system — purple/pink/lavender]
-[Top 40%: Mascot animated — floating, welcoming accessories]
-[Middle: Headline "Your hands-free co-rider for every delivery"]
-[Below: Subtext — one line, what VoiceOps does]
-[Bottom: Progress dots (3 dots, first filled) + Next button]
+[Background: dark navy]
+[Eyebrow pill: "Waking up your co-rider"]
+[Top 40%: co-rider orb, breathing gently at rest]
+[Middle: Headline "Say the word. It's already moving."]
+[Below: Subtext "One sentence starts your whole shift — no taps, no glancing down."]
+[Bottom: Progress dots (current screen filled) + Next button]
 ```
 **Widget tree:**
 ```dart
@@ -179,7 +195,7 @@ OnboardingScreen1
     ├── GradientOrbBackground()
     ├── Column
     │   ├── RiveCharacter(state: 'excited')     // mascot
-    │   ├── HeadlineText("Your hands-free co-rider...")
+    │   ├── HeadlineText("Say the word. It's already moving.")
     │   ├── SubtextWidget()
     │   └── Spacer
     └── OnboardingControls(currentPage: 0)      // dots + button
@@ -191,14 +207,14 @@ OnboardingScreen1
 **Mascot emotion:** Focused / thinking (rings, determined brows)
 **Layout:**
 ```
-[Background: same gradient system]
-[Top 35%: Mascot in thinking state + pulse rings]
-[Mini task card: shows 3 parallel tasks firing simultaneously]
-[Headline: "Just speak. It handles everything."]
-[Below: Highlight 3 actions with icons]
-[Bottom: Progress dots (dot 2 filled) + Next]
+[Background: lavender gradient]
+[Header: avatar + "Hello, [Name] — here's what it caught already"]
+[Layered card stack: "Next stop" card behind, "Mic access" action card in front,
+ holographic "Live route" teaser peeking from the side]
+[Headline: "Three things happen at once. You do nothing."]
+[Bottom: Progress dots (current screen filled) + Next]
 ```
-**Key feature:** The mini task card on this screen is a static demo of the live card — this shows judges the core capability before they even reach the main screen.
+**Key feature:** The card stack is a static demo of parallel work. It shows judges the core capability before they reach the main screen.
 
 ---
 
@@ -206,12 +222,13 @@ OnboardingScreen1
 **Mascot emotion:** Happy / celebrating (full smile, blush, star eyes)
 **Layout:**
 ```
-[Background: slightly brighter gradient]
-[Mascot: bouncing, celebrating emotion]
-[Headline: "Built for drivers. Not desks."]
-[3 trust icons: 🎙️ Voice-first | ⚡ Real-time | 🔒 Reliable]
-[CTA Button: "Start Driving" — purple gradient, full width]
-[Bottom: Progress dots (all 3 filled)]
+[Background: dark navy]
+[Check pill: "✓ Voice calibrated"]
+[co-rider orb settles, smaller and calmer]
+[Headline: "It knows your voice. Time to drive."]
+[Stat row: Voice: Ready · Route: Loaded · Hands: Free]
+[CTA card: "Your voice, your co-rider" + "Start driving →" button]
+[Bottom: Progress dots (all filled)]
 ```
 
 ---
@@ -630,6 +647,7 @@ lib/
 ├── features/
 │   ├── onboarding/
 │   │   ├── screens/
+│   │   │   ├── onboarding_screen_0.dart   // splash
 │   │   │   ├── onboarding_screen_1.dart
 │   │   │   ├── onboarding_screen_2.dart
 │   │   │   └── onboarding_screen_3.dart
@@ -730,7 +748,7 @@ main
 
 ### Checkpoint 3 — Sept 22
 **Goal:** Full app screens complete
-- [ ] Ez: Onboarding 3 screens complete with mascot emotions
+- [ ] Ez: Onboarding 4 screens complete (splash + hook/power/trust) with mascot emotions
 - [ ] Ez: Summary screen with animated stat counters
 - [ ] Ez: Settings screen
 - [ ] Ez: Call overlay (LiveKit UI)
@@ -771,7 +789,7 @@ main
 - [ ] Handle screen_navigate WebSocket event
 
 **Week 3 (Sept 18–22):**
-- [ ] Build all 3 onboarding screens
+- [ ] Build all 4 onboarding screens
 - [ ] Build Summary screen with LeMUR stream + animated counters
 - [ ] Build Settings screen
 - [ ] Build CallOverlay
