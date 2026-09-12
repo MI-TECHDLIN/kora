@@ -173,3 +173,32 @@ async def send_sms(
             "success": False,
             "error": f"Twilio SMS failed: {str(e)}"
         }
+
+
+def get_call_status(call_sid: str) -> Optional[str]:
+    """
+    Current provider status of an outbound call ("queued", "ringing", "in-progress",
+    "completed", "busy", "failed", "no-answer", "canceled"), or None when unknown.
+    Blocking: call it off the event loop.
+    """
+    client = get_twilio_client()
+    if not client:
+        return None
+    try:
+        return client.calls(call_sid).fetch().status
+    except Exception as e:
+        logger.warning(f"Twilio call status lookup failed: {e}")
+        return None
+
+
+def hang_up_call(call_sid: str) -> bool:
+    """End an outbound call. Blocking: call it off the event loop."""
+    client = get_twilio_client()
+    if not client:
+        return False
+    try:
+        client.calls(call_sid).update(status="completed")
+        return True
+    except Exception as e:
+        logger.warning(f"Twilio hang-up failed: {e}")
+        return False

@@ -36,8 +36,18 @@ Available tools:
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
+Routes and stops appear on the driver's in-app map automatically when you use get_next_delivery, get_best_route, or start_navigation. Never tell the driver to open another maps app.
+
+After a delivery is marked delivered, call get_next_delivery and announce the next stop.
+
 Be concise and helpful in your responses."""
-    return system_prompt
+
+    driver_facts = [f"The driver's name is {driver_name}."]
+    if vehicle_type and vehicle_type != "vehicle":
+        driver_facts.append(f"They ride a {vehicle_type}.")
+    if next_stop_info:
+        driver_facts.append(f"Their current stop: {next_stop_info}.")
+    return f"{system_prompt}\n\n{' '.join(driver_facts)}"
 
 
 def get_agent_greeting() -> str:
@@ -61,16 +71,21 @@ def get_audio_config() -> Dict[str, Any]:
     }
 
 
-def get_session_config(driver_id: str, shift_id: str, 
-                     agent_id: Optional[str] = None) -> Dict[str, Any]:
+def get_session_config(driver_id: str, shift_id: str,
+                     agent_id: Optional[str] = None,
+                     driver_name: str = "Driver", vehicle_type: str = "vehicle",
+                     next_stop_info: str = "") -> Dict[str, Any]:
     """
     Build the complete session configuration for AssemblyAI Voice Agent.
-    
+
     Args:
         driver_id: Driver ID for context
         shift_id: Shift ID for context
         agent_id: Optional stored agent ID to use instead of inline config
-    
+        driver_name: Driver's name (the voice WebSocket loads it from the drivers row)
+        vehicle_type: Driver's vehicle (drivers.vehicle_type)
+        next_stop_info: One-line description of the delivery the driver is on
+
     Returns:
         Complete session configuration dictionary
     """
@@ -85,14 +100,6 @@ def get_session_config(driver_id: str, shift_id: str,
     
     # Import here to avoid circular dependency
     from app.agents.tool_registry import get_tools
-    
-    # Build dynamic context with defaults (DB not connected yet)
-    driver_name = "Driver"
-    vehicle_type = "vehicle"
-    next_stop_info = ""
-    
-    # TODO: Fetch from DB when database is connected
-    # For now, use defaults
     
     # Build inline configuration
     return {
