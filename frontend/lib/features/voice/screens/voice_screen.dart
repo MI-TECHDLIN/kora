@@ -199,8 +199,8 @@ class _NextStopCard extends StatelessWidget {
         children: [
           Text('NEXT STOP · SAMPLE', style: VoiceOpsText.caption),
           const SizedBox(height: VoiceOpsSpacing.sm),
-          Text('24 Adeola Odeku Street', style: VoiceOpsText.title),
-          Text('Victoria Island, Lagos', style: VoiceOpsText.bodyMuted),
+          Text('1400 Lavaca Street', style: VoiceOpsText.title),
+          Text('Downtown, Austin, TX', style: VoiceOpsText.bodyMuted),
           const SizedBox(height: VoiceOpsSpacing.md),
           Wrap(
             spacing: VoiceOpsSpacing.lg,
@@ -240,7 +240,7 @@ class _TranscriptCard extends StatelessWidget {
             ),
           ),
           Text(
-            'Your next stop is Ada on Adeola Odeku Street. '
+            'Your next stop is Ada on Lavaca Street. '
             'You’re about 8 minutes away.',
             style: VoiceOpsText.body,
           ),
