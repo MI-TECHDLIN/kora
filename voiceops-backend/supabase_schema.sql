@@ -122,6 +122,10 @@ ALTER TABLE intelligence_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE operator_codes ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (basic - customize for production)
+CREATE POLICY "Users can create own driver profile" ON drivers
+    FOR INSERT
+    WITH CHECK (auth.uid()::text = id::text);
+
 CREATE POLICY "Users can view own driver profile" ON drivers
     FOR SELECT USING (auth.uid()::text = id::text);
 
