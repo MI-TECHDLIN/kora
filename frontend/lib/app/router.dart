@@ -68,16 +68,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: Listenable.merge([onboardingChanges, authChanges]),
     redirect: (context, state) {
       final location = state.matchedLocation;
+      final atOnboarding = location == AppRoutes.onboarding;
       final atAuth =
           location == AppRoutes.welcome ||
           location.startsWith('${AppRoutes.welcome}/');
+
+      // Onboarding gate first: it introduces the app before sign-up.
+      if (ref.read(onboardingProvider)) {
+        return atOnboarding ? null : AppRoutes.onboarding;
+      }
       // Auth gate: without a live session, only the auth screens are open.
       if (!auth.hasValidSession) return atAuth ? null : AppRoutes.welcome;
-
-      final needsOnboarding = ref.read(onboardingProvider);
-      final atOnboarding = location == AppRoutes.onboarding;
-      if (needsOnboarding && !atOnboarding) return AppRoutes.onboarding;
-      if (!needsOnboarding && (atOnboarding || atAuth)) return AppRoutes.voice;
+      if (atOnboarding || atAuth) return AppRoutes.voice;
       return null;
     },
     routes: [
@@ -142,8 +144,8 @@ StatefulShellBranch _branch(String path, Widget screen) => StatefulShellBranch(
   routes: [GoRoute(path: path, builder: (context, state) => screen)],
 );
 
-/// The signed-out screens come before onboarding, so they share its
-/// holographic co-rider.
+/// The signed-out screens follow straight on from onboarding, so they share
+/// its holographic co-rider.
 Page<void> _authPage(GoRouterState state, Widget screen) => _fadePage(
   state,
   OrbMaterialScope(material: OrbMaterial.holographic, child: screen),

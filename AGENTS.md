@@ -201,9 +201,11 @@ States: `idle → recording → processing → speaking`.
 Home screen layout: map (top 45%), next stop card, transcript display,
 push-to-talk button, bottom nav.
 
-Onboarding is 4 screens: a splash with giant editorial type and inline
-holographic pills ("Meet your co-rider for every delivery route", white
-"Get started" CTA), then hook, power, and trust screens.
+Onboarding is 3 screens, shown before the auth gate: a splash with giant
+editorial type and inline holographic pills ("Meet your co-rider for every
+delivery route", white "Get started" CTA), then hook and power. Next on
+Power hands off to the auth welcome screen's "Get started" and sign-up. The
+fourth, trust, screen was retired on 2026-09-12 (captain's call).
 
 ---
 
