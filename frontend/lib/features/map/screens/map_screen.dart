@@ -49,7 +49,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// The stop the card shows, when the driver tapped a pin; otherwise the
   /// route's target.
   String? _selectedStopId;
-  bool _cardExpanded = true;
+
+  /// The driver's fold choice for the card; null follows the screen size.
+  bool? _cardExpandedChoice;
+
+  /// Short screens start the card folded so the route isn't hidden under it.
+  bool get _cardExpanded =>
+      _cardExpandedChoice ??
+      MediaQuery.sizeOf(context).height >= VoiceOpsMap.compactHeight;
 
   @override
   void initState() {
@@ -57,7 +64,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ref.listenManual<MapRoute?>(mapRouteProvider, (_, route) {
       setState(() {
         _selectedStopId = null;
-        _cardExpanded = true;
+        _cardExpandedChoice = null;
       });
     });
     ref.listenManual<MapFocus>(mapFocusProvider, (_, focus) => _apply(focus));
@@ -325,7 +332,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     stop: shownStop,
                     expanded: _cardExpanded,
                     onToggle: () =>
-                        setState(() => _cardExpanded = !_cardExpanded),
+                        setState(() => _cardExpandedChoice = !_cardExpanded),
                   ),
                 ],
               ),
@@ -352,7 +359,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             : 'Stop ${stop.sequence}, $who',
         onTap: () => setState(() {
           _selectedStopId = stop.deliveryId;
-          _cardExpanded = true;
+          _cardExpandedChoice = true;
         }),
       ),
     );

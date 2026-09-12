@@ -296,7 +296,11 @@ class _StatTile extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(value, style: VoiceOpsText.title),
           ),
-          Text(label, style: VoiceOpsText.caption),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(label, style: VoiceOpsText.caption, maxLines: 1),
+          ),
         ],
       ),
     );

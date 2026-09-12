@@ -252,6 +252,9 @@ class VoiceOpsMap {
   /// Share of the screen height a fit always keeps for the map, however
   /// tall the card is.
   static const minFitShare = 0.25;
+
+  /// Screens shorter than this start the route card folded.
+  static const compactHeight = 700.0;
 }
 
 class VoiceOpsMotion {

@@ -40,8 +40,12 @@ void main() {
     );
   });
 
-  Future<void> pump(WidgetTester tester, Widget screen) async {
-    tester.view.physicalSize = const Size(390, 844);
+  Future<void> pump(
+    WidgetTester tester,
+    Widget screen, {
+    Size size = const Size(390, 844),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     container = ProviderContainer(
@@ -80,7 +84,8 @@ void main() {
   void expectInClearView(WidgetTester tester, LatLng point) {
     final onScreen = camera(tester).latLngToScreenPoint(point);
     final sheetTop = tester.getRect(find.textContaining('OpenFreeMap')).top;
-    expect(onScreen.x, inInclusiveRange(0, 390), reason: '$point x');
+    final width = tester.view.physicalSize.width;
+    expect(onScreen.x, inInclusiveRange(0, width), reason: '$point x');
     expect(
       onScreen.y,
       inInclusiveRange(VoiceOpsSize.touchTarget, sheetTop),
@@ -167,6 +172,31 @@ void main() {
       expect(find.text('Tunde Bakare'), findsOneWidget);
     },
   );
+
+  testWidgets('a short phone folds the card so the route shows', (
+    tester,
+  ) async {
+    await pump(tester, const MapScreen(), size: const Size(320, 568));
+    location.emit(const LocationFix(_nearStops));
+    await settle(tester);
+    showRoute(sampleMapRoute());
+    await settle(tester);
+    expect(find.text('Amara Johnson'), findsOneWidget);
+    expect(find.text('Distance'), findsNothing);
+    for (final point in [
+      ...MapRoute.fromJson(sampleMapRoute()).coordinates,
+      _nearStops,
+    ]) {
+      expectInClearView(tester, point);
+    }
+
+    // The driver can still open the details.
+    await tester.tap(find.text('Amara Johnson'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Distance'), findsOneWidget);
+    expect(find.text('Motorbike'), findsOneWidget);
+  });
 
   testWidgets('no road route: the stop pin stays, no line or trip stats', (
     tester,
