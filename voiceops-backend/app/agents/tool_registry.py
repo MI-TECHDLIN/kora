@@ -240,7 +240,16 @@ async def execute_tool(tool_name: str, parameters: dict, context: dict) -> dict:
             "success": False,
             "error": f"Tool '{tool_name}' not found"
         }
-    
+    # Safety & authorization check
+    from app.agents.tool_safety import tool_safety_gate
+    allowed, rejection_reason = await tool_safety_gate.check(tool_name, parameters, context)
+    if not allowed:
+        return {
+            "success": False,
+            "error": rejection_reason,
+            "blocked_by": "safety_gate"
+        }
+
     try:
         result = await executor(parameters, context)
         return result

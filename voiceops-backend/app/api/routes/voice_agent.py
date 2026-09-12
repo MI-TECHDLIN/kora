@@ -44,6 +44,7 @@ class AudioRequest(BaseModel):
     audio: str  # Base64 encoded PCM16 audio
     sample_rate: int = 24000
     session_id: Optional[str] = None
+    authorization: Optional[str] = None  # Bearer <supabase_jwt>
 
 
 class AudioResponse(BaseModel):
@@ -55,7 +56,12 @@ class AudioResponse(BaseModel):
     session_id: str
 
 
-async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 30.0):
+async def _drain_until_reply_done(
+    websocket,
+    session_id: str,
+    context: Optional[dict] = None,
+    timeout: float = 30.0
+):
     """
     Drain events until reply.done or session.ended is received.
     This is critical - we must wait for reply.done to get complete transcripts/audio.
@@ -66,23 +72,14 @@ async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 3
     agent_texts = []
     start_time = asyncio.get_event_loop().time()
     
-    # Context for tool execution
-    # NOTE: In production this comes from JWT auth (driver_id) + DB lookup
-    # For local testing: realistic seeded Nigerian driver scenario
-    context = {
-        "driver_id": session_id,
-        "driver_name": "Emeka Okafor",
-        "shift_id": session_id,
-        "session_id": session_id,
-        "current_delivery": {
-            "id": "del-voiceops-demo-001",
-            "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island",
-            "customer_phone": "+2348012345678",
-            "notes": "Gate code is 4521. Call on arrival.",
-            "time_window": "10:00 AM - 12:00 PM"
+    # Resolved live context for tool execution
+    if context is None:
+        context = {
+            "driver_id": session_id,
+            "driver_name": "Driver",
+            "shift_id": session_id,
+            "session_id": session_id,
         }
-    }
     
     tool_was_called = False
     pending_tool_tasks = []
@@ -187,11 +184,19 @@ async def _drain_until_reply_done(websocket, session_id: str, timeout: float = 3
     return audio_chunks, user_texts, agent_texts, last_msg_type == "session.ended"
 
 
-async def handle_assemblyai_session(audio_data: bytes, session_id: str):
+async def handle_assemblyai_session(audio_data: bytes, session_id: str, context: Optional[dict] = None):
     """
     Handle a single AssemblyAI session following the exact protocol.
     """
-    print(f"[VoiceOps] New session: {session_id} | audio: {len(audio_data)} bytes")
+    effective_context = context or {
+        "driver_id": session_id,
+        "shift_id": session_id,
+        "session_id": session_id,
+    }
+    driver_id = effective_context.get("driver_id", session_id)
+    shift_id = effective_context.get("shift_id", session_id)
+
+    print(f"[VoiceOps] New session: {session_id} (driver: {driver_id}) | audio: {len(audio_data)} bytes")
 
     headers = {"Authorization": f"Bearer {settings.assemblyai_api_key}"}
 
@@ -201,8 +206,8 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
     ) as websocket:
         # Step 2: Send session.update immediately after connecting
         session_config = get_session_config(
-            driver_id=session_id, 
-            shift_id=session_id,
+            driver_id=str(driver_id), 
+            shift_id=str(shift_id),
             agent_id=settings.assemblyai_agent_id
         )
         await websocket.send(json.dumps(session_config))
@@ -226,7 +231,9 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
             return None, [], []
 
         # Drain the greeting
-        greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(websocket, session_id)
+        greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(
+            websocket, session_id, context=effective_context
+        )
 
         if greeting_ended:
             return b"".join(greeting_audio), [], greeting_agent_text
@@ -244,7 +251,9 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str):
             await asyncio.sleep(0.05)
 
         # Step 5: Wait for reply.done to get complete response
-        response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(websocket, session_id)
+        response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(
+            websocket, session_id, context=effective_context
+        )
 
         combined_audio = b"".join(response_audio)
 
@@ -260,9 +269,14 @@ async def voice_agent_endpoint(request: AudioRequest):
     REST API endpoint for AssemblyAI voice agent interaction.
     Accepts base64-encoded PCM16 audio and returns AssemblyAI's voice response.
     """
+    from app.agents.context_builder import build_driver_context
+
     # Generate session ID if not provided
     if not request.session_id:
         request.session_id = f"live_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    # Resolve live driver context
+    context = await build_driver_context(request.authorization, request.session_id)
 
     # Decode audio
     try:
@@ -282,7 +296,7 @@ async def voice_agent_endpoint(request: AudioRequest):
     # Send to AssemblyAI
     try:
         response_audio, user_transcript, agent_transcript = await handle_assemblyai_session(
-            audio_data, request.session_id
+            audio_data, request.session_id, context=context
         )
     except Exception as e:
         print(f"[VoiceOps] ❌ AssemblyAI error: {str(e)}")

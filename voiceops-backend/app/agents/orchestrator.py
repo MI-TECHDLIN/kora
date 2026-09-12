@@ -28,23 +28,47 @@ class ToolOrchestrator:
         call_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Execute an individual tool and record execution metrics.
+        Execute an individual tool and record execution metrics with trace ID.
         """
+        import uuid
+        trace_id = context.get("trace_id") or str(uuid.uuid4())
         t0 = time.perf_counter()
+
         try:
             result = await execute_tool(tool_name, parameters, context)
             is_error = bool(isinstance(result, dict) and result.get("error"))
         except Exception as e:
-            logger.error(f"[Orchestrator] Tool '{tool_name}' failed: {e}")
+            logger.error(f"[Orchestrator] [{trace_id}] Tool '{tool_name}' failed: {e}")
             result = {"success": False, "error": str(e)}
             is_error = True
 
         duration_ms = (time.perf_counter() - t0) * 1000.0
 
+        # Log audit trail to DB
+        try:
+            from app.db.queries import get_supabase, is_valid_uuid
+            driver_id = context.get("driver_id")
+            session_id = context.get("session_id")
+            get_supabase().table("agent_audit_trail").insert({
+                "trace_id": trace_id,
+                "session_id": str(session_id) if session_id else None,
+                "driver_id": driver_id if is_valid_uuid(driver_id) else None,
+                "agent_name": "voice_agent",
+                "tool_name": tool_name,
+                "tool_input": parameters,
+                "tool_output": result if isinstance(result, dict) else {"raw": str(result)},
+                "execution_ms": int(duration_ms),
+                "success": not is_error,
+                "error_message": str(result.get("error")) if is_error and isinstance(result, dict) else None,
+            }).execute()
+        except Exception as ae:
+            logger.debug(f"[Orchestrator] Audit write skipped: {ae}")
+
         return {
             "type": "tool.result",
             "call_id": call_id or f"call_{tool_name}",
             "tool_name": tool_name,
+            "trace_id": trace_id,
             "result": json.dumps(result) if not isinstance(result, str) else result,
             "parsed_result": result,
             "is_error": is_error,

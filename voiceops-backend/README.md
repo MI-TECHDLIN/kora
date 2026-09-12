@@ -1,16 +1,16 @@
 # VoiceOps Backend
 
-FastAPI backend for **VoiceOps** — a voice-first logistics driver companion powered by **AssemblyAI Voice Agent API**, **Supabase**, **Twilio**, **Google Maps**, and **n8n**.
+FastAPI backend for **VoiceOps** — an autonomous voice-first logistics operations platform and driver companion powered by **AssemblyAI Voice Agent API & LeMUR**, **Supabase PostgreSQL & Storage**, **Twilio**, **OSRM / Google Maps**, and **n8n**.
 
 ---
 
 ## 📋 Table of Contents
 - [Architecture Overview](#-architecture-overview)
-- [Integration Status Matrix](#-integration-status-matrix)
-- [Feature Implementation Status](#-feature-implementation-status)
-- [n8n Workflows & Frontend Integration Guide](#-n8n-workflows--frontend-integration-guide)
-- [Voice Agent Tool Registry](#-voice-agent-tool-registry)
-- [API Endpoints](#-api-endpoints)
+- [System Capabilities & Milestones (100% Completed)](#-system-capabilities--milestones-100-completed)
+- [Voice Agent Tool Registry & Safety](#-voice-agent-tool-registry--safety)
+- [API Endpoints Reference](#-api-endpoints-reference)
+- [Real-Time WebSocket Channel](#-real-time-websocket-channel)
+- [n8n Workflows Integration](#-n8n-workflows-integration)
 - [Setup & Installation](#-setup--installation)
 - [Environment Variables](#-environment-variables)
 - [Testing & Verification](#-testing--verification)
@@ -21,188 +21,220 @@ FastAPI backend for **VoiceOps** — a voice-first logistics driver companion po
 
 ```mermaid
 graph TD
-    subgraph Frontend["Mobile / Web Frontend"]
-        DriverUI["Driver UI (Flutter / React)"]
+    subgraph Frontend["Mobile / Web Client"]
+        DriverUI["Driver UI (Flutter Mobile)"]
         Mic["Microphone (PCM16 24kHz)"]
+        WSClient["WebSocket Client (/ws/driver/{id})"]
     end
 
-    subgraph Backend["FastAPI Backend (VoiceOps)"]
+    subgraph Backend["FastAPI Backend (VoiceOps Core)"]
         AuthAPI["/v1/auth & /v1/driver"]
         ShiftAPI["/v1/shift & /v1/deliveries"]
-        VoiceAgent["/v1/voice-agent (AssemblyAI Proxy)"]
-        ToolRunner["Async Tool Orchestrator"]
-        BGTasks["Background Task Engine (GC-Anchored)"]
+        LocationsAPI["/v1/locations & /v1/deliveries/{id}/pod"]
+        FleetAPI["/v1/fleet & /v1/routes"]
+        VoiceAgent["/v1/voice-agent (Session Pipeline)"]
+        ContextBuilder["Context Builder (JWT + DB + Memories)"]
+        SafetyGate["Tool Safety Gate (Auth & State Guards)"]
+        ToolRunner["Parallel Tool Orchestrator (Trace ID)"]
+        EventBus["Internal Async Event Bus"]
+        LocationIntel["Location & Geofencing Service"]
+        RiskEngine["Proactive Risk Engine"]
+        AlertService["Proactive Alert Service (Cooldown)"]
+        RoutingService["Multi-Provider Routing (OSRM / Google)"]
+        OptimizationService["Route Optimizer (Greedy / Timefold)"]
+        MemoryAgent["Operational Memory Agent"]
+        DispatcherAgent["Dispatcher Agent"]
     end
 
     subgraph VoiceAI["AssemblyAI Cloud"]
-        AAI_Agent["AssemblyAI Voice Agent API (LLM + STT + TTS)"]
+        AAI_Agent["Voice Agent API (LLM + STT + TTS)"]
+        LeMUR["LeMUR Post-Shift Intelligence"]
     end
 
-    subgraph DB["Supabase"]
-        SupaDB[("PostgreSQL: drivers, shifts, deliveries, alerts")]
+    subgraph Storage["Supabase Cloud"]
+        SupaDB[("PostgreSQL: drivers, deliveries, events, alerts, memories, audit")]
+        SupaStorage["Storage Bucket: pod-photos"]
     end
 
-    subgraph Automation["n8n Automation Engine"]
-        W1["Workflow 1: Dispatcher Alerts"]
-        W2["Workflow 2: Post-Shift Intelligence"]
-        W3["Workflow 3: Driver Onboarding"]
+    subgraph External["External Integrations"]
+        Twilio["Twilio Voice & SMS"]
+        OSRM["OSRM / Google Directions"]
+        n8n["n8n Webhook Automations"]
     end
 
-    subgraph External["External Services"]
-        Twilio["Twilio (Voice Calls & SMS)"]
-        GMaps["Google Maps Directions"]
-        Slack["Slack Channels"]
-        Email["SMTP Email (Operator & Driver)"]
-    end
-
-    DriverUI -->|REST API & Auth| AuthAPI
-    DriverUI -->|Shift Control| ShiftAPI
+    DriverUI -->|REST & Auth| AuthAPI
+    DriverUI -->|Status & POD| ShiftAPI
+    DriverUI -->|GPS Pings| LocationsAPI
+    WSClient <-->|Real-time Alerts & Pings| Backend
     Mic -->|Audio Chunks| VoiceAgent
+    VoiceAgent --> ContextBuilder
+    ContextBuilder --> MemoryAgent
     VoiceAgent <-->|WebSocket Stream| AAI_Agent
-    AAI_Agent -->|tool_call| ToolRunner
-    ToolRunner -->|Read/Write| SupaDB
-    ToolRunner -->|Calls/SMS| Twilio
-    ToolRunner -->|Routing| GMaps
-    ToolRunner -->|Trigger Alert| BGTasks
-    ShiftAPI -->|Shift End| BGTasks
-    AuthAPI -->|New Driver| BGTasks
-
-    BGTasks -.->|Webhook POST| W1
-    BGTasks -.->|Webhook POST| W2
-    BGTasks -.->|Webhook POST| W3
-
-    W1 --> Slack & Email & SupaDB
-    W2 --> Email & SupaDB
-    W3 --> Email & Slack
+    AAI_Agent -->|tool_call| SafetyGate
+    SafetyGate --> ToolRunner
+    ToolRunner --> SupaDB
+    ToolRunner --> EventBus
+    ToolRunner --> Twilio
+    ToolRunner --> RoutingService
+    LocationsAPI --> LocationIntel
+    LocationIntel --> RiskEngine
+    RiskEngine --> AlertService
+    AlertService --> WSClient
+    LocationsAPI --> SupaStorage
+    ShiftAPI --> LeMUR
+    Backend -.->|Background Webhooks| n8n
 ```
 
 ---
 
-## 🔌 Integration Status Matrix
+## 🚀 System Capabilities & Milestones (100% Completed)
 
-| Platform / Service | Status | Live / Mock | Details |
-| :--- | :---: | :---: | :--- |
-| **AssemblyAI Voice Agent** | 🟢 **100% Live** | **Live** | Real-time voice agent session configuration, prompt injection, bi-directional audio streaming (PCM16 24kHz), dynamic tool calling dispatch. |
-| **AssemblyAI LeMUR** | 🟢 **100% Live** | **Live** | Post-shift intelligence pipeline analyzing full multi-turn shift transcripts. Extracts executive summaries, driver sentiment scoring (0.0-1.0), route bottlenecks, and actionable coaching recommendations. Persists into Supabase `intelligence_reports`. |
-| **FastAPI + asyncio (Orchestrator)** | 🟢 **100% Live** | **Live** | Parallel multi-tool dispatch via `asyncio.gather()`. Dispatches concurrent delivery, navigation, progress, and dispatch tools simultaneously in sub-500ms. |
-| **Supabase (PostgreSQL & Auth)** | 🟢 **100% Live** | **Live** | Tables (`drivers`, `shifts`, `deliveries`, `voice_sessions`, `dispatcher_alerts`, `intelligence_reports`), Phone OTP verification, and JWT session handling. |
-| **n8n Automation Engine** | 🟢 **100% Live** | **Live** | 3 production workflows with background fire-and-forget triggers. Tested and operational against local/remote n8n webhooks. |
-| **Twilio (Voice & SMS)** | 🟡 **Partially Live** | **Live Credentials Ready** | Twilio client configured for voice bridge calls (`call_customer`) and SMS (`notify_customer`). Works live with valid Twilio credentials; falls back safely when credentials missing. |
-| **Google Maps API** | 🟡 **Partially Live** | **Live + Fallback** | Directions API queries for real traffic times and navigation deep-links (`google.navigation:q=`). Falls back to mock Lagos coordinates if API key is not present. |
-| **Onfleet Logistics** | 🟡 **Partially Live** | **Mock Adapter Default** | Provides realistic mock data for 7 Lagos deliveries (addresses, notes, recipient names). Adapter interface ready for live Onfleet API key integration. |
+### 🔴 Milestone 1 — Core Plumbing & Live Database
+- **Live Driver Context**: [`context_builder.py`](app/agents/context_builder.py) dynamically resolves driver identity, vehicle details, active shift, and next delivery from Bearer JWTs, falling back to testing fixtures when unauthenticated.
+- **Deterministic Delivery State Machine**: [`delivery_state_machine.py`](app/services/delivery_state_machine.py) enforces legal transitions (`pending` → `en_route` / `arrived` → `delivered` / `failed` → `rescheduled`), rejecting illegal state jumps.
+- **Real Database Wiring**: All 10 voice agent tools query and mutate live Supabase tables instead of returning mock data.
+- **Schema Hardening**: [`supabase_schema.sql`](supabase_schema.sql) updated with Row Level Security (`INSERT` for drivers, `service_role` full access) and tables: `delivery_events`, `customers`, `proof_of_delivery`, `customer_interactions`, `memories`, `agent_audit_trail`.
 
----
+### 🔴 Milestone 2 — GPS & Proof of Delivery
+- **Location Intelligence & Geofencing**: [`location_service.py`](app/services/location_service.py) computes great-circle Haversine distances and tracks movement states (`DRIVER_MOVING`, `DRIVER_STOPPED`, `DRIVER_IDLE`).
+- **Auto-Arrival Detection**: Automatically detects when a driver enters the 100m geofence radius of a delivery stop, transitioning delivery state to `arrived` and generating a `DRIVER_ARRIVED` audit event.
+- **Proof of Delivery**: [`storage_service.py`](app/services/storage_service.py) uploads photo and signature attachments to Supabase Storage (`pod-photos` bucket).
+- **POD Endpoints**: `POST /v1/deliveries/{id}/pod` records GPS verification, uploads attachments, transitions status to `delivered`, and writes audit records.
+- **High-Frequency GPS Pings**: `POST /v1/locations/ping` validates coordinates (-90 to 90 lat, -180 to 180 lng, speed <= 300 km/h) and executes geofence checks.
 
-## 🚀 Feature Implementation Status
+### 🟡 Milestone 3 — Proactive Intelligence Engine
+- **ETA Engine**: [`eta_service.py`](app/services/eta_service.py) calculates arrival times factoring in an urban transit multiplier (1.35x), writes `estimated_arrival` timestamps, and flags time window compliance risks.
+- **Risk Detection Engine**: [`risk_engine.py`](app/services/risk_engine.py) evaluates telemetry streams for `EXCESSIVE_IDLE` (>5 min stationary), `TIME_WINDOW_RISK` (projected late arrivals), and `LATE_DELIVERY`.
+- **Proactive Alert System**: [`proactive_alert_service.py`](app/services/proactive_alert_service.py) emits voice and push alerts with a 15-minute cooldown per driver/risk-type to prevent repetitive driver interruption.
+- **Automated Customer Notification Policy**: [`notification_policy_service.py`](app/services/notification_policy_service.py) triggers automated SMS notifications via Twilio when driver ETA drops below 15 minutes without duplicating recent messages.
+- **Autonomous Exception Workflow**: [`exception_workflow.py`](app/services/exception_workflow.py) executes a multi-step escalation protocol (automated call → follow-up SMS → attempt counter increment → dispatcher alert escalation).
 
-### ✅ Completed & Operational Features (100%)
-- [x] **Live AssemblyAI Voice Agent Engine**: Bidirectional audio turn handling with prompt engineering tailored for logistics drivers.
-- [x] **AssemblyAI LeMUR Intelligence Pipeline**: Automated speech and transcript synthesis generating driver sentiment scores, operational incidents, route issues, and coaching advice directly stored in Supabase.
-- [x] **Parallel Tool Orchestrator (`asyncio.gather`)**: High-performance concurrent tool execution keeping multi-tool response latency well under 500ms SLA.
+### 🟡 Milestone 4 — Routing, WebSocket & Dispatcher
+- **Multi-Provider Routing**: [`routing_service.py`](app/services/routing_service.py) and [`osrm.py`](app/integrations/osrm.py) prioritize open-source OSRM, fall back to Google Directions API, and cascade to direct Heuristic calculation if network routes fail.
+- **Driver WebSocket Channel**: [`driver_ws.py`](app/api/websocket/driver_ws.py) maintains a persistent `/ws/driver/{driver_id}` connection for live proactive alert dispatching and telemetry streaming.
+- **Dispatcher Agent**: [`dispatcher_agent.py`](app/agents/dispatcher_agent.py) analyzes fleet snapshots, identifies bottlenecks, prioritizes critical safety/delay incidents, and suggests shift rebalancing.
+- **Fleet Management APIs**: [`fleet.py`](app/api/routes/fleet.py) exposes overview metrics, driver locations, active incidents, and delivery completion KPIs.
+- **Tool Safety Gate**: [`tool_safety.py`](app/agents/tool_safety.py) verifies caller authorization (driver ownership) and state transitions before tool execution.
 
-- [x] **10 Voice Agent Tools**:
-  1. `get_next_delivery` — Fetch next pending stop with customer info and gate notes.
-  2. `update_delivery_status` — Mark delivered, failed, or rescheduled via voice.
-  3. `log_exception` — Record delivery exceptions with reasons and notes.
-  4. `get_best_route` — Route optimization with traffic awareness.
-  5. `start_navigation` — Hands-free navigation deep linking.
-  6. `call_customer` — Twilio masked voice bridging for customer contact.
-  7. `notify_customer` — Automated customer SMS delivery notifications.
-  8. `get_next_order` — View queued manifests.
-  9. `get_shift_summary` — On-demand live progress and delivery counts.
-  10. `alert_dispatcher` — Immediate voice-triggered dispatcher priority escalation.
-- [x] **n8n Workflow 1 (Dispatcher Alerts)**:
-  - Real-time logging of safety, vehicle, or routing emergencies to Supabase.
-  - Urgent operations email and Slack channel alerts.
-- [x] **n8n Workflow 2 (Post-Shift Intelligence)**:
-  - Automated KPI calculation (completion rate, incident count, shift duration).
-  - Performance tier classification (`Good`, `Needs Review`, `Outstanding`).
-  - Intelligence report logging to Supabase and executive email summary to fleet ops.
-- [x] **n8n Workflow 3 (Driver Onboarding & Welcome)**:
-  - Triggered automatically on first OTP login or via onboarding endpoint.
-  - Sends a welcoming HTML feature overview email to the new driver explaining all hands-free capabilities.
-  - Notifies operations team on Email and Slack.
-- [x] **Non-Blocking Background Task Engine**: Module-level GC-anchored task execution (`_background_tasks`) ensuring n8n webhooks never introduce latency to voice or REST responses.
-
-### 🟡 Partially Completed / In-Progress Features
-- [ ] **Native WebSocket Full-Duplex Relay**:
-  - `app/api/routes/voice_agent.py` provides working REST turn-by-turn audio streaming.
-  - `app/api/websocket/voice.py` contains the WebSocket skeleton for continuous raw PCM16 microphone streaming. Needs final frontend client sync.
-- [ ] **Dynamic Shift Duration**:
-  - Shifts track start and end timestamps; duration calculation is currently simplified to minutes elapsed and can be augmented with active GPS motion tracking.
-
-
-### ⏳ To Be Added (Future Roadmap)
-- [ ] **Live GPS Geofencing**: Auto-detecting when a driver arrives within 50m of delivery coordinates to trigger auto-arrival prompts.
-- [ ] **Multilingual Support**: Fine-tuning voice prompts for regional delivery dialects (e.g., Nigerian Pidgin, Yoruba, Hausa).
-- [ ] **Offline Queueing**: Local audio buffer in mobile frontend for dead-zone cellular coverage.
+### 🔵 Milestone 5 — Memory, Event Bus & Autonomous Operations
+- **Operational Memory Agent**: [`memory_agent.py`](app/agents/memory_agent.py) records long-term observations (e.g. gate codes, customer preferences, parking instructions) and enriches driver session context.
+- **Internal Async Event Bus**: [`event_bus.py`](app/services/event_bus.py) decouples core operations via pub/sub (`DeliveryCompleted`, `DriverArrived`, `DispatcherAlertCreated`).
+- **Customer Communication Agent**: [`customer_agent.py`](app/agents/customer_agent.py) sandboxes customer interactions to an approved whitelist (`send_eta`, `confirm_status`, `collect_instructions`, `schedule_callback`).
+- **Route Optimization Engine**: [`optimization_service.py`](app/services/optimization_service.py) provides a greedy nearest-neighbor stop sequencer and Timefold solver client via `POST /v1/routes/optimize`.
+- **Trace IDs & Observability**: [`orchestrator.py`](app/agents/orchestrator.py) assigns a unique UUID `trace_id` to every tool execution and persists structured logs to `agent_audit_trail`.
 
 ---
 
-## 📱 n8n Workflows & Frontend Integration Guide
+## 🛠 Voice Agent Tool Registry & Safety
 
-> [!IMPORTANT]
-> **Does the frontend need a direct connection to n8n?**
-> **NO.** The frontend should **NEVER** call n8n directly.
-> All n8n webhooks are triggered **server-side** by the FastAPI backend in asynchronous background tasks.
+All 10 voice agent tools are registered in [`app/agents/tool_registry.py`](app/agents/tool_registry.py) and protected by [`tool_safety.py`](app/agents/tool_safety.py):
 
-### Frontend Developer Action Matrix
-
-| Workflow | How it is Triggered | What the Frontend Needs to Send | Notes for Frontend Developer |
+| Tool Name | Trigger Phrases | Purpose | Integration |
 | :--- | :--- | :--- | :--- |
-| **Driver Onboarding** | Automatically triggered on first login, or via profile completion | `POST /v1/auth/otp/verify`<br/>`{ "phone": "+...", "token": "123456" }`<br/><br/>*OR*<br/><br/>`POST /v1/driver/onboard`<br/>`{ "driver_name": "...", "email": "...", "vehicle_type": "..." }` | No extra action needed on sign-up! The backend checks if the driver is new and fires the welcome workflow automatically. |
-| **Dispatcher Alerts** | Triggered via Voice | **Nothing from UI** | The driver speaks: *"Alert dispatcher, road is blocked."* AssemblyAI invokes `alert_dispatcher`, and the backend routes it to n8n. |
-| **Post-Shift Intelligence** | Triggered when driver ends shift | `POST /v1/shift/{shift_id}/end`<br/>`Authorization: Bearer <jwt_token>` | When the driver taps **"End Shift"**, call this endpoint. Backend returns `200 OK` immediately; n8n compiles the report in the background. |
+| `get_next_delivery` | *"next stop", "where to?", "next delivery"* | Retrieves next pending delivery in shift | Supabase `deliveries` |
+| `update_delivery_status`| *"mark as delivered", "delivered", "package delivered", "failed"* | Updates status with state machine check | Supabase `deliveries` + State Machine |
+| `log_exception` | *"failed delivery", "wrong address", "gate locked", "nobody home"* | Logs exception and triggers autonomous workflow | `exception_workflow` + DB |
+| `get_best_route` | *"best route", "any traffic", "check my route", "faster way"* | Calculates optimal driving route | OSRM / Google Maps / Heuristic |
+| `start_navigation` | *"navigate", "take me there", "get directions"* | Returns Google Maps deeplink & coords | Flutter `url_launcher` |
+| `call_customer` | *"call the customer", "ring customer", "call them"* | Outbound voice call to recipient | Twilio Voice API |
+| `notify_customer` | *"message customer", "tell customer I'm close", "send ETA"* | Sends SMS with template or custom text | Twilio Messages API |
+| `get_next_order` | *"what's after this?", "next order", "upcoming"* | Previews upcoming stops in manifest | Supabase `deliveries` |
+| `get_shift_summary` | *"how am I doing?", "shift summary", "completed so far"* | Returns completed, failed, and remaining counts | Supabase `shifts` stats |
+| `alert_dispatcher` | *"alert dispatcher", "contact dispatch", "I need help"* | Escalates priority incident to dispatch console & n8n | Supabase `dispatcher_alerts` + n8n |
 
 ---
 
-## 🛠 Voice Agent Tool Registry
-
-All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/app/agents/tool_registry.py):
-
-```python
-[
-    "get_next_delivery",       # Upcoming stop details & recipient
-    "update_delivery_status",  # Mark delivered / failed / rescheduled
-    "log_exception",           # Gate code wrong, customer unavailable
-    "get_best_route",          # Optimal path + traffic check
-    "start_navigation",        # Deep-link to Google Maps
-    "call_customer",           # Masked Twilio bridge call
-    "notify_customer",         # SMS arrival alert
-    "get_next_order",          # View queued tasks
-    "get_shift_summary",       # Live progress: "How am I doing?"
-    "alert_dispatcher"         # Priority escalation to n8n
-]
-```
-
----
-
-## 📡 API Endpoints
+## 📡 API Endpoints Reference
 
 ### Authentication (`/v1/auth`)
-- `POST /v1/auth/otp/send` — Send SMS verification code.
-- `POST /v1/auth/otp/verify` — Verify code → returns JWT. Auto-triggers onboarding if new driver.
+- `POST /v1/auth/otp/send` — Send SMS verification OTP.
+- `POST /v1/auth/otp/verify` — Verify OTP and return Supabase JWT.
 
 ### Driver Profile (`/v1/driver`)
-- `GET /v1/driver/profile` — Fetch driver details.
+- `GET /v1/driver/profile` — Fetch driver profile.
 - `PUT /v1/driver/profile` — Update driver profile.
-- `POST /v1/driver/onboard` — Explicitly trigger driver welcome email & notifications.
-- `POST /v1/driver/connect` — Connect external logistics platform code.
+- `POST /v1/driver/onboard` — Trigger driver onboarding email & notification.
 
 ### Shifts (`/v1/shift`)
 - `POST /v1/shift/start` — Start a new delivery shift.
-- `POST /v1/shift/{shift_id}/end` — End shift and trigger AssemblyAI LeMUR intelligence + n8n reporting.
-- `POST /v1/shift/{shift_id}/analyze-lemur` — Run on-demand AssemblyAI LeMUR intelligence analysis on shift transcripts.
-- `GET /v1/shift/{shift_id}/report` — Fetch generated intelligence report from Supabase.
-- `GET /v1/shift/{shift_id}/stats` — Live shift delivery counts.
+- `POST /v1/shift/{shift_id}/end` — End shift, triggering LeMUR transcript analysis and n8n report.
+- `POST /v1/shift/{shift_id}/analyze-lemur` — On-demand AssemblyAI LeMUR shift intelligence analysis.
+- `GET /v1/shift/{shift_id}/report` — Retrieve shift intelligence report.
+- `GET /v1/shift/{shift_id}/stats` — Real-time shift delivery counts.
 
-### Parallel Tool Dispatch (`/v1/tools`)
-- `POST /v1/tools/execute-parallel` — Executes a batch of tools concurrently using `asyncio.gather()`. Returns timing telemetry, tool results, and validates under-500ms response SLA.
-- `POST /v1/tools/benchmark` — Compares sequential vs `asyncio.gather()` parallel tool execution side-by-side, displaying latency reduction and speedup factor.
+### Deliveries (`/v1/deliveries`)
+- `GET /v1/deliveries?shift_id={id}` — Get deliveries for current shift.
+- `PUT /v1/deliveries/{id}/status` — Update delivery status with state machine enforcement.
+- `POST /v1/deliveries/{id}/notify` — Send SMS/voice notification to customer.
+- `POST /v1/deliveries/{id}/pod` — Upload Proof of Delivery (photo/signature) with GPS validation.
+- `GET /v1/deliveries/{id}/pod` — Retrieve existing POD record for delivery.
+
+### GPS & Location (`/v1`)
+- `POST /v1/locations/ping` — Ingest high-frequency GPS ping with geofencing and risk detection.
+- `GET /v1/drivers/{driver_id}/location` — Current live driver coordinates, speed, and heading.
+- `GET /v1/drivers/{driver_id}/history` — Historical GPS breadcrumb trail for a driver.
+
+### Routing & Optimization (`/v1/routes`)
+- `POST /v1/routes/calculate` — Driving directions via OSRM / Google Maps.
+- `POST /v1/routes/optimize` — Greedy nearest-neighbor route sequencer for pending deliveries.
+
+### Fleet Dispatcher Console (`/v1/fleet`)
+- `GET /v1/fleet/overview` — Fleet-wide active drivers, open deliveries, and recommendations.
+- `GET /v1/fleet/drivers` — All active drivers with live telemetry and status.
+- `GET /v1/fleet/incidents` — Dispatcher alert queue with severity filtering (`urgent`, `critical`).
+- `GET /v1/fleet/analytics` — Fleet performance KPIs and delivery completion rates.
 
 ### Voice Agent (`/v1`)
-- `POST /v1/voice-agent` — REST turn-based voice interaction with audio (PCM16 24kHz). Concurrently runs multiple tool calls using `asyncio` task scheduling.
+- `POST /v1/voice-agent` — Turn-based voice agent audio turn (PCM16 24kHz) with parallel tool dispatch.
 - `GET /v1/voice-agent/session-config` — AssemblyAI session configuration schema.
+
+---
+
+## 🔌 Real-Time WebSocket Channel
+
+### Endpoint
+```
+ws://<host>:8000/ws/driver/{driver_id}
+```
+
+### Supported Messages
+- **Client Heartbeat**:
+  ```json
+  {"type": "heartbeat"}
+  ```
+- **Client Location Ping**:
+  ```json
+  {
+    "type": "location_ping",
+    "payload": {
+      "latitude": 6.4286,
+      "longitude": 3.4108,
+      "speed": 28.5,
+      "heading": 180.0,
+      "shift_id": "uuid"
+    }
+  }
+  ```
+- **Server Proactive Alert**:
+  ```json
+  {
+    "type": "PROACTIVE_ALERT",
+    "severity": "HIGH",
+    "risk_type": "TIME_WINDOW_RISK",
+    "message": "Delivery is projected 20 minutes late. Notify customer?",
+    "delivery_id": "uuid"
+  }
+  ```
+
+---
+
+## 📱 n8n Workflows Integration
+
+All n8n automation workflows are triggered asynchronously in server-side background tasks without blocking driver responses:
+
+1. **Dispatcher Alerts** (`n8n/workflows/dispatcher_alerts.json`): Triggered by safety incidents or priority escalations; notifies Slack and email.
+2. **Post-Shift Intelligence** (`n8n/workflows/post_shift_intelligence.json`): Triggered upon shift completion; generates executive shift report.
+3. **Driver Onboarding** (`n8n/workflows/driver_welcome.json`): Triggered on new driver sign-up; sends welcome email and instructions.
 
 ---
 
@@ -210,9 +242,11 @@ All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
 
 ### 1. Prerequisites
 - Python 3.11+
-- Supabase project
-- AssemblyAI API key
-- n8n instance (Local: `npx n8n` or Cloud)
+- Supabase project (PostgreSQL + Storage)
+- AssemblyAI API Key
+- Twilio Account (for SMS & voice calls)
+- Google Maps API Key (optional, OSRM works without key)
+- n8n instance (optional, for post-shift automations)
 
 ### 2. Install Dependencies
 ```bash
@@ -222,23 +256,14 @@ cd voiceops-backend
 python -m venv venv
 # Windows:
 venv\Scripts\activate
-# Linux/Mac:
+# Linux / macOS:
 source venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-### 3. n8n Workflows Import
-1. Start n8n:
-   ```bash
-   npx n8n
-   ```
-2. Open `http://localhost:5678` → Click **Workflows** → **Import from File**.
-3. Import the 3 workflow files from [`n8n/workflows/`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/n8n/workflows/):
-   - `dispatcher_alerts.json`
-   - `post_shift_intelligence.json`
-   - `driver_welcome.json`
-4. Toggle them to **Active**.
+### 3. Apply Supabase Database Schema
+Run the SQL script [`supabase_schema.sql`](supabase_schema.sql) in your **Supabase SQL Editor** to create all tables, indexes, and Row Level Security policies.
 
 ---
 
@@ -249,6 +274,7 @@ Create a `.env` file in the root directory:
 ```env
 # AssemblyAI
 ASSEMBLYAI_API_KEY=your_assemblyai_api_key
+ASSEMBLYAI_AGENT_ID=your_voice_agent_id
 
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
@@ -256,8 +282,8 @@ SUPABASE_SERVICE_KEY=your_service_role_key
 SUPABASE_ANON_KEY=your_anon_key
 
 # Twilio (Voice & SMS)
-Account_SID=your_twilio_account_sid
-Primary_auth_Token=your_twilio_auth_token
+ACCOUNT_SID=your_twilio_account_sid
+PRIMARY_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=your_twilio_number
 
 # Google Maps
@@ -268,72 +294,61 @@ N8N_DISPATCHER_WEBHOOK_URL=http://localhost:5678/webhook/dispatcher-alert
 N8N_POST_SHIFT_WEBHOOK_URL=http://localhost:5678/webhook/post-shift-intelligence
 N8N_DRIVER_ONBOARDING_WEBHOOK_URL=http://localhost:5678/webhook/driver-onboarding
 
-# Escalation Emails
-DISPATCHER_ESCALATION_EMAIL=tomarianoor@gmail.com
-OPERATOR_REPORT_EMAIL=tomarianoor@gmail.com
+# Operational Emails
+DISPATCHER_ESCALATION_EMAIL=dispatch@yourdomain.com
+OPERATOR_REPORT_EMAIL=ops@yourdomain.com
 
 # App Configuration
 JWT_SECRET=your_jwt_secret_key
 ENVIRONMENT=development
+ALLOWED_ORIGINS=*
 ```
 
 ---
 
 ## 🧪 Testing & Verification
 
-### Start the Server
+### Start the Local Server
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Test n8n Workflows Manually
+### Run Automated Unit Test Suite
+Execute all 25 unit tests covering the state machine, location intelligence, ETA service, risk engine, proactive alerts, routing, tool safety, dispatcher agent, memory agent, event bus, customer agent, and tool execution:
 
-**1. Test Driver Onboarding:**
 ```bash
-python -c "
-import asyncio
-from app.integrations.n8n_client import send_driver_onboarding
-res = asyncio.run(send_driver_onboarding(
-    driver_id='drv-001',
-    driver_name='Emeka Okafor',
-    email='tomarianoor@gmail.com',
-    vehicle_type='Van'
-))
-print(res)
-"
+python -m pytest -v
 ```
 
-**2. Test Post-Shift Intelligence:**
-```bash
-python -c "
-import asyncio
-from app.integrations.n8n_client import send_post_shift_report
-res = asyncio.run(send_post_shift_report(
-    shift_id='shift-001',
-    driver_id='drv-001',
-    driver_name='Emeka Okafor',
-    total_deliveries=15,
-    delivered_count=13,
-    failed_count=2,
-    shift_duration_min=320
-))
-print(res)
-"
-```
+Expected output:
+```text
+tests/test_milestones_unit.py::test_delivery_state_machine_valid_transitions PASSED
+tests/test_milestones_unit.py::test_delivery_state_machine_terminal_state PASSED
+tests/test_milestones_unit.py::test_haversine_distance_calculation PASSED
+tests/test_milestones_unit.py::test_compute_eta PASSED
+tests/test_milestones_unit.py::test_eta_service_minutes PASSED
+tests/test_milestones_unit.py::test_alert_service_cooldown PASSED
+tests/test_milestones_unit.py::test_exception_workflow PASSED
+tests/test_milestones_unit.py::test_routing_service_calculation PASSED
+tests/test_milestones_unit.py::test_tool_safety_gate PASSED
+tests/test_milestones_unit.py::test_dispatcher_agent_risk_evaluation PASSED
+tests/test_milestones_unit.py::test_memory_agent_worthiness PASSED
+tests/test_milestones_unit.py::test_event_bus_pub_sub PASSED
+tests/test_milestones_unit.py::test_customer_agent_sandboxing PASSED
+tests/test_milestones_unit.py::test_optimization_service_greedy PASSED
+tests/test_milestones_unit.py::test_tool_orchestrator_trace_id PASSED
+tests/test_tools_unit.py::test_tool_definitions PASSED
+tests/test_tools_unit.py::test_get_next_delivery PASSED
+tests/test_tools_unit.py::test_update_delivery_status PASSED
+tests/test_tools_unit.py::test_call_customer PASSED
+tests/test_tools_unit.py::test_notify_customer PASSED
+tests/test_tools_unit.py::test_alert_dispatcher PASSED
+tests/test_tools_unit.py::test_unknown_tool PASSED
+tests/test_twilio.py::test_twilio_client_initialized PASSED
+tests/test_twilio.py::test_make_call_structure PASSED
+tests/test_twilio.py::test_send_sms_structure PASSED
 
-**3. Benchmark Parallel Tool Execution (`asyncio.gather` sub-500ms):**
-```bash
-python scripts/benchmark_tools.py
-```
-
-**4. Run Live Network API Tool Test:**
-```bash
-python scripts/test_live_api_network.py
-```
-
-**5. Run Automated Pytest Suite:**
-```bash
-python -m pytest tests/test_parallel_tools.py -v
+======================= 25 passed in 6.77s =======================
 ```
 
 ---

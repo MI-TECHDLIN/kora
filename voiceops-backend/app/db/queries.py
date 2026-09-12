@@ -25,7 +25,6 @@ async def get_driver_by_id(driver_id: str) -> Optional[Dict[str, Any]]:
 
 async def get_next_pending_delivery(shift_id: str, driver_id: str) -> Optional[Dict[str, Any]]:
     """Get next pending delivery for a shift."""
-    supabase = get_supabase()
     response = (
         get_supabase().table("deliveries")
         .select("*")
@@ -40,6 +39,46 @@ async def get_next_pending_delivery(shift_id: str, driver_id: str) -> Optional[D
     return None
 
 
+async def get_active_shift_for_driver(driver_id: str) -> Optional[Dict[str, Any]]:
+    """Get the currently active (non-completed) shift for a driver."""
+    if not is_valid_uuid(driver_id):
+        return None
+    try:
+        response = (
+            get_supabase().table("shifts")
+            .select("*")
+            .eq("driver_id", driver_id)
+            .eq("status", "active")
+            .order("started_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception:
+        return None
+
+
+async def get_delivery_by_id(delivery_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single delivery by its ID."""
+    if not is_valid_uuid(delivery_id):
+        return None
+    try:
+        response = (
+            get_supabase().table("deliveries")
+            .select("*")
+            .eq("id", delivery_id)
+            .limit(1)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception:
+        return None
+
+
 async def mark_delivery_status(
     delivery_id: str,
     status: str,
@@ -47,12 +86,12 @@ async def mark_delivery_status(
     notes: Optional[str] = None
 ) -> Dict[str, Any]:
     """Update delivery status."""
-    update_data = {"status": status}
+    update_data: Dict[str, Any] = {"status": status}
     if failure_reason:
         update_data["failure_reason"] = failure_reason
     if notes:
         update_data["notes"] = notes
-    
+
     response = (
         get_supabase().table("deliveries")
         .update(update_data)
@@ -60,6 +99,141 @@ async def mark_delivery_status(
         .execute()
     )
     return response.data[0] if response.data else {}
+
+
+async def create_delivery_event(
+    delivery_id: str,
+    driver_id: str,
+    event_type: str,
+    status_before: Optional[str] = None,
+    status_after: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    metadata: Optional[dict] = None,
+) -> Dict[str, Any]:
+    """
+    Insert an immutable delivery_events record.
+    Used for audit trail, analytics, and idempotency checks.
+    """
+    if not is_valid_uuid(delivery_id):
+        return {}
+    try:
+        row: Dict[str, Any] = {
+            "delivery_id": delivery_id,
+            "driver_id": driver_id if is_valid_uuid(driver_id) else None,
+            "event_type": event_type,
+        }
+        if status_before is not None:
+            row["status_before"] = status_before
+        if status_after is not None:
+            row["status_after"] = status_after
+        if latitude is not None:
+            row["latitude"] = latitude
+        if longitude is not None:
+            row["longitude"] = longitude
+        if metadata:
+            row["metadata"] = metadata
+
+        response = get_supabase().table("delivery_events").insert(row).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[DB] create_delivery_event failed: {e}")
+        return {}
+
+
+async def increment_delivery_attempts(delivery_id: str) -> Dict[str, Any]:
+    """Increment attempt_count on a delivery by 1."""
+    if not is_valid_uuid(delivery_id):
+        return {}
+    try:
+        delivery = await get_delivery_by_id(delivery_id)
+        if not delivery:
+            return {}
+        new_count = (delivery.get("attempt_count") or 0) + 1
+        response = (
+            get_supabase().table("deliveries")
+            .update({"attempt_count": new_count})
+            .eq("id", delivery_id)
+            .execute()
+        )
+        return response.data[0] if response.data else {}
+    except Exception:
+        return {}
+
+
+async def save_location_ping(
+    driver_id: str,
+    shift_id: str,
+    lat: float,
+    lng: float,
+    speed: float = 0.0,
+    heading: float = 0.0,
+    accuracy: float = 0.0,
+) -> Dict[str, Any]:
+    """Save a GPS location ping to location_pings table."""
+    try:
+        data = {
+            "driver_id": driver_id if is_valid_uuid(driver_id) else None,
+            "shift_id": shift_id if is_valid_uuid(shift_id) else None,
+            "latitude": lat,
+            "longitude": lng,
+            "pinged_at": "now()",
+        }
+        response = get_supabase().table("location_pings").insert(data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[DB] save_location_ping failed: {e}")
+        return {}
+
+
+async def update_driver_location(
+    driver_id: str,
+    lat: float,
+    lng: float,
+    heading: float = 0.0,
+    speed: float = 0.0,
+) -> Dict[str, Any]:
+    """Update the driver's live position fields on the drivers table."""
+    if not is_valid_uuid(driver_id):
+        return {}
+    try:
+        response = (
+            get_supabase().table("drivers")
+            .update({
+                "current_latitude": lat,
+                "current_longitude": lng,
+                "current_heading": heading,
+                "current_speed": speed,
+            })
+            .eq("id", driver_id)
+            .execute()
+        )
+        return response.data[0] if response.data else {}
+    except Exception:
+        return {}
+
+
+async def get_recent_location_pings(
+    driver_id: str,
+    limit: int = 10,
+) -> List[Dict[str, Any]]:
+    """Return the most recent GPS pings for a driver (latest first)."""
+    if not is_valid_uuid(driver_id):
+        return []
+    try:
+        response = (
+            get_supabase().table("location_pings")
+            .select("*")
+            .eq("driver_id", driver_id)
+            .order("pinged_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data if response.data else []
+    except Exception:
+        return []
 
 
 async def create_voice_session(shift_id: str, driver_id: str, delivery_id: Optional[str] = None) -> str:
@@ -91,7 +265,7 @@ async def update_voice_session(
         update_data["driver_transcript"] = driver_transcript
     if agent_transcript:
         update_data["agent_transcript"] = agent_transcript
-    
+
     response = (
         get_supabase().table("voice_sessions")
         .update(update_data)
@@ -115,8 +289,16 @@ async def log_tool_execution(session_id: str, tool_calls: List[Dict], results: L
     return response.data[0] if response.data else {}
 
 
-async def save_location_ping(driver_id: str, shift_id: str, lat: float, lng: float) -> Dict[str, Any]:
-    """Save GPS location ping."""
+async def save_location_ping(
+    driver_id: str,
+    shift_id: str,
+    lat: float,
+    lng: float,
+    speed: float = 0.0,
+    heading: float = 0.0,
+    accuracy: float = 0.0,
+) -> Dict[str, Any]:
+    """Save GPS location ping with full telemetry fields."""
     response = (
         get_supabase().table("location_pings")
         .insert({
@@ -151,12 +333,7 @@ async def get_shift_voice_sessions(shift_id: str) -> List[Dict[str, Any]]:
 async def get_shift_stats(shift_id: str) -> Dict[str, Any]:
     """Get shift statistics."""
     if not is_valid_uuid(shift_id):
-        return {
-            "total": 0,
-            "delivered": 0,
-            "failed": 0,
-            "success_rate": 0
-        }
+        return {"total": 0, "delivered": 0, "failed": 0, "success_rate": 0}
     try:
         deliveries_response = (
             get_supabase().table("deliveries")
@@ -164,25 +341,24 @@ async def get_shift_stats(shift_id: str) -> Dict[str, Any]:
             .eq("shift_id", shift_id)
             .execute()
         )
-        
         deliveries = deliveries_response.data if deliveries_response.data else []
         total = len(deliveries)
         delivered = sum(1 for d in deliveries if d["status"] == "delivered")
         failed = sum(1 for d in deliveries if d["status"] == "failed")
-        
+        pending = sum(1 for d in deliveries if d["status"] == "pending")
+        en_route = sum(1 for d in deliveries if d["status"] == "en_route")
+
         return {
             "total": total,
             "delivered": delivered,
             "failed": failed,
-            "success_rate": (delivered / total * 100) if total > 0 else 0
+            "pending": pending,
+            "en_route": en_route,
+            "remaining": total - delivered - failed,
+            "success_rate": (delivered / total * 100) if total > 0 else 0,
         }
     except Exception:
-        return {
-            "total": 0,
-            "delivered": 0,
-            "failed": 0,
-            "success_rate": 0
-        }
+        return {"total": 0, "delivered": 0, "failed": 0, "success_rate": 0}
 
 
 async def get_intelligence_report_by_shift(shift_id: str) -> Optional[Dict[str, Any]]:
@@ -201,7 +377,6 @@ async def get_intelligence_report_by_shift(shift_id: str) -> Optional[Dict[str, 
         return None
     except Exception:
         return None
-
 
 
 async def store_intelligence_report(shift_id: str, report_dict: Dict[str, Any]) -> Dict[str, Any]:
