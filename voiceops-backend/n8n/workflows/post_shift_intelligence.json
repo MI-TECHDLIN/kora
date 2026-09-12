@@ -1,0 +1,197 @@
+{
+  "name": "VoiceOps - Post-Shift Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "post-shift-intelligence",
+        "responseMode": "onReceived",
+        "responseData": "{\"status\":\"received\",\"message\":\"Shift intelligence pipeline started\"}",
+        "options": {}
+      },
+      "id": "psw-0001-0000-0000-000000000001",
+      "name": "Webhook - Shift Ended",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1280, 300],
+      "webhookId": "post-shift-intelligence"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "f1",  "name": "shift_id",           "value": "={{ $json.body.shift_id }}",           "type": "string" },
+            { "id": "f2",  "name": "driver_id",          "value": "={{ $json.body.driver_id }}",          "type": "string" },
+            { "id": "f3",  "name": "driver_name",        "value": "={{ $json.body.driver_name }}",        "type": "string" },
+            { "id": "f4",  "name": "total_deliveries",   "value": "={{ $json.body.total_deliveries || 0 }}", "type": "number" },
+            { "id": "f5",  "name": "delivered_count",    "value": "={{ $json.body.delivered_count || 0 }}",  "type": "number" },
+            { "id": "f6",  "name": "failed_count",       "value": "={{ $json.body.failed_count || 0 }}",     "type": "number" },
+            { "id": "f7",  "name": "success_rate",       "value": "={{ $json.body.success_rate || 0 }}",     "type": "number" },
+            { "id": "f8",  "name": "shift_duration_min", "value": "={{ $json.body.shift_duration_min || 0 }}", "type": "number" },
+            { "id": "f9",  "name": "dispatcher_alerts",  "value": "={{ $json.body.dispatcher_alerts || 0 }}",  "type": "number" },
+            { "id": "f10", "name": "incidents",          "value": "={{ $json.body.incidents || [] }}",       "type": "array" },
+            { "id": "f11", "name": "voice_sessions",     "value": "={{ $json.body.voice_sessions || 0 }}",   "type": "number" },
+            { "id": "f12", "name": "shift_date",         "value": "={{ $json.body.shift_date || $now.toISO() }}", "type": "string" },
+            { "id": "f13", "name": "ended_at",           "value": "={{ $json.body.ended_at || $now.toISO() }}",   "type": "string" },
+            { "id": "f14", "name": "operator_email",     "value": "={{ $json.body.operator_email || 'tomarianoor@gmail.com' }}", "type": "string" },
+            { "id": "f15", "name": "supabase_url",       "value": "={{ $json.body.supabase_url || '' }}",   "type": "string" },
+            { "id": "f16", "name": "supabase_service_key","value": "={{ $json.body.supabase_service_key || '' }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "psw-0002-0000-0000-000000000002",
+      "name": "Normalize Shift Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1040, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst total = data.total_deliveries || 0;\nconst delivered = data.delivered_count || 0;\nconst failed = data.failed_count || 0;\nconst successRate = total > 0 ? Math.round((delivered / total) * 100) : 0;\nconst durationHours = Math.floor((data.shift_duration_min || 0) / 60);\nconst durationMins = (data.shift_duration_min || 0) % 60;\nconst avgTimePerStop = total > 0 ? Math.round((data.shift_duration_min || 0) / total) : 0;\nconst alerts = data.dispatcher_alerts || 0;\nconst sessions = data.voice_sessions || 0;\n\n// Performance tier\nlet performanceTier = 'Good';\nif (successRate >= 95) performanceTier = 'Excellent';\nelse if (successRate >= 85) performanceTier = 'Good';\nelse if (successRate >= 70) performanceTier = 'Needs Improvement';\nelse performanceTier = 'Poor';\n\n// Flag if alerts are high or success rate is low\nconst hasIncidents = alerts > 0;\nconst flagForReview = successRate < 70 || alerts >= 2;\n\n// Check if shift_id is a valid UUID for Supabase schema\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst validShiftId = (data.shift_id && uuidRegex.test(data.shift_id)) ? data.shift_id : null;\n\n// Build executive summary\nconst summary = [\n  `Driver ${data.driver_name} completed their shift on ${data.shift_date}.`,\n  `They handled ${total} deliveries: ${delivered} successful, ${failed} failed (${successRate}% success rate).`,\n  `Shift duration: ${durationHours}h ${durationMins}m. Average time per stop: ${avgTimePerStop} mins.`,\n  alerts > 0 ? `⚠️ ${alerts} dispatcher alert(s) were raised during this shift.` : `✅ No dispatcher alerts raised.`,\n  `Voice assistant was used in ${sessions} session(s).`,\n  `Overall performance: ${performanceTier}.`\n].join(' ');\n\n// Build report object\nconst report = {\n  shift_id: validShiftId,\n  raw_shift_id: data.shift_id,\n  driver_id: data.driver_id,\n  driver_name: data.driver_name,\n  shift_date: data.shift_date,\n  ended_at: data.ended_at,\n  total_deliveries: total,\n  delivered_count: delivered,\n  failed_count: failed,\n  success_rate: successRate,\n  shift_duration_min: data.shift_duration_min,\n  avg_time_per_stop_min: avgTimePerStop,\n  dispatcher_alerts: alerts,\n  voice_sessions: sessions,\n  performance_tier: performanceTier,\n  flag_for_review: flagForReview,\n  has_incidents: hasIncidents,\n  summary_text: summary,\n  operator_email: data.operator_email,\n  supabase_url: data.supabase_url,\n  supabase_service_key: data.supabase_service_key,\n  generated_at: new Date().toISOString()\n};\n\nreturn [{ json: report }];"
+      },
+      "id": "psw-0003-0000-0000-000000000003",
+      "name": "Build Intelligence Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabase_url }}/rest/v1/intelligence_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $json.supabase_service_key }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $json.supabase_service_key }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ \"total_deliveries\": $json.total_deliveries, \"delivered_count\": $json.delivered_count, \"failed_count\": $json.failed_count, \"success_rate\": $json.success_rate, \"recommendations\": $json.summary_text, \"failure_patterns\": { \"driver_id\": $json.driver_id, \"driver_name\": $json.driver_name, \"shift_id\": $json.raw_shift_id || $json.shift_id, \"shift_date\": $json.shift_date, \"shift_duration_min\": $json.shift_duration_min, \"avg_time_per_stop_min\": $json.avg_time_per_stop_min, \"dispatcher_alerts\": $json.dispatcher_alerts, \"voice_sessions\": $json.voice_sessions, \"performance_tier\": $json.performance_tier, \"flag_for_review\": $json.flag_for_review }, \"route_issues\": [], \"sentiment_score\": 0.85, \"generated_at\": $json.generated_at }, $json.shift_id ? { \"shift_id\": $json.shift_id } : {})) }}",
+        "options": {}
+      },
+      "id": "psw-0004-0000-0000-000000000004",
+      "name": "Store Report in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-560, 160],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.flag_for_review }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "psw-0005-0000-0000-000000000005",
+      "name": "IF Needs Review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-560, 360]
+    },
+    {
+      "parameters": {
+        "fromEmail": "intelligence@voiceops.app",
+        "toEmail": "={{ $json.operator_email }}",
+        "subject": "=🚨 VoiceOps Shift Review Required — {{ $json.driver_name }} ({{ $json.shift_date }})",
+        "emailFormat": "text",
+        "text": "=⚠️ This shift has been flagged for operator review.\n\nDriver: {{ $json.driver_name }} ({{ $json.driver_id }})\nShift Date: {{ $json.shift_date }}\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\n\n--- SHIFT SUMMARY ---\n{{ $json.summary_text }}\n\n--- METRICS ---\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nDispatcher Alerts Raised: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\n\nAction: Please review this driver's shift in the VoiceOps operator dashboard.\n\n— VoiceOps Intelligence System",
+        "options": {}
+      },
+      "id": "psw-0006-0000-0000-000000000006",
+      "name": "Email - Operator Review Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-300, 240],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#shift-reviews" },
+        "text": "=🚨 *Shift Flagged for Review*\n*Driver:* {{ $json.driver_name }}\n*Date:* {{ $json.shift_date }}\n*Success Rate:* {{ $json.success_rate }}%\n*Dispatcher Alerts:* {{ $json.dispatcher_alerts }}\n*Performance:* {{ $json.performance_tier }}\n\n{{ $json.summary_text }}",
+        "otherOptions": {}
+      },
+      "id": "psw-0007-0000-0000-000000000007",
+      "name": "Slack - Flag for Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-300, 420],
+      "credentials": { "slackApi": { "id": "SLACK_CREDENTIAL_ID", "name": "VoiceOps Slack" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "intelligence@voiceops.app",
+        "toEmail": "={{ $json.operator_email }}",
+        "subject": "=✅ VoiceOps Daily Shift Report — {{ $json.driver_name }} ({{ $json.shift_date }})",
+        "emailFormat": "text",
+        "text": "=Your daily shift report for {{ $json.driver_name }}.\n\n{{ $json.summary_text }}\n\n--- DETAILED METRICS ---\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\nDate: {{ $json.shift_date }}\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nShift Duration: {{ $json.shift_duration_min }} mins\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\nVoice Sessions: {{ $json.voice_sessions }}\nDispatcher Alerts: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\n\n— VoiceOps Intelligence System",
+        "options": {}
+      },
+      "id": "psw-0008-0000-0000-000000000008",
+      "name": "Email - Daily Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-300, 600],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Shift Ended": {
+      "main": [
+        [
+          { "node": "Normalize Shift Payload", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Normalize Shift Payload": {
+      "main": [
+        [
+          { "node": "Build Intelligence Report", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Build Intelligence Report": {
+      "main": [
+        [
+          { "node": "Store Report in Supabase", "type": "main", "index": 0 },
+          { "node": "IF Needs Review", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF Needs Review": {
+      "main": [
+        [
+          { "node": "Email - Operator Review Alert", "type": "main", "index": 0 },
+          { "node": "Slack - Flag for Review", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Email - Daily Report", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "voiceops-post-shift-intelligence" }
+}

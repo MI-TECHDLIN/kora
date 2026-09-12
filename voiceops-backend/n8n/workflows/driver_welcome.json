@@ -1,0 +1,166 @@
+{
+  "name": "VoiceOps - Driver Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "driver-onboarding",
+        "responseMode": "onReceived",
+        "responseData": "{\"status\":\"received\",\"message\":\"Driver onboarding started\"}",
+        "options": {}
+      },
+      "id": "dob-0001-0000-0000-000000000001",
+      "name": "Webhook - Driver Registered",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1280, 300],
+      "webhookId": "driver-onboarding"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "f1",  "name": "driver_id",       "value": "={{ $json.body.driver_id }}",       "type": "string" },
+            { "id": "f2",  "name": "driver_name",     "value": "={{ $json.body.driver_name }}",     "type": "string" },
+            { "id": "f3",  "name": "phone",           "value": "={{ $json.body.phone || '' }}",     "type": "string" },
+            { "id": "f4",  "name": "email",           "value": "={{ $json.body.email || $json.body.operator_email || 'driver@voiceops.app' }}", "type": "string" },
+            { "id": "f5",  "name": "vehicle_type",    "value": "={{ $json.body.vehicle_type || 'Not set' }}", "type": "string" },
+            { "id": "f6",  "name": "operator_name",   "value": "={{ $json.body.operator_name || 'VoiceOps' }}", "type": "string" },
+            { "id": "f7",  "name": "registered_at",   "value": "={{ $json.body.registered_at || $now.toISO() }}", "type": "string" },
+            { "id": "f8",  "name": "operator_email",  "value": "={{ $json.body.operator_email || 'tomarianoor@gmail.com' }}", "type": "string" },
+            { "id": "f9",  "name": "supabase_url",    "value": "={{ $json.body.supabase_url || '' }}", "type": "string" },
+            { "id": "f10", "name": "supabase_service_key", "value": "={{ $json.body.supabase_service_key || '' }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dob-0002-0000-0000-000000000002",
+      "name": "Normalize Driver Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1040, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dob-0003-0000-0000-000000000003",
+      "name": "IF Has Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-800, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "welcome@voiceops.app",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=🚀 Welcome to VoiceOps, {{ $json.driver_name }} — Your Smart Voice Companion",
+        "emailFormat": "html",
+        "html": "=<h2>Welcome aboard, {{ $json.driver_name }}! 🚚</h2><p>You're all set to begin your shifts with <strong>VoiceOps</strong>, the hands-free voice companion built specifically for logistics and delivery drivers.</p><hr/><h3>Key Features Available During Your Shift:</h3><ul><li><strong>📍 Hands-Free Stop & Route Guidance:</strong> Instant access to upcoming stop addresses, package counts, customer access codes, and turn-by-turn directions without looking down at your phone.</li><li><strong>📞 Privacy-Safe Customer Communication:</strong> Direct two-way voice bridging with masked numbers to coordinate customer arrivals safely.</li><li><strong>🚨 Instant Dispatcher Priority Escalation:</strong> Real-time alerts for road blockages, access issues, or safety incidents routed immediately to dispatch with live tracking.</li><li><strong>📊 Live Shift Intelligence & Metrics:</strong> On-demand delivery completion rates, package counts, and shift performance summaries at any point during your workday.</li><li><strong>✅ Frictionless Delivery Confirmation:</strong> Complete drop-offs, record gate notes, or reschedule stops completely hands-free.</li></ul><br/><p>Drive safe and have a productive shift!</p><p>— <em>The VoiceOps Team</em></p>",
+        "options": {}
+      },
+      "id": "dob-0004-0000-0000-000000000004",
+      "name": "Email - Driver Welcome",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-560, 160],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "welcome@voiceops.app",
+        "toEmail": "={{ $json.operator_email }}",
+        "subject": "=👋 New Driver Registered — {{ $json.driver_name }}",
+        "emailFormat": "text",
+        "text": "=A new driver has registered on VoiceOps.\n\nDriver Details:\nName:         {{ $json.driver_name }}\nPhone:        {{ $json.phone || 'Not provided' }}\nEmail:        {{ $json.email }}\nVehicle Type: {{ $json.vehicle_type }}\nRegistered:   {{ $json.registered_at }}\nDriver ID:    {{ $json.driver_id }}\n\nA welcoming feature overview email has been sent to the driver.\n\n— VoiceOps Onboarding System",
+        "options": {}
+      },
+      "id": "dob-0005-0000-0000-000000000005",
+      "name": "Email - Notify Operator",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-560, 360],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#driver-onboarding" },
+        "text": "=👋 *New Driver Registered*\n*Name:* {{ $json.driver_name }}\n*Email:* {{ $json.email }}\n*Phone:* {{ $json.phone || 'N/A' }}\n*Vehicle:* {{ $json.vehicle_type }}\n*Registered:* {{ $json.registered_at }}\n*Driver ID:* {{ $json.driver_id }}\n\nWelcoming email with full feature overview sent to driver. ✅",
+        "otherOptions": {}
+      },
+      "id": "dob-0006-0000-0000-000000000006",
+      "name": "Slack - New Driver Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-560, 560],
+      "credentials": { "slackApi": { "id": "SLACK_CREDENTIAL_ID", "name": "VoiceOps Slack" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "welcome@voiceops.app",
+        "toEmail": "={{ $json.operator_email }}",
+        "subject": "=⚠️ New Driver Registered (No Email) — {{ $json.driver_name }}",
+        "emailFormat": "text",
+        "text": "=A new driver registered without an email address. Welcome feature guide could not be sent.\n\nDriver Details:\nName:       {{ $json.driver_name }}\nPhone:      {{ $json.phone || 'Not provided' }}\nRegistered: {{ $json.registered_at }}\nDriver ID:  {{ $json.driver_id }}\n\nPlease update driver email to ensure they receive feature guides and shift summaries.\n\n— VoiceOps Onboarding System",
+        "options": {}
+      },
+      "id": "dob-0007-0000-0000-000000000007",
+      "name": "Email - No Email Fallback",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-560, 780],
+      "credentials": { "smtp": { "id": "SMTP_CREDENTIAL_ID", "name": "VoiceOps SMTP" } },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Driver Registered": {
+      "main": [
+        [
+          { "node": "Normalize Driver Payload", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Normalize Driver Payload": {
+      "main": [
+        [
+          { "node": "IF Has Email", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF Has Email": {
+      "main": [
+        [
+          { "node": "Email - Driver Welcome", "type": "main", "index": 0 },
+          { "node": "Email - Notify Operator", "type": "main", "index": 0 },
+          { "node": "Slack - New Driver Alert", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Email - No Email Fallback", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "voiceops-driver-onboarding" }
+}
