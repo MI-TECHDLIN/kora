@@ -11,7 +11,8 @@ frontend task.
   GetX, or setState for shared state.
 - **Routing:** go_router. All routes declared in one router file
   (`lib/app/router.dart`).
-- **Map:** `google_maps_flutter`
+- **Map:** `flutter_map` + OpenFreeMap vector tiles (`vector_map_tiles`),
+  no API key. Never `google_maps_flutter`
 - **Realtime:** `web_socket_channel`
 - **Icons:** `tabler_icons_plus` — never emoji, never Material icons for
   stat cards
@@ -19,8 +20,7 @@ frontend task.
 - **Co-rider:** `rive`, for the planned `.riv` swap-in
 - **Auth / data:** `supabase_flutter`
 - **Audio out:** `just_audio`, **Audio in:** `record`, **Location:**
-  `geolocator`. These are planned and not in `pubspec.yaml` yet. Add them
-  when the voice and location work starts
+  `geolocator`
 
 Do not add a package without checking whether one of the above already
 covers the need.
