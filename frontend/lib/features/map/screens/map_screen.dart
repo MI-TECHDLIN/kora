@@ -1,11 +1,403 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tokens.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
-/// Full Google Maps + agent-driven pin/route animation lands in Checkpoint 2.
-class MapScreen extends StatelessWidget {
+import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../providers/location_provider.dart';
+import '../../../providers/map_route_provider.dart';
+import '../data/location_source.dart';
+import '../data/map_route.dart';
+import '../widgets/map_chip.dart';
+import '../widgets/map_markers.dart';
+import '../widgets/openfreemap_layer.dart';
+import '../widgets/route_card.dart';
+
+/// The Map tab: OpenFreeMap tiles (flutter_map), the driver's live
+/// position, and the route the co-rider draws from `map_route` events.
+/// Navigation always renders here, never in an external maps app.
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
+
+  /// Before the first location fix or route: downtown Austin, the demo's
+  /// home area.
+  static const fallbackCenter = LatLng(30.2672, -97.7431);
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: Text('Map screen — Checkpoint 2', style: VoiceOpsText.headline),
-  );
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> {
+  final _map = MapController();
+  bool _mapReady = false;
+
+  /// The camera follows the driver's live position while [mapFocusProvider]
+  /// targets the driver, until the driver pans the map.
+  bool _following = true;
+
+  /// The stop the card shows, when the driver tapped a pin; otherwise the
+  /// route's target.
+  String? _selectedStopId;
+  bool _cardExpanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _following = ref.read(mapFocusProvider).target == MapFocusTarget.driver;
+    ref.listenManual<MapRoute?>(mapRouteProvider, (_, route) {
+      setState(() {
+        _selectedStopId = null;
+        _cardExpanded = true;
+      });
+    });
+    ref.listenManual<MapFocus>(mapFocusProvider, (_, focus) => _apply(focus));
+    ref.listenManual<AsyncValue<LocationFix>>(locationProvider, (_, next) {
+      final fix = next.valueOrNull;
+      if (fix != null && _following) _moveTo(fix.point);
+    });
+  }
+
+  @override
+  void dispose() {
+    _map.dispose();
+    super.dispose();
+  }
+
+  void _onMapReady() {
+    _mapReady = true;
+    _apply(ref.read(mapFocusProvider));
+  }
+
+  /// Frames the route, or follows the driver: re-centres on their last fix
+  /// now, and on every fix after until they pan.
+  void _apply(MapFocus focus) {
+    final route = ref.read(mapRouteProvider);
+    if (focus.target == MapFocusTarget.route && route != null) {
+      _following = false;
+      _fitRoute(route);
+      return;
+    }
+    _following = true;
+    if (ref.read(locationProvider).valueOrNull case final fix?) {
+      _moveTo(fix.point);
+    }
+  }
+
+  EdgeInsets _fitPadding() {
+    final insets = MediaQuery.paddingOf(context);
+    final size = MediaQuery.sizeOf(context);
+    return EdgeInsets.fromLTRB(
+      VoiceOpsMap.fitPadding,
+      insets.top + VoiceOpsMap.fitPadding + VoiceOpsSize.touchTarget,
+      VoiceOpsMap.fitPadding,
+      // The card covers roughly the lower 40% of the screen.
+      insets.bottom + size.height * 0.4,
+    );
+  }
+
+  /// Fits the route and stop, plus the driver when they are near it. A far
+  /// fix (the backend's mock data in another city than the phone) would
+  /// zoom the fit out to a continent, so it is left out.
+  void _fitRoute(MapRoute route) {
+    final coordinates = route.coordinates;
+    if (!_mapReady || coordinates.isEmpty) return;
+    final fix = ref.read(locationProvider).valueOrNull;
+    final target = route.target?.point;
+    final includeDriver =
+        fix != null &&
+        target != null &&
+        const Distance().distance(fix.point, target) <=
+            VoiceOpsMap.maxFitDriverMetres;
+    _map.fitCamera(
+      CameraFit.coordinates(
+        coordinates: [...coordinates, if (includeDriver) fix.point],
+        padding: _fitPadding(),
+        maxZoom: VoiceOpsMap.maxFitZoom,
+      ),
+    );
+  }
+
+  void _moveTo(LatLng point) {
+    if (_mapReady) _map.move(point, VoiceOpsMap.followZoom);
+  }
+
+  /// Re-frames the route, or re-centres on (and follows) the driver.
+  void _recenter() {
+    final focus = ref.read(mapFocusProvider.notifier);
+    if (ref.read(mapRouteProvider) != null) {
+      focus.frameRoute();
+    } else {
+      focus.followDriver();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final route = ref.watch(mapRouteProvider);
+    final location = ref.watch(locationProvider);
+    final fix = location.valueOrNull;
+    final insets = MediaQuery.paddingOf(context);
+
+    RouteStop? shownStop = route?.target;
+    if (route != null && _selectedStopId != null) {
+      for (final stop in route.stops) {
+        if (stop.deliveryId == _selectedStopId) shownStop = stop;
+      }
+    }
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: FlutterMap(
+            mapController: _map,
+            options: MapOptions(
+              initialCenter:
+                  fix?.point ??
+                  route?.target?.point ??
+                  MapScreen.fallbackCenter,
+              initialZoom: fix == null
+                  ? VoiceOpsMap.initialZoom
+                  : VoiceOpsMap.followZoom,
+              backgroundColor: VoiceOpsColors.canvas,
+              // North stays up: easier to read at a glance on a bike mount.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+              onMapReady: _onMapReady,
+              onPositionChanged: (_, hasGesture) {
+                if (hasGesture) _following = false;
+              },
+            ),
+            children: [
+              ref.watch(baseMapLayerProvider),
+              if (route != null && route.line.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: route.line,
+                      strokeWidth: VoiceOpsMap.routeWidth,
+                      color: VoiceOpsColors.primary,
+                      borderStrokeWidth: VoiceOpsMap.routeCasingWidth,
+                      borderColor: VoiceOpsColors.primaryDark,
+                    ),
+                  ],
+                ),
+              if (route != null)
+                MarkerLayer(
+                  markers: [
+                    for (final stop in route.stops)
+                      _stopMarker(stop, active: stop == shownStop),
+                  ],
+                ),
+              if (fix != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: fix.point,
+                      width: VoiceOpsMap.positionHalo,
+                      height: VoiceOpsMap.positionHalo,
+                      child: PositionMarker(heading: fix.heading),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        // Keeps the status bar legible over bright tiles.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top + VoiceOpsSpacing.xxl,
+          child: const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [VoiceOpsColors.scrim, Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Top row: the floating co-rider sits at the left (MascotOverlay),
+        // so status chips start after it; recenter sits at the right.
+        Positioned(
+          top: insets.top + VoiceOpsSpacing.md,
+          left:
+              VoiceOpsSpacing.gutter +
+              VoiceOpsSize.orbBubble +
+              VoiceOpsSpacing.sm,
+          right: VoiceOpsSpacing.gutter,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: _LocationStatus(location: location),
+                ),
+              ),
+              const SizedBox(width: VoiceOpsSpacing.sm),
+              _RoundGlassButton(
+                icon: route != null
+                    ? TablerIcons.arrowsMinimize
+                    : TablerIcons.currentLocation,
+                semanticLabel: route != null
+                    ? 'Show the whole route'
+                    : 'Center on my location',
+                onTap: _recenter,
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: VoiceOpsSpacing.gutter,
+          right: VoiceOpsSpacing.gutter,
+          // Scaffold.extendBody puts the bottom nav's height in the padding.
+          bottom: insets.bottom + VoiceOpsSpacing.sm,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const _Attribution(),
+              const SizedBox(height: VoiceOpsSpacing.xs),
+              RouteCard(
+                route: route,
+                stop: shownStop,
+                expanded: _cardExpanded,
+                onToggle: () => setState(() => _cardExpanded = !_cardExpanded),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Marker _stopMarker(RouteStop stop, {required bool active}) {
+    final size = active ? VoiceOpsMap.stopPinActive : VoiceOpsMap.stopPin;
+    final who = stop.recipientName ?? stop.address ?? 'Delivery stop';
+    return Marker(
+      key: ValueKey('stop-${stop.deliveryId}'),
+      point: stop.point,
+      width: size,
+      height: size,
+      child: StopPin(
+        label: stop.sequence?.toString() ?? '',
+        active: active,
+        semanticLabel: stop.sequence == null
+            ? who
+            : 'Stop ${stop.sequence}, $who',
+        onTap: () => setState(() {
+          _selectedStopId = stop.deliveryId;
+          _cardExpanded = true;
+        }),
+      ),
+    );
+  }
+}
+
+/// Location loading / error states; nothing once a fix is in.
+class _LocationStatus extends ConsumerWidget {
+  const _LocationStatus({required this.location});
+  final AsyncValue<LocationFix> location;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return location.when(
+      data: (_) => const SizedBox.shrink(),
+      loading: () => const MapChip(
+        icon: TablerIcons.gps,
+        message: 'Finding your location…',
+      ),
+      error: (error, _) {
+        final problem = error is LocationUnavailable
+            ? error.problem
+            : LocationProblem.unavailable;
+        final opensSettings =
+            problem == LocationProblem.serviceOff ||
+            problem == LocationProblem.deniedForever;
+        return MapChip(
+          icon: TablerIcons.mapPinOff,
+          tone: VoiceOpsColors.amber,
+          message: error is LocationUnavailable
+              ? error.message
+              : const LocationUnavailable(LocationProblem.unavailable).message,
+          actionLabel: opensSettings ? 'Settings' : 'Try again',
+          onAction: () async {
+            if (opensSettings) {
+              await ref.read(locationSourceProvider).openSettings(problem);
+            }
+            ref.invalidate(locationProvider);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _RoundGlassButton extends StatelessWidget {
+  const _RoundGlassButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: GlassCard(
+          borderRadius: VoiceOpsRadius.pill,
+          fill: VoiceOpsColors.raised.withValues(alpha: 0.88),
+          child: SizedBox.square(
+            dimension: VoiceOpsSize.touchTarget,
+            child: Icon(
+              icon,
+              size: VoiceOpsSize.iconMd,
+              color: VoiceOpsColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// OpenStreetMap data requires attribution wherever the map shows.
+class _Attribution extends StatelessWidget {
+  const _Attribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: VoiceOpsColors.scrim,
+        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: VoiceOpsSpacing.sm,
+          vertical: VoiceOpsSpacing.xs / 2,
+        ),
+        child: Text(
+          '© OpenFreeMap © OpenMapTiles © OpenStreetMap',
+          style: VoiceOpsText.caption.copyWith(letterSpacing: 0),
+        ),
+      ),
+    );
+  }
 }

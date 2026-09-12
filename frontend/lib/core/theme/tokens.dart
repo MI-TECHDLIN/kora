@@ -220,6 +220,36 @@ class VoiceOpsSize {
   static const progressDotActive = 24.0;
 }
 
+/// The Map tab: route line, pins, the driver's position dot and camera.
+class VoiceOpsMap {
+  VoiceOpsMap._();
+
+  /// Route polyline stroke, drawn over a darker casing.
+  static const routeWidth = 6.0;
+  static const routeCasingWidth = 2.0;
+
+  /// Numbered stop pins; the stop being navigated to is larger.
+  static const stopPin = 34.0;
+  static const stopPinActive = 44.0;
+
+  /// The driver's live position: solid dot inside a soft halo.
+  static const positionDot = 18.0;
+  static const positionHalo = 44.0;
+
+  /// Camera: zoom when following the driver, the closest a route fit may go,
+  /// and the view before the first location fix.
+  static const followZoom = 15.5;
+  static const maxFitZoom = 16.0;
+  static const initialZoom = 12.0;
+
+  /// Space kept clear around a fitted route, beyond the card and nav.
+  static const fitPadding = 48.0;
+
+  /// A route fit includes the driver's position only within this distance
+  /// of the stop.
+  static const maxFitDriverMetres = 50000.0;
+}
+
 class VoiceOpsMotion {
   VoiceOpsMotion._();
   static const fast = Duration(milliseconds: 150);
