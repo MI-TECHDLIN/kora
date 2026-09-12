@@ -50,10 +50,7 @@ void main() {
       }
       expect(container.read(pushToTalkProvider), PushToTalkState.idle);
 
-      for (final text in [
-        '24 Adeola Odeku Street',
-        'Where am I heading next?',
-      ]) {
+      for (final text in ['1400 Lavaca Street', 'Where am I heading next?']) {
         await tester.ensureVisible(find.text(text));
         await tester.pump();
         expect(find.text(text).hitTestable(), findsOneWidget);
