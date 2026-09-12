@@ -1,6 +1,6 @@
 """
 Navigation tools for VoiceOps agent.
-Tools: get_best_route, start_navigation
+Tools: get_best_route, start_navigation, show_screen
 Platform: Google Directions API. Routes render in-app on the Flutter map: the voice
 WebSocket turns these results into `screen_navigate` + `map_route` events. There is no
 external maps deep link.
@@ -12,6 +12,11 @@ from app.integrations.google_maps import get_directions
 # Used until the session knows the driver's position / the delivery's coordinates.
 MOCK_ORIGIN = (6.44, 3.39)
 MOCK_DESTINATION = {"address": "22 Victoria Island Drive", "latitude": 6.4286, "longitude": 3.4108}
+
+# The app's main screens: `screen_navigate.screen` in docs/contracts/interface.md §1
+APP_SCREENS = ("voice", "map", "summary", "settings")
+SCREEN_NAMES = {"voice": "the home screen", "map": "the map", "summary": "your summary",
+                "settings": "your profile and settings"}
 
 
 def _to_float(value: Any) -> Optional[float]:
@@ -225,3 +230,38 @@ async def start_navigation(parameters: dict, context: dict) -> dict:
             "success": False,
             "error": str(e)
         }
+
+
+async def show_screen(parameters: dict, context: dict) -> dict:
+    """
+    Open one of the app's screens when no other tool would.
+    
+    Platform: internal. The voice WebSocket emits `screen_navigate` with this screen.
+    Trigger phrases: "open the map", "where am I", "zoom to my location" (map),
+    "show my vehicle", "my profile" (settings), "show my summary" (summary), "go home" (voice)
+    
+    Input:
+    {
+        "screen": "settings"
+    }
+    
+    Screen enum: voice | map | summary | settings
+    
+    Expected output:
+    {
+        "success": true,
+        "screen": "settings",
+        "message": "Opening your profile and settings."
+    }
+    """
+    screen = parameters.get("screen")
+    if screen not in APP_SCREENS:
+        return {
+            "success": False,
+            "error": f"Unknown screen {screen!r}. Use one of: {', '.join(APP_SCREENS)}."
+        }
+    return {
+        "success": True,
+        "screen": screen,
+        "message": f"Opening {SCREEN_NAMES[screen]}."
+    }

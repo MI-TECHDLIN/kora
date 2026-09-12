@@ -42,6 +42,7 @@ TOOL_STEPS = {
     "get_next_order": "Checking the order queue",
     "get_shift_summary": "Summarising your shift",
     "alert_dispatcher": "Alerting dispatch",
+    "show_screen": "Opening the screen",
 }
 
 

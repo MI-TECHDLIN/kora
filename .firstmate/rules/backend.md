@@ -76,14 +76,14 @@ calling, and TTS. Do not decompose it into separate service calls.
 
 ---
 
-## The 10 Tools
+## The 11 Tools
 
 `get_next_delivery`, `update_delivery_status`, `log_exception`,
 `get_best_route`, `start_navigation`, `call_customer`, `notify_customer`,
-`get_next_order`, `get_shift_summary`, `alert_dispatcher`
+`get_next_order`, `get_shift_summary`, `alert_dispatcher`, `show_screen`
 
 Exact input/output JSON shapes and handler signatures are defined in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.0, generated from the
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.1, generated from the
 running code). The Flutter-facing WebSocket, REST, status-enum, and auth
 contract is `docs/contracts/interface.md`. Those documents are the
 contract. Do not invent or alter a tool shape — if the reference is

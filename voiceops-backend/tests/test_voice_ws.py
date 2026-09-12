@@ -546,6 +546,29 @@ def test_shift_summary_streams_to_summary_screen(upstream):
     assert [c["final"] for c in chunks] == [False, False, True]
 
 
+@pytest.mark.parametrize("screen", ["map", "settings", "summary", "voice"])
+def test_show_screen_navigates_the_app(upstream, screen):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        frames = tool_turn(ws, upstream, "show_screen", {"screen": screen})
+    assert events.screen_navigate(screen) in frames
+    assert "map_route" not in event_names(frames)
+
+
+def test_show_screen_rejects_screens_outside_the_contract(upstream):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        frames = tool_turn(ws, upstream, "show_screen", {"screen": "vehicle"})
+        result = finish_turn(ws, upstream)
+    assert "screen_navigate" not in event_names(frames)
+    assert result["success"] is False
+
+
+def test_show_screen_enum_is_the_contract_screen_list():
+    tool = next(t for t in tool_registry.get_tools() if t["name"] == "show_screen")
+    assert set(tool["parameters"]["properties"]["screen"]["enum"]) == events.SCREENS
+
+
 def test_tool_calls_in_one_turn_run_concurrently(upstream, monkeypatch):
     """Two tools that each wait for the other: they only both succeed if they run at once."""
     started = {}

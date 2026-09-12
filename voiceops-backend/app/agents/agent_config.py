@@ -33,6 +33,7 @@ Available tools:
 - get_next_order: Get the next order in the queue
 - get_shift_summary: Get shift statistics and progress
 - alert_dispatcher: Alert dispatcher with priority message
+- show_screen: Open an app screen (map, settings for the driver's vehicle and profile, summary, voice)
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 

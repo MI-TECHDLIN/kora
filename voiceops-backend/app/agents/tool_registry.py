@@ -1,6 +1,6 @@
 """
 VoiceOps Tool Registry
-Contains all 10 tools as specified in the VoiceOps Agent Tools Reference v1.0
+Contains all 11 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
 """
 from typing import Dict, Any, List
 from app.agents.tools.delivery import (
@@ -11,8 +11,10 @@ from app.agents.tools.delivery import (
     get_shift_summary
 )
 from app.agents.tools.navigation import (
+    APP_SCREENS,
     get_best_route,
-    start_navigation
+    start_navigation,
+    show_screen
 )
 from app.agents.tools.communication import (
     call_customer,
@@ -202,6 +204,22 @@ def get_tools() -> List[Dict[str, Any]]:
                 },
                 "required": ["message", "priority"]
             }
+        },
+        {
+            "type": "function",
+            "name": "show_screen",
+            "description": "Open a screen in the driver's app when no other tool shows what they asked for. map: 'open the map', 'where am I', 'zoom to my location'. settings: 'show my vehicle', 'my profile'. summary: 'show my summary'. voice: 'go home'. Routing tools already open the map, so don't call this alongside them.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "screen": {
+                        "type": "string",
+                        "enum": list(APP_SCREENS),
+                        "description": "Screen to open"
+                    }
+                },
+                "required": ["screen"]
+            }
         }
     ]
 
@@ -217,7 +235,8 @@ TOOL_EXECUTORS = {
     "notify_customer": notify_customer,
     "get_next_order": get_next_order,
     "get_shift_summary": get_shift_summary,
-    "alert_dispatcher": alert_dispatcher
+    "alert_dispatcher": alert_dispatcher,
+    "show_screen": show_screen
 }
 
 

@@ -201,7 +201,7 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
 
 ## 🛠 Voice Agent Tool Registry
 
-All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/app/agents/tool_registry.py):
+All 11 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/app/agents/tool_registry.py):
 
 ```python
 [
@@ -214,7 +214,8 @@ All 10 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
     "notify_customer",         # SMS arrival alert
     "get_next_order",          # View queued tasks
     "get_shift_summary",       # Live progress: "How am I doing?"
-    "alert_dispatcher"         # Priority escalation to n8n
+    "alert_dispatcher",        # Priority escalation to n8n
+    "show_screen"              # Open an app screen by voice (map, settings, summary)
 ]
 ```
 

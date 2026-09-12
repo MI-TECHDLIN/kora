@@ -564,6 +564,9 @@ class VoiceSession:
         elif name == "get_shift_summary":
             await self.stream_summary(result.get("message") or "")
 
+        elif name == "show_screen":
+            await self.emit(events.screen_navigate(result["screen"]))
+
     async def _show_route(self, stop: dict, route: dict) -> None:
         await self.emit(events.screen_navigate("map"))
         await self.emit(events.map_route(stop, route))

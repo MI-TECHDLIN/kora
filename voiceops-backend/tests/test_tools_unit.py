@@ -26,7 +26,7 @@ def test_tool_definitions():
     """Verify tool definitions are registered."""
     tools = get_tools()
     assert isinstance(tools, list)
-    assert len(tools) == 10
+    assert len(tools) == 11
     tool_names = [t["name"] for t in tools]
     assert "call_customer" in tool_names
     assert "notify_customer" in tool_names
@@ -101,3 +101,10 @@ def test_encode_polyline_matches_google_reference():
     # Worked example from Google's encoded polyline algorithm documentation
     points = [(38.5, -120.2), (40.7, -120.95), (43.252, -126.453)]
     assert encode_polyline(points) == "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+
+
+def test_show_screen(mock_context):
+    result = asyncio.run(execute_tool("show_screen", {"screen": "settings"}, mock_context))
+    assert result == {"success": True, "screen": "settings", "message": "Opening your profile and settings."}
+    bad = asyncio.run(execute_tool("show_screen", {"screen": "vehicle"}, mock_context))
+    assert bad["success"] is False and "error" in bad
