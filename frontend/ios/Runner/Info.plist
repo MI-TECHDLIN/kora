@@ -64,6 +64,18 @@
 	</array>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<!-- Push-to-talk streams the mic to the co-rider (record). -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VoiceOps listens when you tap the mic so your co-rider can hear you.</string>
+	<!-- The driver's live position on the Map tab (geolocator). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>VoiceOps shows where you are on the map and routes you to your next stop.</string>
+	<!-- just_audio plays the co-rider's voice through a loopback proxy. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

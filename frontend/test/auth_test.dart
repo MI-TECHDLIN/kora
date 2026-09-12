@@ -256,6 +256,42 @@ void main() {
     expect(auth.profileChecks, 1);
   });
 
+  testWidgets('a policy link never covers the terms checkbox', (tester) async {
+    await pumpApp(tester);
+    await tap(tester, find.text('Get started'));
+
+    // The last field is focused and the keyboard is up, which leaves the
+    // terms row at the bottom of what's still visible.
+    await enter(tester, 'Phone number', '+234 801 234 5678');
+    for (var i = 1; i <= 10; i++) {
+      tester.view.viewInsets = FakeViewPadding(bottom: 300 * 3 * i / 10);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await tester.pump(VoiceOpsMotion.slow);
+    final box = find.byType(Checkbox);
+    expect(
+      tester.getRect(box).bottom,
+      greaterThan(phone.height - 300 - 60),
+      reason: 'the terms row should sit just above the keyboard',
+    );
+
+    // Most of the sentence is policy links. Tapping one explains the
+    // document isn't out yet, without putting anything over the box.
+    await tester.tapOnText(
+      find.textRange.ofSubstring(LegalDocument.terms.title),
+    );
+    await settle(tester);
+    expect(
+      find.text("The Terms of Service isn't published yet."),
+      findsOneWidget,
+    );
+    expect(tester.widget<Checkbox>(box).value, isFalse);
+
+    await tester.tap(box);
+    await settle(tester);
+    expect(tester.widget<Checkbox>(box).value, isTrue);
+  });
+
   testWidgets('sign up waiting on email confirmation stays signed out', (
     tester,
   ) async {

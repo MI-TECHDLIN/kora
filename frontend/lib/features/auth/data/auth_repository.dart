@@ -56,6 +56,11 @@ abstract interface class AuthRepository {
   /// True while there is a session that has not expired.
   bool get hasValidSession;
 
+  /// The session's access token, sent as `Authorization: Bearer <token>` on
+  /// backend REST calls and the voice socket (docs/contracts/interface.md §4).
+  /// Null when signed out.
+  String? get accessToken;
+
   /// Fires on every sign-in, sign-out and token refresh.
   Stream<AuthChangeEvent> get changes;
 
@@ -86,6 +91,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   bool get hasValidSession => isUsable(_auth.currentSession);
+
+  @override
+  String? get accessToken => _auth.currentSession?.accessToken;
 
   @override
   Stream<AuthChangeEvent> get changes =>
