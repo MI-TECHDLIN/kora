@@ -100,8 +100,8 @@ class VoiceOpsOrbColors {
 }
 
 /// Onboarding mood backgrounds and surfaces (PRD v4.0 §4.7): dark navy for
-/// Hook and Trust, a lavender gradient for Power, holographic editorial for
-/// the splash. Onboarding only; the main app stays on [VoiceOpsColors.canvas].
+/// Hook, a lavender gradient for Power, holographic editorial for the
+/// splash. Onboarding only; the main app stays on [VoiceOpsColors.canvas].
 class VoiceOpsMood {
   VoiceOpsMood._();
 
@@ -206,7 +206,7 @@ class VoiceOpsSize {
   static const pushToTalkMin = 80.0;
 
   /// Co-rider orb sizes. [orbOnboarding] is the Hook screen's waking orb;
-  /// Trust settles back to the smaller [orbHero].
+  /// the welcome screen after it settles back to the smaller [orbHero].
   static const orbOnboarding = 220.0;
   static const orbHero = 150.0;
   static const orbBubble = 60.0;

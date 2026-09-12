@@ -68,12 +68,12 @@ Last-mile delivery drivers operate in high-pressure, hands-free environments. Ex
 - Flagged issues, customer interaction highlights
 - Mascot in relaxed/celebrating emotion throughout
 
-### 4.7 Onboarding Flow (4 Screens) — Finalized Concept v1
+### 4.7 Onboarding Flow (3 Screens) — Finalized Concept v1
 **Mascot is referred to as the driver's "co-rider" throughout onboarding and in-app copy** — not "co-pilot" (implies hierarchy/cockpit) or "assistant" (too generic). Locked terminology, September 2026.
 
 Visual material for onboarding: **holographic bubble orb** (translucent, iridescent, continuous hue-rotation) — distinct from the chrome/mercury orb used in the main app (see §4.2).
 
-Four screens: a splash, then hook, power, and trust. This matches `CLAUDE.md` and `.firstmate/rules/frontend.md`, and `CLAUDE.md` is canonical for the splash copy.
+Three screens: a splash, then hook and power. They run before sign-up, and Next on Power hands off to the auth welcome screen ("Get started" → sign-up). This matches `CLAUDE.md` and `.firstmate/rules/frontend.md`, and `CLAUDE.md` is canonical for the splash copy.
 
 - **Screen 0 — Splash**
   - Giant editorial type with inline holographic pills
@@ -88,12 +88,7 @@ Four screens: a splash, then hook, power, and trust. This matches `CLAUDE.md` an
   - Header: avatar + "Hello, [Name] — here's what it caught already"
   - Layered card stack (not a flat grid): "Next stop" card behind, "Mic access" action-required card in front (red dot, explains *why*: "so it can hear you over road noise"), colorful holographic "Live route" teaser card peeking from the side
   - Headline: "Three things happen at once. You do nothing."
-- **Screen 3 — The Trust** (dark navy background)
-  - Check pill: "✓ Voice calibrated"
-  - Orb settles, smaller and calmer
-  - Headline: "It knows your voice. Time to drive."
-  - Stat row confirms readiness: Voice: Ready · Route: Loaded · Hands: Free
-  - CTA card: "Your voice, your co-rider" + "Start driving →" button
+- **Screen 3 — The Trust**: retired on 2026-09-12. Onboarding now comes before sign-up, so "Time to drive" and the readiness stats no longer fit. The auth welcome screen's "Get started" takes its place as the closing moment.
 - Swipeable with progress dots, no skip button
 - Copy is grounded in an actual driver's moment, not generic AI-assistant language
 

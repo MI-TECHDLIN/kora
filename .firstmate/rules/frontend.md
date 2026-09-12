@@ -86,13 +86,17 @@ Map occupies the top 45%. Preserve this proportion.
 
 ## Onboarding
 
-Four screens:
+Three screens, shown before the auth gate (the router checks onboarding
+first):
 
 0. **Splash** — giant editorial type with inline holographic pills,
    "Meet your co-rider for every delivery route", white "Get started" CTA
 1. **Hook**
-2. **Power**
-3. **Trust**
+2. **Power** — its Next button completes onboarding and hands off to the
+   auth welcome screen ("Get started" → sign-up)
+
+The fourth screen, Trust, was retired on 2026-09-12. Do not bring it back:
+its "time to drive" moment doesn't fit before sign-up.
 
 ---
 

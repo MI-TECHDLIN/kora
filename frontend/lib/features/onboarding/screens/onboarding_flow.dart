@@ -8,24 +8,25 @@ import '../widgets/onboarding_controls.dart';
 import 'onboarding_screen_0.dart';
 import 'onboarding_screen_1.dart';
 import 'onboarding_screen_2.dart';
-import 'onboarding_screen_3.dart';
 
 /// Placeholder until a driver profile source exists.
-/// TODO(Ez): read the driver's name from the Supabase profile once auth lands.
+/// TODO(Ez): onboarding now runs before sign-up, so no Supabase profile
+/// exists yet here; decide what the Power greeting shows instead.
 const _placeholderDriverName = 'Mary';
 
-/// The 4-screen onboarding flow — splash, hook, power, trust (PRD v4.0
-/// §4.7). Swipeable with progress dots and no skip button. The splash CTA
-/// and the Next button advance; swiping or system back steps back.
-/// Completing it flips [onboardingProvider] and the router redirect takes
-/// the driver into the main app.
+/// The 3-screen onboarding flow — splash, hook, power (PRD v4.0 §4.7).
+/// Swipeable with progress dots and no skip button. The splash CTA and the
+/// Next button advance; swiping or system back steps back. Next on Power,
+/// the last screen, flips [onboardingProvider] and the router redirect hands
+/// the driver to the welcome screen's "Get started", or straight into the
+/// main app when already signed in.
 ///
 /// The co-rider here takes the holographic material from the onboarding
 /// route's OrbMaterialScope.
 class OnboardingFlow extends ConsumerStatefulWidget {
   const OnboardingFlow({super.key});
 
-  static const pageCount = 4;
+  static const pageCount = 3;
 
   @override
   ConsumerState<OnboardingFlow> createState() => _OnboardingFlowState();
@@ -48,6 +49,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     curve: VoiceOpsMotion.emphasized,
   );
 
+  void _complete() => ref.read(onboardingProvider.notifier).complete();
+
   void _back() => _pages.previousPage(
     duration: VoiceOpsMotion.slow,
     curve: VoiceOpsMotion.emphasized,
@@ -61,9 +64,13 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    // Hook and Power advance with the Next button; the splash and Trust
-    // carry their own CTA.
-    final showsNext = _index == 1 || _index == 2;
+    // Hook and Power advance with the Next button; the splash carries its
+    // own CTA. Power is the last screen, so its Next finishes onboarding.
+    final VoidCallback? onNext = _index == 0
+        ? null
+        : _index < OnboardingFlow.pageCount - 1
+        ? _next
+        : _complete;
 
     return PopScope(
       canPop: _index == 0,
@@ -92,10 +99,6 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                         micAllowed: _micAllowed,
                         onAllowMic: () => setState(() => _micAllowed = true),
                       ),
-                      OnboardingTrust(
-                        onStartDriving: () =>
-                            ref.read(onboardingProvider.notifier).complete(),
-                      ),
                     ],
                   ),
                 ),
@@ -107,11 +110,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                       page: page,
                       count: OnboardingFlow.pageCount,
                       lavender: lavenderAmount(page),
-                      // Fades in from the splash, out toward Trust.
-                      nextVisibility: page <= 1
-                          ? page.clamp(0.0, 1.0)
-                          : (3 - page).clamp(0.0, 1.0),
-                      onNext: showsNext ? _next : null,
+                      // Fades in from the splash.
+                      nextVisibility: page.clamp(0.0, 1.0),
+                      onNext: onNext,
                     );
                   },
                 ),

@@ -6,15 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/core/theme/tokens.dart';
+import 'package:voiceops/features/auth/screens/sign_up_screen.dart';
+import 'package:voiceops/features/auth/screens/welcome_screen.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_flow.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_screen_0.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_screen_1.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_screen_2.dart';
-import 'package:voiceops/features/onboarding/screens/onboarding_screen_3.dart';
-import 'package:voiceops/features/onboarding/widgets/onboarding_controls.dart';
-import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
+import 'package:voiceops/providers/auth_provider.dart';
 
 import 'fake_auth.dart';
 import 'test_fonts.dart';
@@ -29,15 +29,21 @@ void main() {
     await tester.pump(VoiceOpsMotion.stagger + VoiceOpsMotion.slow);
   }
 
-  /// Boots the real app (router redirect included) on a phone-sized view.
-  /// No backend, no platform permissions: everything here is local, and the
-  /// fake auth starts signed in (test/auth_test.dart covers the gate).
+  /// Boots the real app (router redirect included) on a phone-sized view,
+  /// as on a first launch: signed out, so onboarding comes before the auth
+  /// gate. No backend, no platform permissions: everything here is local
+  /// (test/auth_test.dart covers the gate itself).
   Future<void> pumpApp(WidgetTester tester, {Size logical = phone}) async {
     tester.view.physicalSize = logical * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      ProviderScope(overrides: signedInOverrides(), child: const VoiceOpsApp()),
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        ],
+        child: const VoiceOpsApp(),
+      ),
     );
     await settle(tester);
   }
@@ -65,7 +71,7 @@ void main() {
   /// The Next button as the live semantics tree announces it right now.
   FinderBase<SemanticsNode> liveNext() => find.semantics.byLabel('Next');
 
-  testWidgets('walks all four screens verbatim and completes into voice', (
+  testWidgets('walks all three screens verbatim and hands off to welcome', (
     tester,
   ) async {
     await pumpApp(tester);
@@ -74,7 +80,7 @@ void main() {
     expect(find.bySemanticsLabel(OnboardingSplash.headline), findsOneWidget);
     expect(find.text('Get started'), findsOneWidget);
     expect(liveNext(), findsNothing); // splash has its own CTA
-    expect(find.bySemanticsLabel('Step 1 of 4'), findsOneWidget);
+    expect(find.bySemanticsLabel('Step 1 of 3'), findsOneWidget);
     // PRD §4.7: no skip button anywhere in the flow.
     expect(
       find.textContaining(RegExp('skip', caseSensitive: false)),
@@ -99,7 +105,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(MascotDisplay), findsOneWidget);
-    expect(find.bySemanticsLabel('Step 2 of 4'), findsOneWidget);
+    expect(find.bySemanticsLabel('Step 2 of 3'), findsOneWidget);
 
     await tester.tap(next());
     await settle(tester);
@@ -135,33 +141,21 @@ void main() {
     expect(find.text('Mic allowed'), findsOneWidget);
     expect(find.text('ACTION REQUIRED'), findsNothing);
 
+    // Power is the last screen: all dots filled, and Next finishes.
+    expect(find.bySemanticsLabel('Step 3 of 3'), findsOneWidget);
+    expect(liveNext(), findsOneWidget);
     await tester.tap(next());
     await settle(tester);
 
-    // 3 — Trust.
-    expect(find.byType(OnboardingTrust), findsOneWidget);
-    expect(find.text('Voice calibrated'), findsOneWidget);
-    expect(find.text('It knows your voice. Time to drive.'), findsOneWidget);
-    for (final stat in ['Voice: Ready', 'Route: Loaded', 'Hands: Free']) {
-      expect(find.bySemanticsLabel(stat), findsOneWidget);
-    }
-    expect(find.text('Your voice, your co-rider'), findsOneWidget);
-    // Trust's CTA finishes instead: the Next button is hidden and inert.
-    expect(liveNext(), findsNothing);
-    expect(
-      tester.widget<OnboardingControls>(find.byType(OnboardingControls)).onNext,
-      isNull,
-    );
-    expect(find.bySemanticsLabel('Step 4 of 4'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('Start driving'));
-    await tester.tap(find.text('Start driving'));
-    await settle(tester);
-
-    // The router redirect takes over once onboarding completes.
+    // The router redirect hands the signed-out driver to welcome's
+    // "Get started", which leads into sign-up.
     expect(find.byType(OnboardingFlow), findsNothing);
-    expect(find.byType(MainShell), findsOneWidget);
-    expect(find.byType(VoiceScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
+    await tester.ensureVisible(find.text('Get started'));
+    await tester.tap(find.text('Get started'));
+    await settle(tester);
+    expect(find.byType(SignUpScreen), findsOneWidget);
   });
 
   testWidgets('swipes both ways and system back steps back a screen', (
@@ -173,15 +167,15 @@ void main() {
     expect(find.byType(OnboardingHook), findsOneWidget);
     await swipe(tester, forward: true);
     expect(find.byType(OnboardingPower), findsOneWidget);
-    await swipe(tester, forward: true);
-    expect(find.byType(OnboardingTrust), findsOneWidget);
 
-    // Trust is the end: swiping on does not finish onboarding by itself.
+    // Power is the end: swiping on does not finish onboarding by itself.
     await swipe(tester, forward: true);
-    expect(find.byType(OnboardingTrust), findsOneWidget);
-    expect(find.byType(MainShell), findsNothing);
+    expect(find.byType(OnboardingPower), findsOneWidget);
+    expect(find.byType(WelcomeScreen), findsNothing);
 
     await swipe(tester, forward: false);
+    expect(find.byType(OnboardingHook), findsOneWidget);
+    await swipe(tester, forward: true);
     expect(find.byType(OnboardingPower), findsOneWidget);
 
     // Back walks the pages instead of leaving onboarding.
@@ -192,21 +186,24 @@ void main() {
     expect(find.byType(OnboardingFlow), findsOneWidget);
   });
 
-  testWidgets('every screen lays out on a short phone without overflow', (
-    tester,
-  ) async {
-    // A small 360×640 phone; any RenderFlex overflow fails the test.
-    await pumpApp(tester, logical: const Size(360, 640));
-    for (final screen in [
-      OnboardingSplash,
-      OnboardingHook,
-      OnboardingPower,
-      OnboardingTrust,
-    ]) {
-      expect(find.byType(screen), findsOneWidget);
-      if (screen != OnboardingTrust) await swipe(tester, forward: true);
-    }
-  });
+  for (final size in [const Size(320, 568), const Size(360, 640)]) {
+    testWidgets('every screen lays out at $size without overflow', (
+      tester,
+    ) async {
+      // Small phones; any RenderFlex overflow fails the test.
+      await pumpApp(tester, logical: size);
+      for (final screen in [
+        OnboardingSplash,
+        OnboardingHook,
+        OnboardingPower,
+      ]) {
+        expect(find.byType(screen), findsOneWidget);
+        if (screen != OnboardingPower) await swipe(tester, forward: true);
+      }
+      // …and the Next button that finishes stays on screen.
+      expect(tester.getRect(next()).bottom, lessThanOrEqualTo(size.height));
+    });
+  }
 }
 
 /// A mid-range Android phone, in logical pixels.

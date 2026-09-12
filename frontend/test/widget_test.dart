@@ -50,17 +50,15 @@ void main() {
       OrbMaterial.holographic,
     );
 
-    // Walking the flow and completing it redirects into the voice tab
-    // (test/onboarding_test.dart covers each screen).
+    // Already signed in, completing the flow (Next on Power) redirects
+    // straight into the voice tab (test/onboarding_test.dart covers each
+    // screen).
     await tester.tap(find.text('Get started'));
     await settle(tester);
     for (var i = 0; i < 2; i++) {
       await tester.tap(find.bySemanticsLabel('Next'));
       await settle(tester);
     }
-    await tester.ensureVisible(find.text('Start driving'));
-    await tester.tap(find.text('Start driving'));
-    await settle(tester);
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(VoiceScreen), findsOneWidget);
     expect(find.byType(MascotDisplay), findsOneWidget); // inline, chrome
