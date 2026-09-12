@@ -191,7 +191,10 @@ class VoiceSession:
     # ------------------------------------------------------------------ upstream side
 
     async def send_upstream(self, message: dict) -> None:
-        await self.upstream.send(json.dumps(message))
+        try:
+            await self.upstream.send(json.dumps(message))
+        except websockets.exceptions.ConnectionClosed:
+            raise UpstreamError("upstream_unavailable", "Lost connection to the voice service.")
 
     async def recv_upstream(self) -> Optional[dict]:
         """Next JSON event from AssemblyAI, or None once the upstream socket is closed."""
@@ -216,12 +219,10 @@ class VoiceSession:
         _sessions.setdefault(self.shift_id, set()).add(self)
         try:
             await self._load_context()
-            try:
-                await self._start_upstream()
-            except UpstreamError as e:
-                await self.fail(e.code, e.message)
-                return
+            await self._start_upstream()
             await self._pump()
+        except UpstreamError as e:
+            await self.fail(e.code, e.message)
         except Exception:
             logger.exception("[VoiceWS] Session crashed")
             await self.fail("internal", "Something went wrong. Try again.")

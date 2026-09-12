@@ -60,12 +60,15 @@ class FakeUpstream:
         self.inbox = queue.Queue()
         self.sent = []
         self.closed = False
+        self.refuse_sends = False  # a drop the relay first notices on send
 
     def push(self, *messages):
         for message in messages:
             self.inbox.put(message)
 
     async def send(self, text):
+        if self.closed or self.refuse_sends:
+            raise websockets.exceptions.ConnectionClosedOK(None, None)
         message = json.loads(text)
         self.sent.append(message)
         if message["type"] == "session.update":
@@ -350,6 +353,17 @@ def test_upstream_error_mid_session_closes_with_error(upstream):
         upstream.push({"type": "session.error", "code": "agent_timeout", "message": "LLM timed out"})
         frames = collect_until(ws, lambda f: isinstance(f, dict) and "close" in f)
     assert frames[0]["event"] == "error" and frames[0]["code"] == "upstream_timeout"
+    assert frames[-1] == {"close": voice.CLOSE_INTERNAL_ERROR}
+
+
+def test_upstream_drop_while_relaying_audio_is_upstream_unavailable(upstream):
+    """The driver's audio send is the first thing to hit the dropped upstream socket."""
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        upstream.refuse_sends = True
+        ws.send_bytes(b"\x00\x01")
+        frames = collect_until(ws, lambda f: isinstance(f, dict) and "close" in f)
+    assert frames[0]["event"] == "error" and frames[0]["code"] == "upstream_unavailable"
     assert frames[-1] == {"close": voice.CLOSE_INTERNAL_ERROR}
 
 
