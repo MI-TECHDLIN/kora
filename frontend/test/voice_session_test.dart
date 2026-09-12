@@ -91,10 +91,7 @@ void main() {
       expect(ptt(), PushToTalkState.recording);
       expect(api.shiftCalls, 1);
       final socket = connector.last;
-      expect(
-        socket.uri.toString(),
-        'wss://api.voiceops.test/ws/voice/shift-1',
-      );
+      expect(socket.uri.toString(), 'wss://api.voiceops.test/ws/voice/shift-1');
       expect(socket.headers, {'Authorization': 'Bearer test-access-token'});
       expect(voice().connection, VoiceConnection.connected);
 
@@ -191,13 +188,10 @@ void main() {
         container.read(mapRouteProvider)!.target!.recipientName,
         'Amara Johnson',
       );
-      expect(
-        container.read(transcriptProvider).map((l) => (l.role, l.text)),
-        [
-          (SpeakerRole.driver, "What's my next stop?"),
-          (SpeakerRole.agent, 'Amara on Broad Street.'),
-        ],
-      );
+      expect(container.read(transcriptProvider).map((l) => (l.role, l.text)), [
+        (SpeakerRole.driver, "What's my next stop?"),
+        (SpeakerRole.agent, 'Amara on Broad Street.'),
+      ]);
       final summary = container.read(summaryStreamProvider)!;
       expect(summary.text, 'Today you did 7 stops.');
       expect(summary.isComplete, isTrue);

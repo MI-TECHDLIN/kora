@@ -248,6 +248,10 @@ class VoiceOpsMap {
   /// A route fit includes the driver's position only within this distance
   /// of the stop.
   static const maxFitDriverMetres = 50000.0;
+
+  /// Share of the screen height a fit always keeps for the map, however
+  /// tall the card is.
+  static const minFitShare = 0.25;
 }
 
 class VoiceOpsMotion {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,9 +35,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final _map = MapController();
   bool _mapReady = false;
 
-  /// The camera follows the driver's live position while [mapFocusProvider]
-  /// targets the driver, until the driver pans the map.
+  /// The bottom sheet (attribution and card). The camera keeps what it
+  /// frames clear of it, and re-frames as the card grows or folds.
+  final _sheetKey = GlobalKey();
+  bool _reframeScheduled = false;
+
+  /// What the camera does, from [mapFocusProvider]: follow the driver's
+  /// live position, or keep the route framed. Either stops when the driver
+  /// pans the map, until the next focus request.
   bool _following = true;
+  bool _framingRoute = false;
 
   /// The stop the card shows, when the driver tapped a pin; otherwise the
   /// route's target.
@@ -45,7 +54,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _following = ref.read(mapFocusProvider).target == MapFocusTarget.driver;
     ref.listenManual<MapRoute?>(mapRouteProvider, (_, route) {
       setState(() {
         _selectedStopId = null;
@@ -53,9 +61,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     });
     ref.listenManual<MapFocus>(mapFocusProvider, (_, focus) => _apply(focus));
-    ref.listenManual<AsyncValue<LocationFix>>(locationProvider, (_, next) {
+    ref.listenManual<AsyncValue<LocationFix>>(locationProvider, (
+      previous,
+      next,
+    ) {
       final fix = next.valueOrNull;
-      if (fix != null && _following) _moveTo(fix.point);
+      if (fix == null) return;
+      if (_following) {
+        _moveTo(fix.point);
+      } else if (_framingRoute && previous?.valueOrNull == null) {
+        // The first fix after a route: frame the driver with it.
+        _reframe();
+      }
     });
   }
 
@@ -70,30 +87,53 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _apply(ref.read(mapFocusProvider));
   }
 
-  /// Frames the route, or follows the driver: re-centres on their last fix
-  /// now, and on every fix after until they pan.
   void _apply(MapFocus focus) {
-    final route = ref.read(mapRouteProvider);
-    if (focus.target == MapFocusTarget.route && route != null) {
-      _following = false;
-      _fitRoute(route);
-      return;
-    }
-    _following = true;
-    if (ref.read(locationProvider).valueOrNull case final fix?) {
-      _moveTo(fix.point);
+    _framingRoute =
+        focus.target == MapFocusTarget.route &&
+        ref.read(mapRouteProvider) != null;
+    _following = !_framingRoute;
+    _reframe();
+  }
+
+  /// Frames the route, or centres the driver's last fix.
+  void _reframe() {
+    if (!_mapReady) return;
+    if (_framingRoute) {
+      if (ref.read(mapRouteProvider) case final route?) _fitRoute(route);
+    } else if (_following) {
+      if (ref.read(locationProvider).valueOrNull case final fix?) {
+        _moveTo(fix.point);
+      }
     }
   }
 
+  /// The sheet changed size mid-layout; re-frame once it has settled into
+  /// this frame.
+  bool _onSheetResized(SizeChangedLayoutNotification _) {
+    if (!_reframeScheduled) {
+      _reframeScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _reframeScheduled = false;
+        if (mounted) _reframe();
+      });
+    }
+    return true;
+  }
+
+  /// The map area left clear of the top controls and the bottom sheet.
   EdgeInsets _fitPadding() {
     final insets = MediaQuery.paddingOf(context);
-    final size = MediaQuery.sizeOf(context);
+    final height = MediaQuery.sizeOf(context).height;
+    final top = insets.top + VoiceOpsMap.fitPadding + VoiceOpsSize.touchTarget;
+    final sheet = _sheetKey.currentContext?.size?.height ?? height * 0.4;
+    final bottom =
+        insets.bottom + VoiceOpsSpacing.sm + sheet + VoiceOpsSpacing.lg;
     return EdgeInsets.fromLTRB(
       VoiceOpsMap.fitPadding,
-      insets.top + VoiceOpsMap.fitPadding + VoiceOpsSize.touchTarget,
+      top,
       VoiceOpsMap.fitPadding,
-      // The card covers roughly the lower 40% of the screen.
-      insets.bottom + size.height * 0.4,
+      // A tall card on a small phone still leaves some map to fit into.
+      math.min(bottom, height * (1 - VoiceOpsMap.minFitShare) - top),
     );
   }
 
@@ -119,8 +159,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
+  /// Centres [point] in the clear map area at the follow zoom.
   void _moveTo(LatLng point) {
-    if (_mapReady) _map.move(point, VoiceOpsMap.followZoom);
+    if (!_mapReady) return;
+    _map.fitCamera(
+      CameraFit.coordinates(
+        coordinates: [point],
+        padding: _fitPadding(),
+        minZoom: VoiceOpsMap.followZoom,
+        maxZoom: VoiceOpsMap.followZoom,
+      ),
+    );
   }
 
   /// Re-frames the route, or re-centres on (and follows) the driver.
@@ -167,7 +216,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
               onMapReady: _onMapReady,
               onPositionChanged: (_, hasGesture) {
-                if (hasGesture) _following = false;
+                if (!hasGesture) return;
+                _following = false;
+                _framingRoute = false;
               },
             ),
             children: [
@@ -259,19 +310,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           right: VoiceOpsSpacing.gutter,
           // Scaffold.extendBody puts the bottom nav's height in the padding.
           bottom: insets.bottom + VoiceOpsSpacing.sm,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const _Attribution(),
-              const SizedBox(height: VoiceOpsSpacing.xs),
-              RouteCard(
-                route: route,
-                stop: shownStop,
-                expanded: _cardExpanded,
-                onToggle: () => setState(() => _cardExpanded = !_cardExpanded),
+          child: NotificationListener<SizeChangedLayoutNotification>(
+            onNotification: _onSheetResized,
+            child: SizeChangedLayoutNotifier(
+              child: Column(
+                key: _sheetKey,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const _Attribution(),
+                  const SizedBox(height: VoiceOpsSpacing.xs),
+                  RouteCard(
+                    route: route,
+                    stop: shownStop,
+                    expanded: _cardExpanded,
+                    onToggle: () =>
+                        setState(() => _cardExpanded = !_cardExpanded),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ],

@@ -188,7 +188,11 @@ void main() {
           'role': 'driver',
           'text': "What's my next stop?",
         }),
-        isA<TranscriptEvent>().having((e) => e.role, 'role', SpeakerRole.driver),
+        isA<TranscriptEvent>().having(
+          (e) => e.role,
+          'role',
+          SpeakerRole.driver,
+        ),
       );
       expect(VoiceEvent.parse({'event': 'reply_done'}), isA<ReplyDoneEvent>());
       expect(
