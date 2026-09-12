@@ -235,6 +235,9 @@ class VoiceOpsMotion {
   /// Entrance of the onboarding Power screen's card stack.
   static const stagger = Duration(milliseconds: 900);
 
+  /// How long a snackbar notice stays up: long enough to read two lines.
+  static const notice = Duration(seconds: 8);
+
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubic;
 }

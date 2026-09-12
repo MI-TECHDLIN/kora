@@ -10,6 +10,7 @@ import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 
+import 'fake_auth.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -30,7 +31,9 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: VoiceOpsApp()));
+    await tester.pumpWidget(
+      ProviderScope(overrides: signedInOverrides(), child: const VoiceOpsApp()),
+    );
     await settle(tester);
 
     final theme = Theme.of(tester.element(find.byType(Scaffold).first));

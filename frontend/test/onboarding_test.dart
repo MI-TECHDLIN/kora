@@ -16,6 +16,7 @@ import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 
+import 'fake_auth.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -29,12 +30,15 @@ void main() {
   }
 
   /// Boots the real app (router redirect included) on a phone-sized view.
-  /// No backend, no platform permissions: everything here is local.
+  /// No backend, no platform permissions: everything here is local, and the
+  /// fake auth starts signed in (test/auth_test.dart covers the gate).
   Future<void> pumpApp(WidgetTester tester, {Size logical = phone}) async {
     tester.view.physicalSize = logical * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(const ProviderScope(child: VoiceOpsApp()));
+    await tester.pumpWidget(
+      ProviderScope(overrides: signedInOverrides(), child: const VoiceOpsApp()),
+    );
     await settle(tester);
   }
 
