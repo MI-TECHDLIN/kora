@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     def effective_twilio_from_number(self) -> Optional[str]:
         return self.twilio_phone_number or self.twilio_from_number
     
-    # Google Maps (Directions API for routes + deeplink for navigation)
+    # Google Maps (Directions API for routes; navigation renders in-app, no deeplink)
     google_maps_api_key: Optional[str] = None
     google_directions_base_url: str = "https://maps.googleapis.com/maps/api/directions/json"
     

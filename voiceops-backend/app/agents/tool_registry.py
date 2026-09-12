@@ -104,7 +104,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "start_navigation",
-            "description": "Start navigation to delivery location using Google Maps. Trigger phrases: 'navigate', 'take me there', 'get directions'",
+            "description": "Start navigation to delivery location. The route is drawn on the driver's in-app map. Trigger phrases: 'navigate', 'take me there', 'get directions'",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from app.config import settings
 
 
@@ -11,6 +11,22 @@ def _get_client() -> httpx.AsyncClient:
     if _http_client is None or _http_client.is_closed:
         _http_client = httpx.AsyncClient(timeout=8.0)
     return _http_client
+
+
+def encode_polyline(points: List[Tuple[float, float]]) -> str:
+    """Encode (lat, lng) points in Google's encoded polyline format."""
+    encoded = []
+    prev_lat = prev_lng = 0
+    for lat, lng in points:
+        lat_e5, lng_e5 = round(lat * 1e5), round(lng * 1e5)
+        for delta in (lat_e5 - prev_lat, lng_e5 - prev_lng):
+            value = ~(delta << 1) if delta < 0 else delta << 1
+            while value >= 0x20:
+                encoded.append(chr((0x20 | (value & 0x1F)) + 63))
+                value >>= 5
+            encoded.append(chr(value + 63))
+        prev_lat, prev_lng = lat_e5, lng_e5
+    return "".join(encoded)
 
 
 async def get_directions(
@@ -32,13 +48,14 @@ async def get_directions(
         List of route dicts with distance, duration, summary
     """
     if not settings.google_maps_api_key:
-        # Return mock data if no API key
+        # Return mock data if no API key. The polyline is a real (straight-line) encoding so the
+        # in-app map can still draw it.
         return [
             {
                 "summary": "Mock Route",
                 "distance": 5000,  # meters
                 "duration": 900,   # seconds
-                "polyline": "mock_polyline_data"
+                "polyline": encode_polyline([(origin_lat, origin_lng), (dest_lat, dest_lng)])
             }
         ]
     
