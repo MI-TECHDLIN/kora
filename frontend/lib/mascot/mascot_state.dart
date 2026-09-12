@@ -1,4 +1,5 @@
-/// Maps directly to Rive State Machine string inputs — SDD v2.0 §6.
+/// Maps directly to the co-rider's `CoRider` view-model triggers (see
+/// [AgentStateX.riveKey] and docs/voiceops-corider-orb-rive-spec-v2.md).
 enum AgentState {
   idle,
   thinking,

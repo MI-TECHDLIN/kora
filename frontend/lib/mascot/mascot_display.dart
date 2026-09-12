@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:rive/rive.dart' as rive;
 
 import '../core/theme/tokens.dart';
 import 'mascot_state.dart';
@@ -32,8 +33,10 @@ class OrbMaterialScope extends InheritedWidget {
       material != oldWidget.material;
 }
 
-/// The co-rider orb. A placeholder drawn in Flutter until the Rive asset
-/// lands; it morphs smoothly between [AgentState]s.
+/// The co-rider orb. Plays the authored Rive co-rider
+/// (`assets/rive/corider.riv`) and falls back to a Flutter-drawn placeholder
+/// while the file loads, or if it is missing or fails to load. Either way it
+/// morphs smoothly between [AgentState]s.
 class MascotDisplay extends StatefulWidget {
   const MascotDisplay({
     super.key,
@@ -52,7 +55,200 @@ class MascotDisplay extends StatefulWidget {
   State<MascotDisplay> createState() => _MascotDisplayState();
 }
 
-class _MascotDisplayState extends State<MascotDisplay>
+class _MascotDisplayState extends State<MascotDisplay> {
+  _CoRiderRig? _rig;
+  OrbMaterial? _rigMaterial; // material the rig was built for (or failed for)
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_CoRiderFile.file == null) {
+      _CoRiderFile.load().then((file) {
+        if (file != null && mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _rig?.still = _reduceMotion;
+  }
+
+  @override
+  void didUpdateWidget(MascotDisplay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) _rig?.show(widget.state);
+  }
+
+  /// The rig for [material], built once the .riv has loaded. Null means
+  /// "draw the placeholder".
+  _CoRiderRig? _rigFor(OrbMaterial material) {
+    final file = _CoRiderFile.file;
+    if (file == null || _rigMaterial == material) return _rig;
+    // The RiveWidget still holds the old controller until this frame ends.
+    final old = _rig;
+    if (old != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
+    _rigMaterial = material;
+    return _rig = _CoRiderRig.tryCreate(
+      file,
+      material,
+      widget.state,
+      still: _reduceMotion,
+    );
+  }
+
+  @override
+  void dispose() {
+    _rig?.dispose(); // children unmount first, so the RiveWidget is gone
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final material = widget.material ?? OrbMaterialScope.of(context);
+    final rig = _rigFor(material);
+
+    return Semantics(
+      image: true,
+      label: 'Co-rider',
+      value: widget.state.label,
+      child: SizedBox.square(
+        dimension: widget.size,
+        child: rig == null
+            ? _PlaceholderOrb(state: widget.state, material: material)
+            : rive.RiveWidget(
+                key: ValueKey(material),
+                controller: rig.controller,
+                fit: rive.Fit.contain,
+              ),
+      ),
+    );
+  }
+}
+
+/// Loads the co-rider .riv once and shares it with every orb on screen.
+abstract final class _CoRiderFile {
+  static const _asset = 'assets/rive/corider.riv';
+
+  static rive.File? file;
+  static Future<rive.File?>? _loading;
+
+  static Future<rive.File?> load() => _loading ??= _decode();
+
+  static Future<rive.File?> _decode() async {
+    try {
+      return file = await rive.File.asset(
+        _asset,
+        riveFactory: rive.Factory.rive,
+      );
+    } catch (error) {
+      // Missing asset, or no native Rive runtime (e.g. `flutter test`).
+      debugPrint('Co-rider: $_asset unavailable ($error); using placeholder.');
+      return null;
+    }
+  }
+}
+
+/// One live co-rider: an artboard, its `CoRider` state machine, and the view
+/// model whose triggers switch moods.
+///
+/// The .riv (built from docs/voiceops-corider-orb-rive-spec-v2.md) has one
+/// artboard per [OrbMaterial] and fires moods through `CoRider` view-model
+/// trigger properties named after [AgentStateX.riveKey]. Firing a mood that
+/// is already playing restarts it; one-shot moods settle back to idle on
+/// their own.
+class _CoRiderRig {
+  _CoRiderRig._(this.controller, this._viewModel, bool still) {
+    this.still = still;
+  }
+
+  static const _stateMachine = 'CoRider';
+
+  final rive.RiveWidgetController controller;
+  final rive.ViewModelInstance _viewModel;
+  bool _still = false;
+
+  /// Builds the rig, or returns null if the file doesn't match the contract
+  /// above, so the caller can fall back to the placeholder.
+  static _CoRiderRig? tryCreate(
+    rive.File file,
+    OrbMaterial material,
+    AgentState state, {
+    required bool still,
+  }) {
+    rive.RiveWidgetController? controller;
+    try {
+      controller = rive.RiveWidgetController(
+        file,
+        artboardSelector: rive.ArtboardSelector.byName(switch (material) {
+          OrbMaterial.holographic => 'Holographic',
+          OrbMaterial.chrome => 'Chrome',
+        }),
+        stateMachineSelector: rive.StateMachineSelector.byName(_stateMachine),
+      );
+      rive.ViewModelInstance viewModel;
+      try {
+        viewModel = controller.dataBind(rive.DataBind.auto());
+      } on rive.RiveDataBindException {
+        // Default instance not exported: a blank one carries the same triggers.
+        viewModel = controller.dataBind(rive.DataBind.empty());
+      }
+      final rig = _CoRiderRig._(controller, viewModel, still);
+      // The state machine enters idle on its own.
+      if (state != AgentState.idle) rig.show(state);
+      return rig;
+    } catch (error) {
+      debugPrint('Co-rider: $material rig failed ($error); using placeholder.');
+      controller?.dispose();
+      return null;
+    }
+  }
+
+  /// Switches the co-rider to [state] with the authored 600ms morph.
+  void show(AgentState state) {
+    _viewModel.trigger(state.riveKey)?.trigger();
+    if (_still) _settle();
+  }
+
+  /// With reduced motion the co-rider holds still: no breathing, no drifting
+  /// motes, and mood changes jump straight to the settled pose.
+  set still(bool value) {
+    if (_still == value) return;
+    _still = value;
+    controller.active = !value;
+    if (value) _settle();
+    controller.scheduleRepaint();
+  }
+
+  /// Plays through the mood morph at once, so a paused orb rests on the new
+  /// mood rather than the first frame of the blend.
+  void _settle() => controller.stateMachine.advanceAndApply(
+    VoiceOpsMotion.orbMorph.inMicroseconds / Duration.microsecondsPerSecond,
+  );
+
+  void dispose() {
+    _viewModel.dispose();
+    controller.dispose();
+  }
+}
+
+/// The Flutter-drawn orb shown until (or instead of) the Rive co-rider.
+class _PlaceholderOrb extends StatefulWidget {
+  const _PlaceholderOrb({required this.state, required this.material});
+
+  final AgentState state;
+  final OrbMaterial material;
+
+  @override
+  State<_PlaceholderOrb> createState() => _PlaceholderOrbState();
+}
+
+class _PlaceholderOrbState extends State<_PlaceholderOrb>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   late final _OrbFrame _frame;
@@ -78,7 +274,7 @@ class _MascotDisplayState extends State<MascotDisplay>
   }
 
   @override
-  void didUpdateWidget(MascotDisplay oldWidget) {
+  void didUpdateWidget(_PlaceholderOrb oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) {
       _from = _frame.mood;
@@ -131,41 +327,9 @@ class _MascotDisplayState extends State<MascotDisplay>
 
   @override
   Widget build(BuildContext context) {
-    final material = widget.material ?? OrbMaterialScope.of(context);
-
-    // TODO(rive): replace the placeholder painter below with the captain's
-    // authored co-rider. Only this widget changes — callers keep passing
-    // `state` and `size`. Add `assets/rive/` to pubspec in the same change
-    // as the .riv file, never before. Match input/artboard names to the
-    // authored file; `AgentState.riveKey` already carries the state keys.
-    //
-    // return SizedBox.square(
-    //   dimension: widget.size,
-    //   child: RiveAnimation.asset(
-    //     'assets/rive/voiceops_mascot.riv',
-    //     artboard: material == OrbMaterial.holographic ? 'Holographic' : 'Chrome',
-    //     stateMachines: const ['CoRider'],
-    //     fit: BoxFit.contain,
-    //     onInit: (artboard) {
-    //       final controller =
-    //           StateMachineController.fromArtboard(artboard, 'CoRider')!;
-    //       artboard.addController(controller);
-    //       controller.findSMI<SMITrigger>(widget.state.riveKey)?.fire();
-    //     },
-    //   ),
-    // );
-
-    return Semantics(
-      image: true,
-      label: 'Co-rider',
-      value: widget.state.label,
-      child: SizedBox.square(
-        dimension: widget.size,
-        child: RepaintBoundary(
-          child: CustomPaint(
-            painter: _OrbPainter(frame: _frame, material: material),
-          ),
-        ),
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _OrbPainter(frame: _frame, material: widget.material),
       ),
     );
   }
