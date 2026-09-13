@@ -1,6 +1,7 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
-**Version:** 1.2 (draft), 2026-09-13. 1.2 adds new-order dispatch: the `order_offer` and
+**Version:** 1.3 (draft), 2026-09-13. 1.3 lets the offer card answer an order offer over the
+voice WebSocket (§1). See "Changes in 1.3". 1.2 added new-order dispatch: the `order_offer` and
 `order_offer_closed` events and unprompted agent replies (§1), the Order Intake API (§2), the
 server-side order states `offered` and `unassigned` (§3), and the `accept_order` /
 `decline_order` tools. See "Changes in 1.2". 1.1 recorded the built WebSocket relay (§1), the
@@ -45,8 +46,15 @@ still exists as a test harness and emits none of these events.
 |---|---|---|
 | audio | binary PCM16 / 24 kHz / mono, ~50 ms per frame (2400 bytes) | Sent only while push-to-talk is `recording`. 24 kHz is the Voice Agent API's fixed format (`voice_agent.py` `TARGET_SAMPLE_RATE`), so the backend forwards it without resampling |
 | `end_call` | `{"event": "end_call", "call_id": "…"}` | Driver taps "end call" on the call overlay (TechFeasibility §6) |
+| `accept_order` | `{"event": "accept_order", "order_id": "…"}` | Driver accepts the visible offer card. The backend calls the existing `accept_order` tool handler directly; no LLM round-trip |
+| `decline_order` | `{"event": "decline_order", "order_id": "…"}` | Driver declines the visible offer card. The backend calls the existing `decline_order` tool handler directly; no LLM round-trip |
 
 Closing the socket ends the session. The backend then sends `session.end` upstream to AssemblyAI.
+For either order response, `order_id` is required and must name the offer currently visible on
+that socket (otherwise `error` `invalid_message`). Success produces the same `order_offer_closed`
+event as a spoken answer. A failure that leaves the offer open produces an `error` event, so the
+driver can try again. If the offer closed meanwhile (for example `withdrawn`), its
+`order_offer_closed` already says why and no `error` follows.
 
 ### Server → client
 
@@ -135,8 +143,8 @@ unit), and the drop-off rounded to 3 decimals (about 100 m). It never gets the r
 or phone. `distance_km` is a straight line from the driver. `time_window` and `package_count`
 may be `null`. `expires_in_s` counts down from when the event was sent. The offer ends with
 `order_offer_closed`. On `accepted` the order is a `pending` stop on this shift, so
-`GET /v1/deliveries` returns it with the full address. The app shows no accept or decline
-buttons yet: the driver answers by voice.
+`GET /v1/deliveries` returns it with the full address. The driver answers by voice or with the
+card's Accept / Decline buttons (the `accept_order` / `decline_order` client events above).
 
 **Unprompted replies.** When an offer arrives, the relay asks AssemblyAI to speak now
 (`reply.create`, below). The app then gets agent audio, a `transcript` (`agent`), and
@@ -175,6 +183,7 @@ after that.
 | order dispatcher offers this driver an order | `order_offer`. At the next quiet moment the relay sends AssemblyAI `reply.create`, and that reply arrives like any other: audio, `transcript` (`agent`), `reply_done`. An offer is spoken again on a new socket, because a new socket is a new conversation |
 | `accept_order` (success) | `order_offer_closed` (`accepted`) |
 | `decline_order` (success) | `order_offer_closed` (`declined`) |
+| app sends `accept_order` / `decline_order` | FastAPI invokes that existing tool handler directly, emitting its normal `task_step`s and `order_offer_closed`; the tap never passes through AssemblyAI. If the offer had already been spoken, the relay then sends `reply.create` so the co-rider confirms the answer in one sentence and doesn't ask again |
 | offer window runs out | `order_offer_closed` (`expired`). If the offer had already been spoken, the co-rider says briefly that it timed out. An offer that expires before it was spoken is dropped silently |
 | shift end (`POST /v1/shift/{id}/end`) | the same summary sequence, carrying the LeMUR `executive_summary`, then `agent_state: idle`. It goes to every socket open on that shift |
 | `reply.done` (no tool calls that turn) | `reply_done`, then `agent_state: idle` |
@@ -398,8 +407,18 @@ All additive. Nothing that 1.1 defined changes shape.
 | Server-side order states `offered`, `unassigned` | §3 |
 | `accept_order`, `decline_order` tools; `get_next_order` reads the live order queue | Tools Reference §8, §12, §13 |
 
-**Frontend follow-up (not built):** an offer card driven by `order_offer` /
-`order_offer_closed`, and playback of unprompted replies.
+**Frontend:** the global offer card is driven by `order_offer` / `order_offer_closed`; it stays
+visible across all four main tabs. Unprompted replies use the same audio playback path as any
+other co-rider reply.
+
+---
+
+## Changes in 1.3
+
+Additive: the `accept_order` and `decline_order` client WebSocket events in §1 let the visible
+offer card invoke the same handlers as a voice answer without going through the LLM. When the
+co-rider had already spoken the offer, it confirms a tapped answer in one sentence. No existing
+client or server event changed shape.
 
 ---
 

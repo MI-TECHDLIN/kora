@@ -1,5 +1,8 @@
 # VoiceOps: Agent Tools Reference
 
+> **v2.4, 2026-09-13.** v2.4 records that the app's offer card can invoke `accept_order` (§12)
+> and `decline_order` (§13) directly through additive client WebSocket events. The tool argument
+> and result shapes are unchanged.
 > **v2.3, 2026-09-13.** v2.3 adds new-order dispatch: `get_next_order` now reads the live
 > order queue (§8), and two tools answer an offer, `accept_order` (§12) and `decline_order`
 > (§13). The agent also announces offers unprompted (see Proactive Behaviours).
@@ -581,6 +584,10 @@ Take the new order offered to the driver. It becomes the last `pending` stop on 
 
 Added 2026-09-13. Call it only after the driver says yes.
 
+The Flutter offer card can also invoke this handler directly with
+`{"event": "accept_order", "order_id": "…"}` on the voice WebSocket. That tap path skips
+AssemblyAI and emits the same `order_offer_closed` (`accepted`) event as the voice path.
+
 **Arguments:**
 ```json
 { "order_id": "uuid" }
@@ -628,6 +635,10 @@ open voice session. *Triggers: "no", "pass", "decline it", "I can't take it".*
 **Platform:** order dispatcher (nearest online driver by straight-line distance)
 
 Added 2026-09-13. Call it only after the driver says no.
+
+The Flutter offer card can also invoke this handler directly with
+`{"event": "decline_order", "order_id": "…"}` on the voice WebSocket. That tap path skips
+AssemblyAI and emits the same `order_offer_closed` (`declined`) event as the voice path.
 
 **Arguments:**
 ```json
@@ -684,7 +695,7 @@ results. The end-to-end target is 200–500 ms. The WS relay does this with one 
 | Announce next stop | `update_delivery_status` returns `success: true`. **Code today:** a system-prompt instruction asks the agent to call `get_next_delivery` after a delivery, so the next stop is spoken and drawn on the map. There is no orchestrator-side chaining |
 | Proactive ETA update | `get_best_route` shows `has_faster_route` or a material delay |
 | Prior-failure briefing | `get_next_delivery` flags a prior failure (field still to be added) |
-| Announce a new order offer | The order dispatcher offers this driver an order. **Built:** the relay sends `order_offer` to the app, then AssemblyAI `reply.create` with one-shot instructions at the next quiet moment. The agent reads the offer out and asks; the driver's answer leads to `accept_order` / `decline_order`. See `interface.md` §1 |
+| Announce a new order offer | The order dispatcher offers this driver an order. **Built:** the relay sends `order_offer` to the app, then AssemblyAI `reply.create` with one-shot instructions at the next quiet moment. The agent reads the offer out and asks; the driver's answer leads to `accept_order` / `decline_order`. If the driver answers on the card instead, a second `reply.create` has the agent confirm the tapped answer in one sentence, only when the offer was already spoken. See `interface.md` §1 |
 
 `reply.create` is the Voice Agent API's documented way to have the agent speak with no user
 audio. It is an ordinary LLM turn, not canned TTS, which is why the agent can go straight on to

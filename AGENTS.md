@@ -112,7 +112,7 @@ Both layers must remain in the codebase.
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.3, generated from the running
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.4, generated from the running
 code). The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.

@@ -84,7 +84,7 @@ calling, and TTS. Do not decompose it into separate service calls.
 `alert_dispatcher`, `show_screen`
 
 Exact input/output JSON shapes and handler signatures are defined in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.3, generated from the
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.4, generated from the
 running code). The Flutter-facing WebSocket, REST, status-enum, and auth
 contract is `docs/contracts/interface.md`. Those documents are the
 contract. Do not invent or alter a tool shape — if the reference is
