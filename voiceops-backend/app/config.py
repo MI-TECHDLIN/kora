@@ -46,10 +46,14 @@ class Settings(BaseSettings):
     def effective_twilio_from_number(self) -> Optional[str]:
         return self.twilio_phone_number or self.twilio_from_number
     
-    # Google Maps (Directions API for routes; navigation renders in-app, no deeplink)
+    # Google Maps (Directions API; no longer used for navigation, which routes through OSRM)
     google_maps_api_key: Optional[str] = None
     google_directions_base_url: str = "https://maps.googleapis.com/maps/api/directions/json"
-    
+
+    # OSRM (routes for get_best_route / start_navigation; navigation renders in-app, no deeplink).
+    # Public demo by default; set OSRM_BASE_URL to a self-hosted osrm-routed.
+    osrm_base_url: str = "https://router.project-osrm.org"
+
     # Onfleet (Optional - External logistics platform, use mock if not provided)
     onfleet_api_key: Optional[str] = None
     onfleet_base_url: str = "https://onfleet.com/api/v2"
