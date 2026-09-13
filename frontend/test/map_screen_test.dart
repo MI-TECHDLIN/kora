@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +20,7 @@ import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/settings/screens/settings_screen.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
+import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
 import 'fake_auth.dart';
@@ -34,6 +38,7 @@ void main() {
   late FakeLocationSource location;
   late FakeHeadingSource heading;
   late FakeVehicleModeStore vehicleModeStore;
+  late FakeMapStyleStore mapStyleStore;
   late FakeVoiceOpsApi api;
   late ProviderContainer container;
 
@@ -41,6 +46,7 @@ void main() {
     location = FakeLocationSource();
     heading = FakeHeadingSource();
     vehicleModeStore = FakeVehicleModeStore();
+    mapStyleStore = FakeMapStyleStore();
     api = FakeVoiceOpsApi(
       profile: const DriverProfile(
         id: 'driver-1',
@@ -64,6 +70,7 @@ void main() {
           location: location,
           heading: heading,
           vehicleModeStore: vehicleModeStore,
+          mapStyleStore: mapStyleStore,
           api: api,
         ),
         authRepositoryProvider.overrideWithValue(
@@ -357,17 +364,35 @@ void main() {
     expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
   });
 
+  testWidgets('the driver picks the map style in Settings', (tester) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+    expect(find.byKey(const Key('map-style-selector')), findsOneWidget);
+    // Dark-mode-first until the driver says otherwise.
+    expect(container.read(mapStyleProvider), MapStyle.dark);
+
+    await tester.tap(find.bySemanticsLabel('Light'));
+    await settle(tester);
+    expect(container.read(mapStyleProvider), MapStyle.light);
+    expect(mapStyleStore.value, MapStyle.light);
+
+    container.invalidate(mapStyleProvider);
+    await settle(tester);
+    expect(container.read(mapStyleProvider), MapStyle.light);
+  });
+
   testWidgets('map dependencies warm before the Map tab is built', (
     tester,
   ) async {
-    var styleLoads = 0;
+    final requested = <MapStyle>[];
     final waiting = Completer<Style>();
 
-    Future<Style> loadStyle() {
-      styleLoads++;
+    Future<Style> loadStyle(MapStyle style) {
+      requested.add(style);
       return waiting.future;
     }
 
+    mapStyleStore.value = MapStyle.detailed;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -375,6 +400,7 @@ void main() {
             location: location,
             heading: heading,
             vehicleModeStore: vehicleModeStore,
+            mapStyleStore: mapStyleStore,
             api: api,
           ),
           openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
@@ -386,7 +412,8 @@ void main() {
 
     expect(find.byType(MapScreen), findsNothing);
     expect(find.text('App started'), findsOneWidget);
-    expect(styleLoads, 1);
+    // The driver's saved style is the one warm when the Map tab opens.
+    expect(requested.last, MapStyle.detailed);
     expect(location.watches, 1);
     expect(heading.watches, 1);
   });
@@ -397,7 +424,7 @@ void main() {
     var attempts = 0;
     final waiting = Completer<Style>();
 
-    Future<Style> loadStyle() {
+    Future<Style> loadStyle(MapStyle style) {
       attempts++;
       if (attempts == 1) return Future.error(StateError('offline'));
       return waiting.future;
@@ -406,6 +433,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          mapStyleStoreProvider.overrideWithValue(mapStyleStore),
           openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
         ],
         child: MaterialApp(
@@ -425,9 +453,177 @@ void main() {
     expect(find.text('Retry'), findsNothing);
   });
 
-  test('the detailed OpenFreeMap Liberty style is selected', () {
-    expect(openFreeMapStyleUrl, endsWith('/styles/liberty'));
-    expect(openFreeMapLayerMode, VectorTileLayerMode.vector);
-    expect(openFreeMapTileSubstitutionLevels, 3);
+  testWidgets('the loading skeleton is painted in the chosen map palette', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        mapStyleStoreProvider.overrideWithValue(mapStyleStore),
+        openFreeMapStyleLoaderProvider.overrideWithValue(
+          (_) => Completer<Style>().future,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: OpenFreeMapLayer()),
+      ),
+    );
+    await tester.pump();
+
+    Color skeleton() => tester
+        .widget<ColoredBox>(find.byKey(const Key('map-loading-skeleton')))
+        .color;
+    expect(skeleton(), VoiceOpsColors.mapGroundDark);
+
+    container.read(mapStyleProvider.notifier).select(MapStyle.light);
+    await tester.pump();
+    // No dark placeholder flashing ahead of a light map.
+    expect(skeleton(), VoiceOpsColors.mapGroundLight);
+  });
+
+  group('live tiles', () {
+    late HttpServer server;
+    late Style style;
+
+    setUp(() async {
+      // A real Style parsed from a tiny style served on loopback: nothing
+      // leaves the machine, and tile loading stalls on the cache folder
+      // below before any tile is requested.
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode({
+              'version': 8,
+              'sources': {
+                'openmaptiles': {
+                  'type': 'vector',
+                  'tiles': [
+                    'http://127.0.0.1:${server.port}/tiles/{z}/{x}/{y}.pbf',
+                  ],
+                },
+              },
+              'layers': [
+                {
+                  'id': 'background',
+                  'type': 'background',
+                  'paint': {'background-color': '#0c0c0c'},
+                },
+                {
+                  'id': 'water',
+                  'type': 'fill',
+                  'source': 'openmaptiles',
+                  'source-layer': 'water',
+                  'paint': {'fill-color': '#1c2b3a'},
+                },
+              ],
+            }),
+          )
+          ..close();
+      });
+      style = await HttpOverrides.runWithHttpOverrides(
+        () => StyleReader(uri: 'http://127.0.0.1:${server.port}/style').read(),
+        _RealHttp(),
+      );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (_) => Completer<Object?>().future,
+          );
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
+      await server.close(force: true);
+    });
+
+    testWidgets('switching the map style swaps in a fresh tile layer', (
+      tester,
+    ) async {
+      final requested = <MapStyle>[];
+      final container = ProviderContainer(
+        overrides: [
+          mapStyleStoreProvider.overrideWithValue(mapStyleStore),
+          openFreeMapStyleLoaderProvider.overrideWithValue((mapStyle) async {
+            requested.add(mapStyle);
+            return style;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: FlutterMap(
+              options: const MapOptions(
+                initialCenter: MapScreen.fallbackCenter,
+                initialZoom: VoiceOpsMap.followZoom,
+              ),
+              children: const [OpenFreeMapLayer()],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      VectorTileLayer layer() => tester.widget(find.byType(VectorTileLayer));
+      Color ground() =>
+          tester.widget<ColoredBox>(find.byKey(const Key('map-ground'))).color;
+
+      expect(requested, [MapStyle.dark]);
+      expect(layer().theme.id, openFreeMapThemeId(MapStyle.dark));
+      expect(layer().layerMode, VectorTileLayerMode.raster);
+      expect(ground(), VoiceOpsColors.mapGroundDark);
+      // Under live tiles there is only the style's ground: no fake streets
+      // to show through a tile that is still rendering.
+      expect(find.byKey(const Key('map-loading-skeleton')), findsNothing);
+      final darkTiles = tester.state(find.byType(TileLayer));
+
+      container.read(mapStyleProvider.notifier).select(MapStyle.light);
+      await tester.pump();
+      await tester.pump();
+
+      expect(requested, [MapStyle.dark, MapStyle.light]);
+      expect(MapStyle.light.url, endsWith('/styles/positron'));
+      expect(layer().theme.id, openFreeMapThemeId(MapStyle.light));
+      expect(ground(), VoiceOpsColors.mapGroundLight);
+      // A new tile layer, so no tile rendered in the dark style lingers.
+      expect(tester.state(find.byType(TileLayer)), isNot(same(darkTiles)));
+
+      // Unmount, then let vector_map_tiles' cache housekeeping timer run.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 4));
+    });
+  });
+
+  test('each map style has its own OpenFreeMap style and cache identity', () {
+    expect(MapStyle.dark.url, 'https://tiles.openfreemap.org/styles/dark');
+    expect(
+      MapStyle.light.url,
+      'https://tiles.openfreemap.org/styles/positron',
+    );
+    expect(
+      MapStyle.detailed.url,
+      'https://tiles.openfreemap.org/styles/liberty',
+    );
+    // vector_map_tiles keys its rendered-tile disk cache by theme id; every
+    // OpenFreeMap style parses as "default", which would mix styles' tiles.
+    final ids = MapStyle.values.map(openFreeMapThemeId).toSet();
+    expect(ids, hasLength(MapStyle.values.length));
+    expect(ids, isNot(contains('default')));
+    // Raster mode: smooth pinch zoom (vector mode re-renders every frame).
+    expect(openFreeMapLayerMode, VectorTileLayerMode.raster);
   });
 }
+
+class _RealHttp extends HttpOverrides {}

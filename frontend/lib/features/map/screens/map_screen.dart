@@ -11,6 +11,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../../../providers/location_provider.dart';
 import '../../../providers/heading_provider.dart';
 import '../../../providers/map_route_provider.dart';
+import '../../../providers/map_style_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
 import '../data/location_source.dart';
 import '../data/map_route.dart';
@@ -198,6 +199,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final fix = location.valueOrNull;
     final heading = ref.watch(headingProvider).valueOrNull ?? fix?.heading;
     final vehicleMode = ref.watch(vehicleModeProvider);
+    final mapStyle = ref.watch(mapStyleProvider);
     final insets = MediaQuery.paddingOf(context);
 
     RouteStop? shownStop = route?.target;
@@ -220,7 +222,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               initialZoom: fix == null
                   ? VoiceOpsMap.initialZoom
                   : VoiceOpsMap.followZoom,
-              backgroundColor: VoiceOpsColors.canvas,
+              backgroundColor: mapStyle.ground,
               // North stays up: easier to read at a glance on a bike mount.
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,

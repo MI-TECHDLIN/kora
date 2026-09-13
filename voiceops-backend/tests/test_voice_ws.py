@@ -378,6 +378,18 @@ def test_invalid_client_messages_get_invalid_message_and_socket_stays_open(upstr
         upstream.wait_sent(lambda m: m["type"] == "input.audio")
 
 
+def test_tapped_order_response_rejects_missing_or_stale_offer(upstream):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        for frame in (
+            {"event": "accept_order"},
+            {"event": "decline_order", "order_id": "stale-order"},
+        ):
+            ws.send_json(frame)
+            error = next_frame(ws)
+            assert error["event"] == "error" and error["code"] == "invalid_message"
+
+
 def test_client_disconnect_ends_upstream_and_stores_turns(upstream, backend):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)

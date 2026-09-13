@@ -6,11 +6,15 @@ import '../core/theme/tokens.dart';
 import '../core/widgets/glass_card.dart';
 import '../providers/call_provider.dart';
 import '../providers/navigation_provider.dart';
+import '../providers/order_offer_provider.dart';
 import '../providers/voice_session_provider.dart';
+import 'order_offer_card.dart';
 
 /// Voice-session layer above every main tab: the degraded-state banner when
-/// voice drops or errors (frontend rules: never fail silently), and the call
-/// card while the co-rider has a customer on the line.
+/// voice drops or errors (frontend rules: never fail silently), the call
+/// card while the co-rider has a customer on the line, and a new-order
+/// offer. They stack, so a failed offer answer shows its banner over the
+/// still-open offer.
 class VoiceOverlay extends ConsumerWidget {
   const VoiceOverlay({super.key});
 
@@ -19,10 +23,16 @@ class VoiceOverlay extends ConsumerWidget {
     if (ref.watch(activeTabProvider) == null) return const SizedBox.shrink();
     final session = ref.watch(voiceSessionProvider);
     final call = ref.watch(activeCallProvider);
+    final offer = ref.watch(orderOfferProvider);
     final issue = session.issue;
-    if (issue == null && call == null) return const SizedBox.shrink();
+    final hasOffer = offer.offer != null || offer.notice != null;
+    if (issue == null && call == null && !hasOffer) {
+      return const SizedBox.shrink();
+    }
 
-    // Below the top row (co-rider bubble, map controls).
+    // Below the top row (co-rider bubble, map controls). Top, not bottom,
+    // keeps the offer clear of push-to-talk, so the driver can still
+    // answer it by voice.
     return Positioned(
       top:
           MediaQuery.paddingOf(context).top +
@@ -69,6 +79,9 @@ class VoiceOverlay extends ConsumerWidget {
                 }
               },
             ),
+          if ((issue != null || call != null) && hasOffer)
+            const SizedBox(height: VoiceOpsSpacing.sm),
+          if (hasOffer) const OrderOfferPanel(),
         ],
       ),
     );

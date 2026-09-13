@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     # Onfleet (Optional - External logistics platform, use mock if not provided)
     onfleet_api_key: Optional[str] = None
     onfleet_base_url: str = "https://onfleet.com/api/v2"
+
+    # Order dispatch (new orders offered to the nearest driver by voice)
+    order_feed_enabled: bool = True                  # MockAdapter's random order feed
+    order_feed_min_interval_seconds: float = 180.0   # each gap is drawn fresh from [min, max]
+    order_feed_max_interval_seconds: float = 420.0
+    order_feed_max_open_orders: int = 5              # the feed pauses at this many undeclined open orders
+    order_offer_window_seconds: float = 75.0         # how long one driver has to accept
+    order_dispatch_ping_max_age_minutes: Optional[float] = None  # ignore older GPS pings (None: any)
+    logistics_webhook_secret: Optional[str] = None   # HMAC key for POST /v1/logistics/orders
     
     # n8n (Optional - Async dispatcher alerts via webhook)
     n8n_dispatcher_webhook_url: Optional[str] = None

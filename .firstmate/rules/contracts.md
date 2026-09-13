@@ -18,7 +18,7 @@ by either layer's tests.
 
 The authoritative definitions live in **`docs/contracts/interface.md`**
 (WebSocket catalogue, REST endpoints, delivery-status enum, JWT header)
-and **`docs/VoiceOps_Agent_Tools_Reference.md`** (the 11 tool shapes).
+and **`docs/VoiceOps_Agent_Tools_Reference.md`** (the 13 tool shapes).
 Those two documents are the source of truth, not whatever a given file
 happens to contain. The SDD's old event list (§7) is historical.
 
@@ -64,6 +64,9 @@ produces silent data corruption rather than a clean failure.
 
 Treat every status value as load-bearing.
 
+`offered` and `unassigned` are server-side order states on rows with no
+shift yet (`interface.md` §3). The app never receives them.
+
 ---
 
 ## Auth
@@ -77,7 +80,7 @@ Treat every status value as load-bearing.
 
 ## Tool Shapes
 
-The 11 agent tools have exact input and output JSON shapes defined in the
+The 13 agent tools have exact input and output JSON shapes defined in the
 **Agent Tools Reference**. The agent's tool-calling behaviour depends on
 these being stable.
 
