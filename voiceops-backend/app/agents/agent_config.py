@@ -94,20 +94,11 @@ def get_session_config(driver_id: str, shift_id: str,
     Returns:
         Complete session configuration dictionary
     """
-    if agent_id:
-        # Use stored agent
-        return {
-            "type": "session.update",
-            "session": {
-                "agent_id": agent_id
-            }
-        }
-    
     # Import here to avoid circular dependency
     from app.agents.tool_registry import get_tools
     
     # Build inline configuration
-    return {
+    session_config = {
         "type": "session.update",
         "session": {
             "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
@@ -116,3 +107,8 @@ def get_session_config(driver_id: str, shift_id: str,
             "tools": get_tools()
         }
     }
+
+    if agent_id:
+        session_config["session"]["agent_id"] = agent_id
+
+    return session_config
