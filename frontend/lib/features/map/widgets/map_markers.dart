@@ -73,8 +73,8 @@ class StopPin extends StatelessWidget {
   }
 }
 
-/// The driver's live position: a solid dot in a soft halo, or a heading
-/// arrow while moving.
+/// The driver's live position: their selected vehicle in a soft halo, with a
+/// compass arrow that also turns while the phone is stationary.
 class PositionMarker extends StatelessWidget {
   const PositionMarker({
     super.key,
@@ -82,7 +82,7 @@ class PositionMarker extends StatelessWidget {
     this.vehicleMode = VehicleMode.car,
   });
 
-  /// Degrees clockwise from north, or null when standing still.
+  /// Degrees clockwise from north, or null when no heading is available.
   final double? heading;
   final VehicleMode vehicleMode;
 
