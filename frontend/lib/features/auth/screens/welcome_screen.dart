@@ -11,8 +11,8 @@ import '../../../mascot/mascot_state.dart';
 import '../../onboarding/widgets/fill_or_scroll.dart';
 import '../widgets/auth_controls.dart';
 
-/// The signed-out entry point: the resting co-rider, the VoiceOps promise,
-/// and the two ways in.
+/// The signed-out entry point, where onboarding hands off: the resting
+/// co-rider, the VoiceOps promise, and the two ways in.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 

@@ -7,8 +7,11 @@ import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/mascot/mascot_state.dart';
 import 'package:voiceops/providers/agent_state_provider.dart';
+import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/push_to_talk_provider.dart';
 
+import 'fake_auth.dart';
+import 'fake_voice.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -20,7 +23,14 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          ...offlineOverrides(),
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(signedIn: true),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -43,12 +53,26 @@ void main() {
       );
       final ptt = find.byType(PushToTalkButton);
       expect(tester.getSize(ptt).shortestSide, greaterThanOrEqualTo(80));
-      for (final state in PushToTalkState.values) {
-        expect(container.read(pushToTalkProvider), state);
-        await tester.tap(ptt);
+      // The hint under the button tells the driver what a tap does now.
+      const hints = {
+        PushToTalkState.idle: 'Tap to talk to your co-rider',
+        PushToTalkState.recording: 'Listening · tap to send',
+        PushToTalkState.processing: 'Working on it…',
+        PushToTalkState.speaking: 'Tap to interrupt',
+      };
+      for (final hint in hints.entries) {
+        container.read(pushToTalkProvider.notifier).set(hint.key);
         await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          tester.widget<Text>(find.byKey(const Key('ptt-hint'))).data,
+          hint.value,
+        );
       }
-      expect(container.read(pushToTalkProvider), PushToTalkState.idle);
+      container.read(pushToTalkProvider.notifier).set(PushToTalkState.idle);
+      // A tap opens the session and starts the mic (offline fakes).
+      await tester.tap(ptt);
+      await tester.pump();
+      expect(container.read(pushToTalkProvider), PushToTalkState.recording);
 
       for (final text in ['1400 Lavaca Street', 'Where am I heading next?']) {
         await tester.ensureVisible(find.text(text));

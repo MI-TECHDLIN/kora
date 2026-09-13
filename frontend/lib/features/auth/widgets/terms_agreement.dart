@@ -2,12 +2,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tokens.dart';
-import 'auth_controls.dart';
 
 /// The policies a driver agrees to at sign-up.
 ///
 /// TODO(Ez): link the published policies once they exist. Until then a tap
-/// says the document isn't out yet; no legal text is made up here.
+/// says the document isn't out yet, inline under the sentence; no legal text
+/// is made up here.
 enum LegalDocument {
   terms('Terms of Service'),
   privacy('Privacy Policy');
@@ -45,6 +45,9 @@ class _TermsAgreementState extends State<TermsAgreement> {
       doc: TapGestureRecognizer()..onTap = () => _open(doc),
   };
 
+  /// The policy whose link was tapped last, while it's still unpublished.
+  LegalDocument? _unpublished;
+
   @override
   void dispose() {
     for (final link in _links.values) {
@@ -53,11 +56,10 @@ class _TermsAgreementState extends State<TermsAgreement> {
     super.dispose();
   }
 
-  void _open(LegalDocument doc) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(authNotice("The ${doc.title} isn't published yet."));
-  }
+  // Said inline, not in a snackbar: the notice bar lands at the bottom of the
+  // visible screen, which with the keyboard up is right over this checkbox,
+  // and it swallowed every tap on the box while it showed.
+  void _open(LegalDocument doc) => setState(() => _unpublished = doc);
 
   void _toggle() {
     if (widget.enabled) widget.onChanged(!widget.value);
@@ -123,22 +125,35 @@ class _TermsAgreementState extends State<TermsAgreement> {
           ],
         ),
         if (widget.showError)
-          Padding(
-            // Lines up under the sentence, past the checkbox's tap target.
-            padding: const EdgeInsets.only(
-              left: VoiceOpsSize.touchTarget + VoiceOpsSpacing.xs,
-            ),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                TermsAgreement.errorText,
-                style: VoiceOpsText.label.copyWith(
-                  color: VoiceOpsColors.danger,
-                ),
-              ),
-            ),
+          _Note(TermsAgreement.errorText, color: VoiceOpsColors.danger),
+        if (_unpublished case final doc?)
+          _Note(
+            "The ${doc.title} isn't published yet.",
+            color: VoiceOpsColors.textMuted,
           ),
       ],
+    );
+  }
+}
+
+/// A line under the sentence, read out by screen readers as it appears.
+class _Note extends StatelessWidget {
+  const _Note(this.text, {required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Lines up under the sentence, past the checkbox's tap target.
+      padding: const EdgeInsets.only(
+        left: VoiceOpsSize.touchTarget + VoiceOpsSpacing.xs,
+      ),
+      child: Semantics(
+        liveRegion: true,
+        child: Text(text, style: VoiceOpsText.label.copyWith(color: color)),
+      ),
     );
   }
 }

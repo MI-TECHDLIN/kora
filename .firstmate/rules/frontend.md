@@ -11,7 +11,8 @@ frontend task.
   GetX, or setState for shared state.
 - **Routing:** go_router. All routes declared in one router file
   (`lib/app/router.dart`).
-- **Map:** `google_maps_flutter`
+- **Map:** `flutter_map` + OpenFreeMap vector tiles (`vector_map_tiles`),
+  no API key. Never `google_maps_flutter`
 - **Realtime:** `web_socket_channel`
 - **Icons:** `tabler_icons_plus` — never emoji, never Material icons for
   stat cards
@@ -19,8 +20,7 @@ frontend task.
 - **Co-rider:** `rive`, for the planned `.riv` swap-in
 - **Auth / data:** `supabase_flutter`
 - **Audio out:** `just_audio`, **Audio in:** `record`, **Location:**
-  `geolocator`. These are planned and not in `pubspec.yaml` yet. Add them
-  when the voice and location work starts
+  `geolocator`
 
 Do not add a package without checking whether one of the above already
 covers the need.
@@ -86,13 +86,17 @@ Map occupies the top 45%. Preserve this proportion.
 
 ## Onboarding
 
-Four screens:
+Three screens, shown before the auth gate (the router checks onboarding
+first):
 
 0. **Splash** — giant editorial type with inline holographic pills,
    "Meet your co-rider for every delivery route", white "Get started" CTA
 1. **Hook**
-2. **Power**
-3. **Trust**
+2. **Power** — its Next button completes onboarding and hands off to the
+   auth welcome screen ("Get started" → sign-up)
+
+The fourth screen, Trust, was retired on 2026-09-12. Do not bring it back:
+its "time to drive" moment doesn't fit before sign-up.
 
 ---
 
