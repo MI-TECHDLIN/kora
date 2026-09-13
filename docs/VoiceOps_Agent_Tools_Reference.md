@@ -1,5 +1,8 @@
 # VoiceOps: Agent Tools Reference
 
+> **v2.3, 2026-09-13.** v2.3 adds new-order dispatch: `get_next_order` now reads the live
+> order queue (§8), and two tools answer an offer, `accept_order` (§12) and `decline_order`
+> (§13). The agent also announces offers unprompted (see Proactive Behaviours).
 > **v2.2, 2026-09-13.** v2.0 was generated from code on 2026-09-11. Every argument shape, enum,
 > and result field below was read from `app/agents/tool_registry.py` and
 > `app/agents/tools/{delivery,navigation,communication}.py`. v2.1 adds the WebSocket relay's
@@ -8,7 +11,7 @@
 > to OSRM and leaves every shape unchanged. This edition supersedes the earlier "reconstructed edition". The code's own header cites
 > "Agent Tools Reference v1.0", and that original was never recovered.
 
-This document is the **contract** for the 11 agent tools, together with
+This document is the **contract** for the 13 agent tools, together with
 `docs/contracts/interface.md`. The AssemblyAI Voice Agent calls these tools by name with these
 exact argument shapes. A drifted shape gives you an agent that works in testing and misfires in
 the demo.
@@ -129,7 +132,7 @@ AssemblyAI's protocol does not allow.
 
 ---
 
-## The 11 Tools
+## The 13 Tools
 
 ### 1. `get_next_delivery`
 
@@ -430,9 +433,10 @@ session. Until then it is part of the contract because the code ships it.
 
 ### 8. `get_next_order`
 
-The next order in the queue beyond the current run. *Triggers: "next order in queue",
-"what's coming after this", "next job".*
-**Platform:** Onfleet / MockAdapter (unassigned task queue)
+The next new order waiting for a driver: the one offered to this driver, else the nearest
+unassigned one. *Triggers: "next order in queue", "what's coming after this", "next job",
+"any new orders".*
+**Platform:** order dispatcher (`app/dispatch/order_dispatch.py`), fed by the logistics adapter
 
 **Arguments:** none (`{}`)
 
@@ -441,15 +445,29 @@ The next order in the queue beyond the current run. *Triggers: "next order in qu
 {
   "success": true,
   "has_next": true,
-  "external_id": "onfleet_task_xyz",
-  "recipient_name": "Emeka Okonkwo",
-  "address": "3 Marina Road, Lagos",
-  "notes": "Corporate delivery. Security clearance required.",
-  "sequence_order": 5
+  "order_id": "uuid",
+  "external_id": "MLX-20260913-7F3K2Q",
+  "status": "offered",
+  "offered_to_you": true,
+  "recipient_name": "Priya Patel",
+  "address": "812 Lavaca St, Apt 3B, Austin, TX 78701",
+  "notes": "Leave with the front desk.",
+  "time_window": "3:00 PM – 5:00 PM",
+  "distance_km": 0.51,
+  "expires_in_s": 52,
+  "sequence_order": null,
+  "message": "Order offered to you: 812 Lavaca St, Apt 3B, Austin, TX 78701, 0.5 km away. Accept or decline it."
 }
 ```
 
-**Gap:** mock data (`TODO: Query Onfleet`).
+The 2.1 fields stay. `sequence_order` is always `null`, because an order has no place on a run
+until a driver accepts it. `status` is `offered` or `unassigned` (`interface.md` §3).
+`expires_in_s` is `null` unless the order is offered to this driver. `distance_km` is
+straight-line from the driver's last ping, or from the demo area centre when there is none.
+With nothing waiting the result is
+`{"success": true, "has_next": false, "message": "No new orders are waiting right now."}`.
+
+Changed 2026-09-13. Before this, the tool returned one hardcoded order.
 
 ---
 
@@ -555,6 +573,91 @@ and no event is sent.
 
 ---
 
+### 12. `accept_order`
+
+Take the new order offered to the driver. It becomes the last `pending` stop on their shift.
+*Triggers: "yes, I'll take it", "accept", "add it to my run".*
+**Platform:** order dispatcher. The logistics adapter is told who has the order.
+
+Added 2026-09-13. Call it only after the driver says yes.
+
+**Arguments:**
+```json
+{ "order_id": "uuid" }
+```
+
+| Arg | Type | Required | Values |
+|---|---|---|---|
+| `order_id` | string | no | the `order_offer` / `get_next_order` id. Omit it to accept the order currently offered to the driver. An id the dispatcher doesn't know also falls back to that order, because the offer's id reaches the agent only through one-shot `reply.create` instructions and may be garbled |
+
+A driver can accept the order offered to them, or an `unassigned` order named by its id. An
+order offered to another driver is refused.
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "order_id": "uuid",
+  "delivery_id": "uuid",
+  "external_id": "MLX-20260913-7F3K2Q",
+  "recipient_name": "Priya Patel",
+  "address": "812 Lavaca St, Apt 3B, Austin, TX 78701",
+  "latitude": 30.2713,
+  "longitude": -97.7455,
+  "notes": "Leave with the front desk.",
+  "time_window": "3:00 PM – 5:00 PM",
+  "sequence": 8,
+  "status": "pending",
+  "message": "Order accepted. Priya Patel at 812 Lavaca St, Apt 3B, Austin, TX 78701 is now stop 8 on your run. Delivery window 3:00 PM – 5:00 PM."
+}
+```
+
+`delivery_id` equals `order_id`: the order is now a delivery. The relay adds it to
+`context["deliveries"]`, so `start_navigation` can route to it, and it becomes
+`current_delivery` if the driver had none. It emits `order_offer_closed` (`accepted`).
+Failures: `"No order is waiting for you right now."`, `"That order is offered to another
+driver right now."`, `"Someone else already took that order."`, and `"Couldn't reach the order
+system. Try accepting again."` (the offer stays open).
+
+---
+
+### 13. `decline_order`
+
+Pass on the new order offered to the driver. It goes to the next-nearest free driver with an
+open voice session. *Triggers: "no", "pass", "decline it", "I can't take it".*
+**Platform:** order dispatcher (nearest online driver by straight-line distance)
+
+Added 2026-09-13. Call it only after the driver says no.
+
+**Arguments:**
+```json
+{ "order_id": "uuid", "reason": "Too far from my route" }
+```
+
+| Arg | Type | Required | Values |
+|---|---|---|---|
+| `order_id` | string | no | as for `accept_order`. Omit it to decline the order currently offered to the driver |
+| `reason` | string | no | free text. It is logged and not stored |
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "order_id": "uuid",
+  "status": "offered",
+  "passed_to": {"driver_name": "Maria", "distance_km": 5.07},
+  "message": "Declined. Passed it to Maria, 5.1 km from the drop-off."
+}
+```
+
+`passed_to.driver_name` is a first name, or `null` when the driver has no name on file. When no
+other online driver is free, `passed_to` is `null`, `status` is `unassigned`, and the message says
+the order waits in the unassigned queue. A driver who declines is never offered that order
+again. The relay emits `order_offer_closed` (`declined`). With no offer for this driver the
+result is `{"success": false, "error": "No order is offered to you right now."}`.
+
+---
+
 ## Parallel Call Example
 
 > Driver: *"Call the customer, check the best route, and get my next order."*
@@ -581,6 +684,11 @@ results. The end-to-end target is 200–500 ms. The WS relay does this with one 
 | Announce next stop | `update_delivery_status` returns `success: true`. **Code today:** a system-prompt instruction asks the agent to call `get_next_delivery` after a delivery, so the next stop is spoken and drawn on the map. There is no orchestrator-side chaining |
 | Proactive ETA update | `get_best_route` shows `has_faster_route` or a material delay |
 | Prior-failure briefing | `get_next_delivery` flags a prior failure (field still to be added) |
+| Announce a new order offer | The order dispatcher offers this driver an order. **Built:** the relay sends `order_offer` to the app, then AssemblyAI `reply.create` with one-shot instructions at the next quiet moment. The agent reads the offer out and asks; the driver's answer leads to `accept_order` / `decline_order`. See `interface.md` §1 |
+
+`reply.create` is the Voice Agent API's documented way to have the agent speak with no user
+audio. It is an ordinary LLM turn, not canned TTS, which is why the agent can go straight on to
+call a tool from the driver's answer.
 
 ---
 
@@ -590,14 +698,18 @@ results. The end-to-end target is 200–500 ms. The WS relay does this with one 
 adapter, never directly to Onfleet.
 
 ```
-LogisticsAdapter (abstract)
-├── OnfleetAdapter    primary, OAuth
-└── MockAdapter       fallback, seeded Lagos data (7+ deliveries)
+LogisticsAdapter (abstract)            app/integrations/logistics/base.py
+├── OnfleetAdapter    primary, OAuth   not built
+└── MockAdapter       demo feed        app/integrations/logistics/mock_adapter.py
 ```
 
 `MockAdapter` is the demo safety net. Any change to the base class updates `MockAdapter` in the
-same commit. **Code today:** there is no adapter class yet. The handlers return inline mock
-data.
+same commit. **Code today:** the adapter covers new orders: an order feed in, and write-backs
+out (`order_assigned`, `order_unassigned`). `MockAdapter` generates an order every random 3-7
+minutes (`ORDER_FEED_*` settings) in downtown Austin, the demo area, as an Order Intake API
+payload (`interface.md` §2). `get_next_order`, `accept_order`, and `decline_order` read and
+change that queue through the order dispatcher. `get_next_delivery` and
+`update_delivery_status` still return inline mock data.
 
 ---
 

@@ -1,6 +1,9 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
-**Version:** 1.1 (draft), 2026-09-12. 1.1 records the built WebSocket relay (§1), the
+**Version:** 1.2 (draft), 2026-09-13. 1.2 adds new-order dispatch: the `order_offer` and
+`order_offer_closed` events and unprompted agent replies (§1), the Order Intake API (§2), the
+server-side order states `offered` and `unassigned` (§3), and the `accept_order` /
+`decline_order` tools. See "Changes in 1.2". 1.1 recorded the built WebSocket relay (§1), the
 `start_navigation` result change, the `show_screen` tool, and the nullable fields listed under
 "Changes in 1.1".
 **Status:** DRAFT. It is frozen once Ez (frontend) and the backend owner both sign it off in the
@@ -58,6 +61,8 @@ Closing the socket ends the session. The backend then sends `session.end` upstre
 | `summary_chunk` | `{"event": "summary_chunk", "text": "Today you completed…", "final": false}` | Summary screen typewriter; `final: true` on the last chunk |
 | `transcript` | `{"event": "transcript", "role": "driver", "text": "What's my next stop?"}` | home-screen transcript display; `role` ∈ `driver` \| `agent` |
 | `reply_done` | `{"event": "reply_done"}` | the agent's spoken reply is finished; push-to-talk goes `speaking → idle` |
+| `order_offer` | see below | new-order card with a countdown; the co-rider reads it out unprompted |
+| `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
 | audio | binary PCM16 / 24 kHz / mono | the co-rider's voice. Push-to-talk shows `speaking` while it plays |
 
@@ -74,6 +79,9 @@ Closing the socket ends the session. The backend then sends `session.end` upstre
   every known step is `done`.
 - `error.code` ∈ `auth_failed | session_expired | upstream_unavailable | upstream_timeout |
   invalid_message | internal`. `message` is short, human-readable, and safe to display.
+- `order_offer_closed.outcome` ∈ `accepted | declined | expired | withdrawn` (`OFFER_OUTCOMES`
+  in `events.py`). `withdrawn` means the order is gone before this driver could take it: the
+  database says it was already assigned.
 
 **`map_route`.** Field names follow the code's `get_next_delivery` and `get_best_route`
 outputs:
@@ -99,6 +107,42 @@ still arrives with the stop: `polyline` is `""` and `summary`, `distance_km`,
 `duration_mins`, and `duration_text` are `null`. The client drops the pin and skips the line.
 Without a Google key, the backend's mock route is a straight line from the driver to the stop.
 It is a real encoded polyline.
+
+**`order_offer`.** A logistics platform's new order, offered to this driver
+(`app/dispatch/order_dispatch.py`). Only a driver with an open voice socket is ever offered
+an order. It goes to the nearest one (straight-line distance from their latest GPS ping, or
+the demo area centre before the app posts one), one offer per driver at a time. Nothing
+reaches a driver without a session: no push, no wake-up. An order with nobody online waits
+`unassigned` and is offered when a driver connects. If the socket of a driver holding an offer
+closes, the offer moves to the next online driver at once.
+
+```json
+{
+  "event": "order_offer",
+  "order_id": "…",
+  "area": "Lavaca St, Austin",
+  "latitude": 30.271,
+  "longitude": -97.746,
+  "distance_km": 0.51,
+  "time_window": "3:00 PM – 5:00 PM",
+  "package_count": 2,
+  "expires_in_s": 75
+}
+```
+
+Until the driver accepts, the app gets the street and city only (`area`, no house number or
+unit), and the drop-off rounded to 3 decimals (about 100 m). It never gets the recipient's name
+or phone. `distance_km` is a straight line from the driver. `time_window` and `package_count`
+may be `null`. `expires_in_s` counts down from when the event was sent. The offer ends with
+`order_offer_closed`. On `accepted` the order is a `pending` stop on this shift, so
+`GET /v1/deliveries` returns it with the full address. The app shows no accept or decline
+buttons yet: the driver answers by voice.
+
+**Unprompted replies.** When an offer arrives, the relay asks AssemblyAI to speak now
+(`reply.create`, below). The app then gets agent audio, a `transcript` (`agent`), and
+`reply_done` without the driver pressing push-to-talk. Push-to-talk goes `idle → speaking →
+idle` for these. The relay waits for a quiet moment first: no reply playing or due, the
+driver not talking, and no tool results outstanding.
 
 **Navigation renders in-app.** `map_route` together with `screen_navigate: map` is the whole
 navigation contract. The Flutter map draws the route itself (SDD §4.5), and the app never hands
@@ -128,10 +172,20 @@ after that.
 | `update_delivery_status` → `delivered` | `agent_state: celebrating` |
 | `get_shift_summary` | `agent_state: summarizing`, `screen_navigate: summary`, `summary_chunk`s of the tool's `message` |
 | `show_screen` | `screen_navigate` with the requested screen |
+| order dispatcher offers this driver an order | `order_offer`. At the next quiet moment the relay sends AssemblyAI `reply.create`, and that reply arrives like any other: audio, `transcript` (`agent`), `reply_done`. An offer is spoken again on a new socket, because a new socket is a new conversation |
+| `accept_order` (success) | `order_offer_closed` (`accepted`) |
+| `decline_order` (success) | `order_offer_closed` (`declined`) |
+| offer window runs out | `order_offer_closed` (`expired`). If the offer had already been spoken, the co-rider says briefly that it timed out. An offer that expires before it was spoken is dropped silently |
 | shift end (`POST /v1/shift/{id}/end`) | the same summary sequence, carrying the LeMUR `executive_summary`, then `agent_state: idle`. It goes to every socket open on that shift |
 | `reply.done` (no tool calls that turn) | `reply_done`, then `agent_state: idle` |
 | `reply.done` (tool calls that turn) | nothing. The agent speaks again once it has the results, and that reply ends with `reply_done` |
 | `session.error`, upstream drop, `session.ended` | `error` (`upstream_timeout` for AssemblyAI's `agent_timeout`, otherwise `upstream_unavailable`), then close |
+
+**`reply.create`** is the Voice Agent API's documented client message for an agent reply with
+no user audio: `{"type": "reply.create", "instructions": "<one-shot instructions>"}`. The
+instructions don't change the system prompt. The resulting reply is a normal LLM turn, so it
+can lead to tool calls. AssemblyAI's docs don't say what happens if it arrives mid-reply, so
+the relay never sends it then.
 
 Tool moods: `mapping` for `get_next_delivery`, `get_best_route`, and `start_navigation`.
 `calling` for `call_customer`. `summarizing` for `get_shift_summary`. `task` for the rest.
@@ -188,6 +242,38 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 unauthenticated, single-shot, and runs with a hardcoded driver context. The app uses the §1
 WebSocket.
 
+**Order Intake API.** Server to server: a logistics platform pushes new orders here. The
+MockAdapter's order feed builds the same payload internally.
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| POST | `/v1/logistics/orders` | `OrderCreatedEvent` (below), header `X-VoiceOps-Signature` | 202 `{"order_id", "external_id", "status", "duplicate"}` · 401 bad or missing signature · 422 invalid payload · 503 intake not configured, or the order could not be stored |
+
+```json
+{
+  "event": "order.created",
+  "source": "mock-logistics",
+  "external_id": "MLX-20260913-7F3K2Q",
+  "created_at": "2026-09-13T14:02:11-05:00",
+  "order": {
+    "recipient": {"name": "Priya Patel", "phone": "+15125550142"},
+    "dropoff": {"address": "812 Lavaca St, Apt 3B, Austin, TX 78701",
+                "latitude": 30.2713, "longitude": -97.7455},
+    "notes": "Leave with the front desk.",
+    "time_window": {"start": "2026-09-13T15:00:00-05:00", "end": "2026-09-13T17:00:00-05:00"},
+    "package_count": 2
+  }
+}
+```
+
+`recipient.phone`, `notes`, `time_window`, `package_count`, and `created_at` are optional.
+The time window is stored as display text in the sender's UTC offset ("3:00 PM – 5:00 PM").
+This endpoint takes no driver JWT. The platform signs the raw body with the shared secret
+`LOGISTICS_WEBHOOK_SECRET` and sends `X-VoiceOps-Signature: sha256=<hex HMAC-SHA256>`. With
+no secret configured the endpoint returns 503, so it is never an open write path. Intake is
+idempotent on `(source, external_id)`: a repeat returns the first `order_id` with
+`duplicate: true`. `status` is the order's state from §3 (`offered` or `unassigned`).
+
 **Also mounted.** `app/main.py` includes the `driver`, `deliveries`, and `shift` routers too.
 Until 2026-09-12 they failed with a 500 after auth, because `get_current_driver` returned a
 Supabase `User` object that the routes indexed as a dict. It now returns a dict. These paths
@@ -209,7 +295,9 @@ match the backend README:
 
 A delivery row has these fields (`supabase_schema.sql`): `id, shift_id, recipient_name,
 address, phone, status, notes, time_window, latitude, longitude, sequence_order, failure_reason,
-created_at, updated_at`. `phone` is server-side only and is stripped before the app sees it.
+source, external_id, created_at, updated_at`. `phone` is server-side only and is stripped
+before the app sees it. `source` and `external_id` name the logistics platform and its order
+id, and are `null` for deliveries that didn't come through order intake.
 
 Errors use FastAPI's default `{"detail": "…"}` with 400, 401, 404, or 500.
 
@@ -234,6 +322,20 @@ Sources: `schemas.py` `DeliveryStatusUpdate` ("pending, delivered, failed, resch
 values: Flutter, FastAPI, Supabase, and the logistics adapters. **Code today:** the
 `deliveries.status` column is a plain `VARCHAR` with no `CHECK` constraint. Adding one is an open
 backend task.
+
+**Server-side order states: `offered | unassigned`.** Added in 1.2. A platform's new order is a
+`deliveries` row with `shift_id` NULL until a driver accepts it.
+
+| Value | Meaning | Set by |
+|---|---|---|
+| `offered` | waiting on one driver's answer (`order_offer`) | order dispatcher |
+| `unassigned` | no driver has it: nobody online was free, or every online driver declined or let it lapse. Offered again when a driver connects or frees up | order dispatcher |
+
+Acceptance sets `shift_id` and flips the row to `pending`. From then on it is an ordinary
+delivery. The app never sees these two values. They exist only on rows with no shift, and
+`GET /v1/deliveries`, the stats, and the RLS policy all scope deliveries to a shift. The
+driver-facing enum above is unchanged. A logistics adapter must treat both as "not yet a
+driver's delivery".
 
 Separate vocabularies, not frozen here and defined in the Tools Reference: `log_exception.reason`
 and `resolution`, and `notify_customer.message_type`. Shift status is `active | completed`.
@@ -280,6 +382,24 @@ Additive in 1.1: the `show_screen` tool (Tools Reference §11), which emits the 
 
 Everything else in 1.1 documents behaviour that 1.0 had left open: when `reply_done` fires,
 close codes, and the source of each event.
+
+---
+
+## Changes in 1.2
+
+All additive. Nothing that 1.1 defined changes shape.
+
+| Addition | Where |
+|---|---|
+| `order_offer` and `order_offer_closed` server events | §1 |
+| Unprompted agent replies (audio, `transcript`, `reply_done` with no push-to-talk) | §1 |
+| `POST /v1/logistics/orders` (Order Intake API) | §2 |
+| `deliveries.source`, `deliveries.external_id` | §2, `supabase_schema.sql` |
+| Server-side order states `offered`, `unassigned` | §3 |
+| `accept_order`, `decline_order` tools; `get_next_order` reads the live order queue | Tools Reference §8, §12, §13 |
+
+**Frontend follow-up (not built):** an offer card driven by `order_offer` /
+`order_offer_closed`, and playback of unprompted replies.
 
 ---
 

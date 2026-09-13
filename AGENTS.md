@@ -93,7 +93,7 @@ Both layers must remain in the codebase.
 
 ---
 
-## The 11 Agent Tools
+## The 13 Agent Tools
 
 | Tool | What it does | Platform |
 |---|---|---|
@@ -104,13 +104,15 @@ Both layers must remain in the codebase.
 | `start_navigation` | Push route to the Flutter map (in-app, never a deep link) | internal |
 | `call_customer` | Outbound voice call | LiveKit SIP/PSTN |
 | `notify_customer` | Outbound SMS | Vonage |
-| `get_next_order` | Fetch upcoming orders | Onfleet / MockAdapter |
+| `get_next_order` | The new order offered to the driver, else the nearest unassigned one | order dispatcher / MockAdapter |
+| `accept_order` | Take the offered order as the last stop on the shift | order dispatcher / MockAdapter |
+| `decline_order` | Pass the offered order to the next-nearest driver | order dispatcher |
 | `get_shift_summary` | Summarise current shift stats | Supabase |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.2, generated from the running
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.3, generated from the running
 code). The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.
@@ -119,6 +121,8 @@ invent tool shapes.
 - auto-announces the next stop after a delivery completes
 - proactive ETA updates
 - briefs the driver on stops that have prior failures
+- announces a new order offer unprompted. Built: the relay sends AssemblyAI
+  `reply.create` at a quiet moment (`interface.md` §1)
 
 ---
 
@@ -149,12 +153,17 @@ Dropped and must not be reintroduced: **Twilio** (too expensive),
 
 ## Logistics Layer
 
-- **Primary:** Onfleet API (OAuth, free dev account)
-- **Fallback:** `MockAdapter` with seeded Lagos delivery data (7+ realistic deliveries)
-- Both sit behind an abstract `LogisticsAdapter` base class
+- **Primary:** Onfleet API (OAuth, free dev account). Not built yet
+- **Fallback:** `MockAdapter`, a random new-order feed in downtown Austin (the demo area)
+- Both sit behind an abstract `LogisticsAdapter` base class (`voiceops-backend/app/integrations/logistics/`)
 
 Never bypass the adapter abstraction. If you change the base class,
 update `MockAdapter` in the same change.
+
+New orders arrive through the adapter's feed or `POST /v1/logistics/orders`.
+`voiceops-backend/app/dispatch/order_dispatch.py` offers each one to the nearest driver
+with an open voice session, then the next on decline or timeout. A driver with no
+session is never offered or notified. The order waits unassigned until one connects.
 
 A 6-digit connect code links a driver to their logistics company platform.
 
