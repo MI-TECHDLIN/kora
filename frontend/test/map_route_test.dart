@@ -197,6 +197,35 @@ void main() {
       expect(VoiceEvent.parse({'event': 'reply_done'}), isA<ReplyDoneEvent>());
       expect(
         VoiceEvent.parse({
+          'event': 'order_offer',
+          'order_id': 'order-17',
+          'area': 'Lavaca St, Austin',
+          'latitude': 30.271,
+          'longitude': -97.746,
+          'distance_km': 0.51,
+          'time_window': '3:00 PM – 5:00 PM',
+          'package_count': 2,
+          'expires_in_s': 75,
+        }),
+        isA<OrderOfferEvent>()
+            .having((e) => e.orderId, 'order id', 'order-17')
+            .having((e) => e.distanceKm, 'distance', 0.51)
+            .having((e) => e.expiresInSeconds, 'expiry', 75),
+      );
+      expect(
+        VoiceEvent.parse({
+          'event': 'order_offer_closed',
+          'order_id': 'order-17',
+          'outcome': 'withdrawn',
+        }),
+        isA<OrderOfferClosedEvent>().having(
+          (e) => e.outcome,
+          'outcome',
+          OrderOfferOutcome.withdrawn,
+        ),
+      );
+      expect(
+        VoiceEvent.parse({
           'event': 'error',
           'code': 'auth_failed',
           'message': 'Sign in again.',

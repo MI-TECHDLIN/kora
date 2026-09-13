@@ -281,6 +281,10 @@ class VoiceOpsMotion {
   /// How long a snackbar notice stays up: long enough to read two lines.
   static const notice = Duration(seconds: 8);
 
+  /// Order-offer countdown refresh. The server remains authoritative for
+  /// closing an offer; this only keeps the displayed seconds moving.
+  static const countdownTick = Duration(seconds: 1);
+
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubic;
 }
