@@ -13,7 +13,9 @@ and `summary_chunk`.
 The co-rider also speaks unprompted: when the order dispatcher offers this driver a new order,
 the relay sends `order_offer` to the app and asks AssemblyAI for a reply now (`reply.create`
 with one-shot instructions), once the conversation is quiet. That reply is an ordinary LLM
-turn, so the driver can answer it and the agent calls `accept_order` / `decline_order`.
+turn, so the driver can answer it and the agent calls `accept_order` / `decline_order`. The
+app's offer card can answer too (`accept_order` / `decline_order` client events): the relay runs
+that tool handler itself, with no LLM turn.
 """
 import asyncio
 import base64
@@ -533,7 +535,48 @@ class VoiceSession:
             await self._end_call(call_id, hang_up=True)
             return
 
+        if data.get("event") in ("accept_order", "decline_order"):
+            await self._handle_tapped_order(data)
+            return
+
         await self.emit(events.error("invalid_message", "Unsupported message."))
+
+    async def _handle_tapped_order(self, data: dict) -> None:
+        """Run a card response through the same tool handler as a voice response."""
+        action = data["event"]
+        order_id = data.get("order_id")
+        if not isinstance(order_id, str) or not order_id:
+            await self.emit(events.error("invalid_message", f"{action} needs an order_id."))
+            return
+        # A tap carries the exact id shown on this socket. Unlike an LLM tool
+        # call, never fall back from a stale/unknown id to a different offer.
+        if order_id not in self.offers:
+            await self.emit(events.error(
+                "invalid_message", "That order offer is no longer available."))
+            return
+        # In the background, so audio keeps flowing to AssemblyAI while the dispatcher answers
+        self._spawn(self._run_tapped_order(action, order_id))
+
+    async def _run_tapped_order(self, action: str, order_id: str) -> None:
+        spoken = order_id in self._spoken_offers  # close_offer forgets it
+        outcome = await self._run_tool(action, f"tap-{action}-{order_id}", {"order_id": order_id})
+        result = outcome.get("parsed_result")
+        if isinstance(result, dict) and result.get("success"):
+            if spoken:
+                # The co-rider asked about this offer, so it must hear the answer was settled
+                answer = "accepted" if action == "accept_order" else "declined"
+                self._announce(f"tapped:{order_id}", (
+                    f"The driver just {answer} the order offer by tapping the screen, so do not "
+                    f"ask about it again or call {action}. Tell them in one short sentence: "
+                    f"{result.get('message') or answer.capitalize() + '.'}"))
+        elif order_id in self.offers:
+            # A closed offer's order_offer_closed already told the driver why; an open one can be retried
+            message = result.get("error") if isinstance(result, dict) else None
+            await self.emit(events.error(
+                "internal", message or "The order could not be answered. Please try again."))
+        if self._upstream_idle():
+            # No reply is due to end with `agent_state: idle`, so restore the resting mood here
+            await self.emit(events.agent_state("idle"))
 
     # ------------------------------------------------------------------ upstream → app
 

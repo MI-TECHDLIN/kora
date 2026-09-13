@@ -768,6 +768,91 @@ def test_driver_declines_and_the_order_moves_to_the_next_driver(upstream, live_d
     assert [o["order_id"] for o in maria.offers] == [placed["order_id"]]
 
 
+def test_driver_accepts_the_offer_by_tap(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"})
+        collect_until(ws, is_event("reply_done"))
+
+        ws.send_json({"event": "accept_order", "order_id": placed["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        # The co-rider asked about it, so it hears the tap settled it
+        [confirm] = upstream.wait_sent(lambda m: m["type"] == "reply.create" and "tapping" in m["instructions"])
+        ws.portal.call(live_dispatch.stop)
+
+    assert events.order_offer_closed(placed["order_id"], "accepted") in frames
+    assert not any(is_event("error")(f) for f in frames)
+    row = store.delivery(placed["order_id"])
+    assert (row["shift_id"], row["status"]) == (SHIFT_ID, "pending")
+    assert "accepted" in confirm["instructions"] and "812 Lavaca St" in confirm["instructions"]
+    assert upstream.sent_of("tool.result") == []  # FastAPI ran the handler; no LLM tool call
+
+
+def test_driver_declines_the_offer_by_tap_and_it_moves_on(upstream, live_dispatch, store):
+    maria = second_driver_online(store)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"})
+        collect_until(ws, is_event("reply_done"))
+
+        ws.send_json({"event": "decline_order", "order_id": placed["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Passing the order on", status="done"))
+        upstream.wait_sent(lambda m: m["type"] == "reply.create" and "declined" in m["instructions"])
+        ws.portal.call(live_dispatch.stop)
+
+    assert events.order_offer_closed(placed["order_id"], "declined") in frames
+    assert [o["order_id"] for o in maria.offers] == [placed["order_id"]]
+    assert upstream.sent_of("tool.result") == []
+
+
+def test_tap_on_an_offer_not_yet_spoken_says_nothing(upstream, live_dispatch, monkeypatch):
+    monkeypatch.setattr(voice, "REPLY_GRACE", 1.0)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        upstream.wait_sent(lambda m: m["type"] == "session.update")
+        placed = ws.portal.call(live_dispatch.ingest, make_order())
+        collect_until(ws, is_event("order_offer"))  # the greeting is due, so it waits unspoken
+        ws.send_json({"event": "accept_order", "order_id": placed["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        connect_and_greet(ws, upstream)
+        time.sleep(0.3)
+        ws.portal.call(live_dispatch.stop)
+
+    assert events.order_offer_closed(placed["order_id"], "accepted") in frames
+    assert reply_creates(upstream) == []  # neither the offer nor the tap is announced
+
+
+def test_tap_on_an_order_taken_elsewhere_closes_it_without_an_error(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+        store.delivery(placed["order_id"]).update(shift_id="another-shift", status="pending")
+
+        ws.send_json({"event": "accept_order", "order_id": placed["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        ws.portal.call(live_dispatch.stop)
+
+    assert events.order_offer_closed(placed["order_id"], "withdrawn") in frames
+    assert not any(is_event("error")(f) for f in frames)  # the card's closed note says why
+
+
+def test_failed_tap_reports_an_error_and_keeps_the_offer_open(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+        store.fail = True
+        ws.send_json({"event": "accept_order", "order_id": placed["order_id"]})
+        frames = collect_until(ws, is_event("error"))
+        still_offered_to = live_dispatch._orders[placed["order_id"]].offered_to  # before the socket closes
+        store.fail = False
+        ws.portal.call(live_dispatch.stop)
+
+    assert frames[-1] == events.error("internal", "Couldn't reach the order system. Try accepting again.")
+    assert not any(is_event("order_offer_closed")(f) for f in frames)
+    assert still_offered_to.driver_id == REAL["driver_id"]
+
+
 def test_offer_moves_on_when_its_driver_disconnects(upstream, live_dispatch, store):
     maria = second_driver_online(store)
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
