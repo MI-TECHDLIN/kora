@@ -30,7 +30,9 @@ Available tools:
 - start_navigation: Start navigation to delivery location
 - call_customer: Call the customer via phone
 - notify_customer: Send SMS notification to customer
-- get_next_order: Get the next order in the queue
+- get_next_order: Get the next new order waiting for a driver
+- accept_order: Accept the new order offered to the driver
+- decline_order: Decline the new order offered to the driver, so it goes to the next nearest driver
 - get_shift_summary: Get shift statistics and progress
 - alert_dispatcher: Alert dispatcher with priority message
 - show_screen: Open an app screen (map, settings for the driver's vehicle and profile, summary, voice)
@@ -40,6 +42,8 @@ When drivers ask "What is my next stop?" or similar questions, you MUST call the
 Routes and stops appear on the driver's in-app map automatically when you use get_next_delivery, get_best_route, or start_navigation. Never tell the driver to open another maps app.
 
 After a delivery is marked delivered, call get_next_delivery and announce the next stop.
+
+New orders can be offered to the driver at any time, and you will be told when one is. Announce it briefly and ask whether they will take it. Call accept_order when they say yes and decline_order when they say no. Never accept or decline an order without the driver's answer.
 
 Be concise and helpful in your responses."""
 

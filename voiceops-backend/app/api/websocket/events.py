@@ -16,6 +16,7 @@ ERROR_CODES = frozenset({
     "auth_failed", "session_expired", "upstream_unavailable", "upstream_timeout",
     "invalid_message", "internal",
 })
+OFFER_OUTCOMES = frozenset({"accepted", "declined", "expired", "withdrawn"})
 
 STOP_FIELDS = ("delivery_id", "sequence", "recipient_name", "address", "latitude", "longitude")
 ROUTE_FIELDS = ("polyline", "summary", "distance_km", "duration_mins", "duration_text")
@@ -43,6 +44,8 @@ TOOL_STEPS = {
     "get_shift_summary": "Summarising your shift",
     "alert_dispatcher": "Alerting dispatch",
     "show_screen": "Opening the screen",
+    "accept_order": "Accepting the order",
+    "decline_order": "Passing the order on",
 }
 
 
@@ -111,6 +114,32 @@ def transcript(role: str, text: str) -> Dict[str, Any]:
 
 def reply_done() -> Dict[str, Any]:
     return {"event": "reply_done"}
+
+
+def order_offer(offer: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    A new order offered to this driver (`order_dispatch.offer_payload`). Before the driver
+    accepts, the app gets the street and city only, and the drop-off to about 100 m.
+    """
+    def approx(value: Any) -> Optional[float]:
+        return round(float(value), 3) if value is not None else None
+
+    return {
+        "event": "order_offer",
+        "order_id": offer["order_id"],
+        "area": offer.get("area"),
+        "latitude": approx(offer.get("latitude")),
+        "longitude": approx(offer.get("longitude")),
+        "distance_km": offer.get("distance_km"),
+        "time_window": offer.get("time_window"),
+        "package_count": offer.get("package_count"),
+        "expires_in_s": offer.get("window_seconds"),
+    }
+
+
+def order_offer_closed(order_id: str, outcome: str) -> Dict[str, Any]:
+    _check(outcome, OFFER_OUTCOMES, "order_offer_closed.outcome")
+    return {"event": "order_offer_closed", "order_id": order_id, "outcome": outcome}
 
 
 def error(code: str, message: str) -> Dict[str, Any]:

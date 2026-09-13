@@ -9,6 +9,11 @@ concurrently and are gathered with `asyncio.gather` on `reply.done`, when Assemb
 the `tool.result`s). While tools run, the relay mirrors them to the app as UI events:
 `agent_state`, `task_step`, `screen_navigate`, `map_route`, `call_started` / `call_ended`,
 and `summary_chunk`.
+
+The co-rider also speaks unprompted: when the order dispatcher offers this driver a new order,
+the relay sends `order_offer` to the app and asks AssemblyAI for a reply now (`reply.create`
+with one-shot instructions), once the conversation is quiet. That reply is an ordinary LLM
+turn, so the driver can answer it and the agent calls `accept_order` / `decline_order`.
 """
 import asyncio
 import base64
@@ -33,6 +38,7 @@ from app.agents.tools.navigation import (
     stop_from_delivery,
 )
 from app.api.websocket import events
+from app.dispatch.order_dispatch import get_order_dispatcher
 from app.db.queries import (
     create_voice_session,
     get_driver_by_id,
@@ -53,6 +59,9 @@ DB_TIMEOUT = 3.0               # any Supabase lookup made from the voice loop
 TOOL_TIMEOUT = 10.0            # one tool call, end to end
 CALL_POLL_INTERVAL = 3.0       # provider status polling for an active customer call
 CALL_WATCH_LIMIT = 15 * 60
+REPLY_GRACE = 5.0              # after the driver's turn or a tool.result, a reply is due this soon
+ANNOUNCE_POLL = 0.2            # how often a queued announcement checks for a quiet moment
+TURN_STATE_STALE = 30.0        # a reply / speech flag with no upstream event for this long is stale
 TERMINAL_CALL_STATUSES = {"completed", "busy", "failed", "no-answer", "canceled"}
 
 # Tools whose origin is the driver's position: refresh it from the latest GPS ping first
@@ -115,6 +124,24 @@ def _is_mock_call(call_id: str) -> bool:
     return call_id.startswith("mock-")
 
 
+def live_shifts() -> Dict[str, str]:
+    """shift_id → driver_id for every shift with an open voice socket (order dispatch candidates)."""
+    return {shift_id: next(iter(sessions)).driver_id for shift_id, sessions in _sessions.items() if sessions}
+
+
+async def present_offer(shift_id: str, offer: dict) -> int:
+    """Show and speak an order offer on every socket open on `shift_id`. Returns how many got it."""
+    sessions = list(_sessions.get(shift_id, ()))
+    for session in sessions:
+        await session.present_offer(offer)
+    return len(sessions)
+
+
+async def close_offer(shift_id: str, order_id: str, outcome: str) -> None:
+    for session in list(_sessions.get(shift_id, ())):
+        await session.close_offer(order_id, outcome)
+
+
 async def stream_summary(shift_id: str, text: str) -> int:
     """
     Stream a post-shift summary to every voice socket open on `shift_id`
@@ -153,6 +180,18 @@ class VoiceSession:
         self.close_code = CLOSE_NORMAL
         self._send_lock = asyncio.Lock()
 
+        # Upstream turn state: an unprompted reply.create is sent only when all of these are quiet
+        self._reply_active = False
+        self._driver_speaking = False
+        self._finishing_tools = False
+        self._expect_reply_until = 0.0  # monotonic
+        self._turn_event_at = 0.0       # monotonic time of the last reply / speech event
+        self._announcements: List[Tuple[str, str]] = []  # (key, reply.create instructions)
+        self._announce_wake = asyncio.Event()
+        self.offers: Dict[str, dict] = {}   # order_id → offer shown to this driver
+        self._spoken_offers: Set[str] = set()
+        self._background: Set[asyncio.Task] = set()
+
     # ------------------------------------------------------------------ app side
 
     async def emit(self, event: dict) -> None:
@@ -178,6 +217,82 @@ class VoiceSession:
         await self.emit(events.error(code, message))
         self.close_code = (CLOSE_POLICY_VIOLATION if code in ("auth_failed", "session_expired")
                            else CLOSE_INTERNAL_ERROR)
+
+    async def present_offer(self, offer: dict) -> None:
+        order_id = offer["order_id"]
+        self.offers[order_id] = offer
+        await self.emit(events.order_offer(offer))
+        self._drop_announcement(f"offer:{order_id}")
+        self._announce(f"offer:{order_id}", self._offer_instructions(offer))
+
+    async def close_offer(self, order_id: str, outcome: str) -> None:
+        offer = self.offers.pop(order_id, None)
+        self._drop_announcement(f"offer:{order_id}")  # never spoken: nothing to take back
+        await self.emit(events.order_offer_closed(order_id, outcome))
+        if outcome == "expired" and order_id in self._spoken_offers:
+            area = (offer or {}).get("area")
+            self._announce(f"expired:{order_id}", (
+                "Tell the driver in one short sentence that the order offer"
+                f"{' on ' + area if area else ''} timed out and went to another driver."))
+        self._spoken_offers.discard(order_id)
+
+    @staticmethod
+    def _offer_instructions(offer: dict) -> str:
+        details = []
+        if offer.get("area"):
+            details.append(f"drop-off on {offer['area']}")
+        if offer.get("distance_km") is not None:
+            details.append(f"about {offer['distance_km']:.1f} km from them")
+        if offer.get("time_window"):
+            details.append(f"delivery window {offer['time_window']}")
+        if offer.get("package_count"):
+            details.append(f"{offer['package_count']} package(s)")
+        return (
+            "A new delivery order has just been offered to the driver. They did not ask, so tell "
+            f"them now in one or two short sentences: {', '.join(details) or 'a new order'}. "
+            "Ask whether they will take it. If they accept, call accept_order. If they decline, "
+            f"call decline_order. (order_id {offer['order_id']}.) The offer stays open for about "
+            f"{offer.get('window_seconds') or 60} seconds."
+        )
+
+    def _announce(self, key: str, instructions: str) -> None:
+        self._announcements.append((key, instructions))
+        self._announce_wake.set()
+
+    def _drop_announcement(self, key: str) -> None:
+        self._announcements = [a for a in self._announcements if a[0] != key]
+
+    def _upstream_idle(self) -> bool:
+        """No reply playing or due, the driver isn't talking, and no tool results are outstanding."""
+        now = time.monotonic()
+        # A missed reply.done or speech.stopped must not silence announcements for the session
+        in_turn = (self._reply_active or self._driver_speaking) and now - self._turn_event_at < TURN_STATE_STALE
+        return not (in_turn or self._finishing_tools or self.pending_tools or now < self._expect_reply_until)
+
+    async def _announce_loop(self) -> None:
+        """Speak queued announcements one at a time, each in the next quiet moment."""
+        while True:
+            await self._announce_wake.wait()
+            self._announce_wake.clear()
+            while self._announcements:
+                if self._upstream_idle():
+                    key, instructions = self._announcements.pop(0)
+                    self._expect_reply_until = time.monotonic() + REPLY_GRACE
+                    await self.send_upstream({"type": "reply.create", "instructions": instructions})
+                    if key.startswith("offer:"):
+                        self._spoken_offers.add(key[len("offer:"):])
+                await asyncio.sleep(ANNOUNCE_POLL)
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    async def _driver_online(self) -> None:
+        try:
+            await get_order_dispatcher().driver_available(self.driver_id, self.shift_id)
+        except Exception:
+            logger.exception("[VoiceWS] Order dispatch on connect failed")
 
     async def stream_summary(self, text: str) -> None:
         chunks = events.summary_chunks(text)
@@ -220,6 +335,7 @@ class VoiceSession:
         try:
             await self._load_context()
             await self._start_upstream()
+            self._spawn(self._driver_online())
             await self._pump()
         except UpstreamError as e:
             await self.fail(e.code, e.message)
@@ -311,6 +427,7 @@ class VoiceSession:
                     raise UpstreamError("upstream_unavailable", "The voice service closed the connection.")
                 msg_type = data.get("type")
                 if msg_type in ("session.ready", "session.updated"):
+                    self._expect_reply_until = time.monotonic() + REPLY_GRACE  # the greeting is next
                     return
                 if msg_type in ("session.error", "error"):
                     logger.warning(f"[VoiceWS] Upstream rejected session: {data.get('code')}")
@@ -320,7 +437,8 @@ class VoiceSession:
 
     async def _pump(self) -> None:
         """Relay both directions until either side ends (or the token expires)."""
-        tasks = [asyncio.create_task(self._client_loop()), asyncio.create_task(self._upstream_loop())]
+        tasks = [asyncio.create_task(self._client_loop()), asyncio.create_task(self._upstream_loop()),
+                 asyncio.create_task(self._announce_loop())]
         if self.token_exp is not None:
             tasks.append(asyncio.create_task(self._expiry_watch()))
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -338,7 +456,13 @@ class VoiceSession:
             sessions.discard(self)
             if not sessions:
                 _sessions.pop(self.shift_id, None)
+                try:
+                    get_order_dispatcher().driver_left(self.driver_id)  # no offer waits on a closed app
+                except Exception:
+                    logger.exception("[VoiceWS] Moving offers on disconnect failed")
         for _, _, task in self.pending_tools:
+            task.cancel()
+        for task in self._background:
             task.cancel()
         for watcher in self.active_calls.values():
             if watcher is not None:
@@ -421,11 +545,24 @@ class VoiceSession:
                 return
 
             msg_type = data.get("type")
+            if msg_type in ("reply.started", "reply.audio", "transcript.agent", "reply.done",
+                            "input.speech.started", "input.speech.stopped"):
+                self._turn_event_at = time.monotonic()
+            if msg_type in ("reply.started", "reply.audio", "transcript.agent"):
+                self._reply_active = True
+                self._expect_reply_until = 0.0
             if msg_type == "reply.audio":
                 raw = data.get("data")
                 if raw:
                     await self.emit_audio(base64.b64decode(raw))
+            elif msg_type == "input.speech.started":
+                self._driver_speaking = True
+            elif msg_type == "input.speech.stopped":
+                self._driver_speaking = False
+                self._expect_reply_until = time.monotonic() + REPLY_GRACE
             elif msg_type == "transcript.user":
+                self._driver_speaking = False
+                self._expect_reply_until = time.monotonic() + REPLY_GRACE
                 text = (data.get("text") or "").strip()
                 if text:
                     self.driver_turns.append(text)
@@ -439,7 +576,9 @@ class VoiceSession:
             elif msg_type == "tool.call":
                 self._start_tool(data)
             elif msg_type == "reply.done":
+                self._reply_active = False
                 await self._finish_reply()
+                self._announce_wake.set()
             elif msg_type == "session.ended":
                 await self.fail("upstream_unavailable", "The voice session ended.")
                 return
@@ -474,16 +613,21 @@ class VoiceSession:
             return
 
         batch, self.pending_tools = self.pending_tools, []
-        outcomes = await asyncio.gather(*(task for _, _, task in batch), return_exceptions=True)
-        for (call_id, name, _), outcome in zip(batch, outcomes):
-            if isinstance(outcome, BaseException):
-                outcome = self._error_result(name, call_id, "The tool failed to run.")
-            await self.send_upstream({
-                "type": "tool.result",
-                "call_id": outcome["call_id"],
-                "result": outcome["result"],
-                "is_error": outcome["is_error"],
-            })
+        self._finishing_tools = True
+        try:
+            outcomes = await asyncio.gather(*(task for _, _, task in batch), return_exceptions=True)
+            for (call_id, name, _), outcome in zip(batch, outcomes):
+                if isinstance(outcome, BaseException):
+                    outcome = self._error_result(name, call_id, "The tool failed to run.")
+                await self.send_upstream({
+                    "type": "tool.result",
+                    "call_id": outcome["call_id"],
+                    "result": outcome["result"],
+                    "is_error": outcome["is_error"],
+                })
+        finally:
+            self._finishing_tools = False
+            self._expect_reply_until = time.monotonic() + REPLY_GRACE  # the agent speaks from the results
 
     # ------------------------------------------------------------------ tools → UI events
 
@@ -567,6 +711,13 @@ class VoiceSession:
 
         elif name == "show_screen":
             await self.emit(events.screen_navigate(result["screen"]))
+
+        elif name == "accept_order":
+            # The accepted order is now a stop on this shift: the navigation tools can route to it
+            stop = stop_from_delivery(result)
+            self.context["deliveries"][stop["delivery_id"]] = stop
+            if not self.context.get("current_delivery"):
+                self._set_current_delivery(result)
 
     async def _show_route(self, stop: dict, route: dict) -> None:
         await self.emit(events.screen_navigate("map"))
