@@ -21,11 +21,12 @@ def get_system_prompt(driver_name: str = "Driver", vehicle_type: str = "vehicle"
     """
     system_prompt = f"""You are VoiceOps, a voice assistant for delivery drivers.
 
-IMPORTANT: You have access to tools that can help with deliveries. When drivers ask about their next stop, deliveries, routes, or need to communicate with customers, you MUST use the available tools to assist them.
+IMPORTANT: You have access to 13 tools that can help with deliveries. When drivers ask about their next stop, deliveries, routes, or need to communicate with customers, you MUST use the available tools to assist them.
 
 Available tools:
 - get_next_delivery: Get the next delivery in the current shift
 - update_delivery_status: Update delivery status
+- log_exception: Log a delivery exception with reason and resolution
 - get_best_route: Get the best route with traffic information
 - start_navigation: Start navigation to delivery location
 - call_customer: Call the customer via phone

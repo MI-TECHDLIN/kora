@@ -142,7 +142,7 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
 - [x] **AssemblyAI LeMUR Intelligence Pipeline**: Automated speech and transcript synthesis generating driver sentiment scores, operational incidents, route issues, and coaching advice directly stored in Supabase.
 - [x] **Parallel Tool Orchestrator (`asyncio.gather`)**: High-performance concurrent tool execution keeping multi-tool response latency well under 500ms SLA.
 
-- [x] **10 Voice Agent Tools**:
+- [x] **13 Voice Agent Tools**:
   1. `get_next_delivery` — Fetch next pending stop with customer info and gate notes.
   2. `update_delivery_status` — Mark delivered, failed, or rescheduled via voice.
   3. `log_exception` — Record delivery exceptions with reasons and notes.
@@ -151,8 +151,11 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
   6. `call_customer` — Twilio masked voice bridging for customer contact.
   7. `notify_customer` — Automated customer SMS delivery notifications.
   8. `get_next_order` — View queued manifests.
-  9. `get_shift_summary` — On-demand live progress and delivery counts.
-  10. `alert_dispatcher` — Immediate voice-triggered dispatcher priority escalation.
+  9. `accept_order` — Accept new order offered to driver.
+  10. `decline_order` — Decline new order offered to driver.
+  11. `get_shift_summary` — On-demand live progress and delivery counts.
+  12. `alert_dispatcher` — Immediate voice-triggered dispatcher priority escalation.
+  13. `show_screen` — Open app screens (map, settings, profile, summary, voice).
 - [x] **n8n Workflow 1 (Dispatcher Alerts)**:
   - Real-time logging of safety, vehicle, or routing emergencies to Supabase.
   - Urgent operations email and Slack channel alerts.
