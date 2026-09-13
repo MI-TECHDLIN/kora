@@ -12,6 +12,7 @@ import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/providers/location_provider.dart';
+import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
@@ -207,6 +208,18 @@ class FakeVehicleModeStore implements VehicleModeStore {
   Future<void> save(VehicleMode mode) async => value = mode;
 }
 
+class FakeMapStyleStore implements MapStyleStore {
+  FakeMapStyleStore([this.value]);
+
+  MapStyle? value;
+
+  @override
+  Future<MapStyle?> load() async => value;
+
+  @override
+  Future<void> save(MapStyle style) async => value = style;
+}
+
 /// Everything a pumped app or screen needs to stay offline. Pass the fakes
 /// a test wants to script; the rest are fresh defaults.
 List<Override> offlineOverrides({
@@ -217,6 +230,7 @@ List<Override> offlineOverrides({
   FakeLocationSource? location,
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
+  FakeMapStyleStore? mapStyleStore,
   bool backendConfigured = true,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
@@ -232,6 +246,9 @@ List<Override> offlineOverrides({
     headingSourceProvider.overrideWithValue(heading ?? FakeHeadingSource()),
     vehicleModeStoreProvider.overrideWithValue(
       vehicleModeStore ?? FakeVehicleModeStore(),
+    ),
+    mapStyleStoreProvider.overrideWithValue(
+      mapStyleStore ?? FakeMapStyleStore(),
     ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
   ];

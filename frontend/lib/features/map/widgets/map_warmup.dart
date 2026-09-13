@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/heading_provider.dart';
 import '../../../providers/location_provider.dart';
+import '../../../providers/map_style_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
 import 'openfreemap_layer.dart';
 
@@ -15,7 +16,7 @@ class MapWarmup extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(openFreeMapStyleProvider);
+    ref.watch(openFreeMapStyleProvider(ref.watch(mapStyleProvider)));
     ref.watch(locationProvider);
     ref.watch(headingProvider);
     ref.watch(vehicleModeProvider);
