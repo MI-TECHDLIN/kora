@@ -43,16 +43,27 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.text('Map preview · sample route'), findsOneWidget);
+      final mapPreview = find.byKey(const Key('map-preview'));
       expect(
-        tester.getSize(find.byKey(const Key('map-preview'))).height,
-        closeTo(size.height * 0.45, 0.01),
+        tester.getSize(mapPreview).height,
+        size.height < VoiceOpsMap.compactHeight
+            ? VoiceOpsSize.mapPreviewCompact
+            : VoiceOpsSize.mapPreview,
       );
+      final mascot = find.byType(MascotDisplay);
+      expect(tester.widget<MascotDisplay>(mascot).material, OrbMaterial.chrome);
+      expect(tester.getSize(mascot), const Size.square(VoiceOpsSize.orbVoice));
+      final mapRect = tester.getRect(mapPreview);
+      final mascotRect = tester.getRect(mascot);
+      expect(mapRect.contains(mascotRect.topLeft), isTrue);
+      expect(mapRect.contains(mascotRect.bottomRight), isTrue);
       expect(
-        tester.widget<MascotDisplay>(find.byType(MascotDisplay)).material,
-        OrbMaterial.chrome,
+        tester.getRect(find.text('Your route, together')).right,
+        lessThanOrEqualTo(mascotRect.left),
       );
       final ptt = find.byType(PushToTalkButton);
       expect(tester.getSize(ptt).shortestSide, greaterThanOrEqualTo(80));
+      expect(mapRect.overlaps(tester.getRect(ptt)), isFalse);
       // The hint under the button tells the driver what a tap does now.
       const hints = {
         PushToTalkState.idle: 'Tap to talk to your co-rider',

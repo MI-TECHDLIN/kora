@@ -217,9 +217,16 @@ class VoiceOpsSize {
   static const pushToTalk = 88.0;
   static const pushToTalkMin = 80.0;
 
+  /// Main driver-screen map preview heights. The compact height keeps the
+  /// operational cards reachable on short phones without crowding the orb.
+  static const mapPreview = 288.0;
+  static const mapPreviewCompact = 224.0;
+
   /// Co-rider orb sizes. [orbOnboarding] is the Hook screen's waking orb;
-  /// the welcome screen after it settles back to the smaller [orbHero].
+  /// [orbVoice] is the active co-rider on the driver screen, and the welcome
+  /// screen settles back to the smaller [orbHero].
   static const orbOnboarding = 220.0;
+  static const orbVoice = 180.0;
   static const orbHero = 150.0;
   static const orbBubble = 60.0;
   static const orbBubbleSmall = 40.0;
