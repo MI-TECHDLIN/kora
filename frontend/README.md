@@ -23,6 +23,14 @@ Copy-Item config/supabase.prod.json.example config/supabase.prod.json
 flutter run --dart-define-from-file=config/supabase.prod.json
 ```
 
+For a physical Android phone on the same Wi-Fi network, set
+`VOICEOPS_API_URL` to the computer's LAN address and start FastAPI with:
+
+```powershell
+cd ..\voiceops-backend
+py -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 The local production file is ignored by Git. Rotate any exposed service-role
 key and keep it on the backend only.
 For help getting started with Flutter development, view the
