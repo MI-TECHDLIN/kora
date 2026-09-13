@@ -6,6 +6,7 @@ import 'app/router.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/tokens.dart';
 import 'features/auth/widgets/driver_profile_notice.dart';
+import 'features/map/widgets/map_warmup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,8 +31,9 @@ class VoiceOpsApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: buildVoiceOpsTheme(), // dark-mode-first: the only theme
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) =>
-          RootStack(child: DriverProfileNotice(child: child!)),
+      builder: (context, child) => RootStack(
+        child: MapWarmup(child: DriverProfileNotice(child: child!)),
+      ),
     );
   }
 }

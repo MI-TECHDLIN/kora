@@ -40,23 +40,19 @@ class MapChip extends StatelessWidget {
           Flexible(child: Text(message, style: VoiceOpsText.label)),
           if (actionLabel != null) ...[
             const SizedBox(width: VoiceOpsSpacing.sm),
-            Semantics(
-              button: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onAction,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: VoiceOpsSize.touchTarget,
-                  ),
-                  child: Center(
-                    child: Text(
-                      actionLabel!,
-                      style: VoiceOpsText.label.copyWith(
-                        color: VoiceOpsColors.primaryLight,
-                      ),
-                    ),
-                  ),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: VoiceOpsColors.primaryLight,
+                minimumSize: const Size(
+                  VoiceOpsSize.touchTarget,
+                  VoiceOpsSize.touchTarget,
+                ),
+              ),
+              child: Text(
+                actionLabel!,
+                style: VoiceOpsText.label.copyWith(
+                  color: VoiceOpsColors.primaryLight,
                 ),
               ),
             ),

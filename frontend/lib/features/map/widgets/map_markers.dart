@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../providers/vehicle_mode_provider.dart';
 
 /// A numbered delivery stop. The stop being navigated to is larger and
 /// filled violet; the rest are dark with a violet rim.
@@ -75,10 +76,15 @@ class StopPin extends StatelessWidget {
 /// The driver's live position: a solid dot in a soft halo, or a heading
 /// arrow while moving.
 class PositionMarker extends StatelessWidget {
-  const PositionMarker({super.key, this.heading});
+  const PositionMarker({
+    super.key,
+    this.heading,
+    this.vehicleMode = VehicleMode.car,
+  });
 
   /// Degrees clockwise from north, or null when standing still.
   final double? heading;
+  final VehicleMode vehicleMode;
 
   @override
   Widget build(BuildContext context) {
@@ -93,28 +99,44 @@ class PositionMarker extends StatelessWidget {
           shape: BoxShape.circle,
           color: VoiceOpsColors.primaryTint,
         ),
-        child: Container(
-          width: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
-          height: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
+        child: Stack(
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: VoiceOpsColors.primary,
-            border: Border.all(
-              color: VoiceOpsColors.onPrimary,
-              width: VoiceOpsGlass.borderWidth * 2,
+          children: [
+            Container(
+              width: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
+              height: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: VoiceOpsColors.primary,
+                border: Border.all(
+                  color: VoiceOpsColors.onPrimary,
+                  width: VoiceOpsGlass.borderWidth * 2,
+                ),
+              ),
+              child: Icon(
+                vehicleMode.icon,
+                size: VoiceOpsSize.iconSm,
+                color: VoiceOpsColors.onPrimary,
+              ),
             ),
-          ),
-          child: heading == null
-              ? null
-              : Transform.rotate(
-                  angle: heading * math.pi / 180,
-                  child: const Icon(
-                    TablerIcons.navigationFilled,
-                    size: VoiceOpsSize.iconSm,
-                    color: VoiceOpsColors.onPrimary,
+            if (heading != null)
+              Transform.rotate(
+                key: const Key('vehicle-heading'),
+                angle: heading * math.pi / 180,
+                child: const SizedBox.square(
+                  dimension: VoiceOpsMap.headingRing,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Icon(
+                      TablerIcons.navigationFilled,
+                      size: VoiceOpsMap.headingArrow,
+                      color: VoiceOpsColors.onPrimary,
+                    ),
                   ),
                 ),
+              ),
+          ],
         ),
       ),
     );

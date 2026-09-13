@@ -235,6 +235,12 @@ class VoiceOpsMap {
   /// The driver's live position: solid dot inside a soft halo.
   static const positionDot = 18.0;
   static const positionHalo = 44.0;
+  static const headingRing = 38.0;
+  static const headingArrow = 12.0;
+
+  /// Branded street-grid placeholder shown until OpenFreeMap has a frame.
+  static const skeletonRoadWidth = 5.0;
+  static const skeletonMainRoadWidth = 12.0;
 
   /// Camera: zoom when following the driver, the closest a route fit may go,
   /// and the view before the first location fix.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../providers/driver_details_provider.dart';
+import '../../providers/vehicle_mode_provider.dart';
 import '../api/voiceops_api.dart';
 import '../theme/tokens.dart';
 
@@ -15,6 +16,7 @@ class DriverVehicleRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(driverDetailsProvider);
+    final selectedVehicle = ref.watch(vehicleModeProvider);
     return profile.when(
       skipLoadingOnRefresh: false,
       loading: () => const _VehicleLayout(
@@ -32,11 +34,10 @@ class DriverVehicleRow extends ConsumerWidget {
         onAction: () => ref.invalidate(driverDetailsProvider),
       ),
       data: (driver) {
-        final vehicle = driver.vehicleType;
         return _VehicleLayout(
-          icon: vehicleIcon(vehicle),
+          icon: selectedVehicle.icon,
           title: driver.name ?? 'You',
-          subtitle: vehicle ?? 'No vehicle on your profile yet',
+          subtitle: selectedVehicle.label,
         );
       },
     );

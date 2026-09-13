@@ -9,7 +9,9 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../providers/location_provider.dart';
+import '../../../providers/heading_provider.dart';
 import '../../../providers/map_route_provider.dart';
+import '../../../providers/vehicle_mode_provider.dart';
 import '../data/location_source.dart';
 import '../data/map_route.dart';
 import '../widgets/map_chip.dart';
@@ -35,7 +37,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final _map = MapController();
   bool _mapReady = false;
 
-  /// The bottom sheet (attribution and card). The camera keeps what it
+  /// The bottom route card. The camera keeps what it
   /// frames clear of it, and re-frames as the card grows or folds.
   final _sheetKey = GlobalKey();
   bool _reframeScheduled = false;
@@ -194,6 +196,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final route = ref.watch(mapRouteProvider);
     final location = ref.watch(locationProvider);
     final fix = location.valueOrNull;
+    final heading = ref.watch(headingProvider).valueOrNull ?? fix?.heading;
+    final vehicleMode = ref.watch(vehicleModeProvider);
     final insets = MediaQuery.paddingOf(context);
 
     RouteStop? shownStop = route?.target;
@@ -256,7 +260,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       point: fix.point,
                       width: VoiceOpsMap.positionHalo,
                       height: VoiceOpsMap.positionHalo,
-                      child: PositionMarker(heading: fix.heading),
+                      child: PositionMarker(
+                        heading: heading,
+                        vehicleMode: vehicleMode,
+                      ),
                     ),
                   ],
                 ),
@@ -318,6 +325,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Scaffold.extendBody puts the bottom nav's height in the padding.
           bottom: insets.bottom + VoiceOpsSpacing.sm,
           child: NotificationListener<SizeChangedLayoutNotification>(
+            key: const Key('map-bottom-sheet'),
             onNotification: _onSheetResized,
             child: SizeChangedLayoutNotifier(
               child: Column(
@@ -325,8 +333,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const _Attribution(),
-                  const SizedBox(height: VoiceOpsSpacing.xs),
                   RouteCard(
                     route: route,
                     stop: shownStop,
@@ -436,31 +442,6 @@ class _RoundGlassButton extends StatelessWidget {
               color: VoiceOpsColors.textPrimary,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// OpenStreetMap data requires attribution wherever the map shows.
-class _Attribution extends StatelessWidget {
-  const _Attribution();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: VoiceOpsColors.scrim,
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: VoiceOpsSpacing.sm,
-          vertical: VoiceOpsSpacing.xs / 2,
-        ),
-        child: Text(
-          '© OpenFreeMap © OpenMapTiles © OpenStreetMap',
-          style: VoiceOpsText.caption.copyWith(letterSpacing: 0),
         ),
       ),
     );
