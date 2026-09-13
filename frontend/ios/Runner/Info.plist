@@ -70,6 +70,8 @@
 	<!-- The driver's live position on the Map tab (geolocator). -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>VoiceOps shows where you are on the map and routes you to your next stop.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>VoiceOps uses your heading and location to keep the in-app map oriented during a shift.</string>
 	<!-- just_audio plays the co-rider's voice through a loopback proxy. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>

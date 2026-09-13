@@ -184,11 +184,15 @@ class FakeLocationSource implements LocationSource {
 
 class FakeHeadingSource implements HeadingSource {
   final _headings = StreamController<double>.broadcast();
+  int watches = 0;
 
   void emit(double heading) => _headings.add(heading);
 
   @override
-  Stream<double> watch() => _headings.stream;
+  Stream<double> watch() {
+    watches++;
+    return _headings.stream;
+  }
 }
 
 class FakeVehicleModeStore implements VehicleModeStore {

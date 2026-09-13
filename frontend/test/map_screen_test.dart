@@ -12,6 +12,7 @@ import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/map_route.dart';
 import 'package:voiceops/features/map/screens/map_screen.dart';
 import 'package:voiceops/features/map/widgets/map_markers.dart';
+import 'package:voiceops/features/map/widgets/map_warmup.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/settings/screens/settings_screen.dart';
 import 'package:voiceops/providers/auth_provider.dart';
@@ -122,6 +123,7 @@ void main() {
     expect(find.text('NO ROUTE YET'), findsOneWidget);
     expect(find.byType(PolylineLayer), findsNothing);
     expect(find.byType(PositionMarker), findsNothing);
+    expect(find.textContaining('OpenFreeMap'), findsNothing);
     // Vehicle from GET /v1/driver/profile (faked).
     expect(find.text('Ada Obi'), findsOneWidget);
     expect(find.text('Motorbike'), findsOneWidget);
@@ -349,6 +351,44 @@ void main() {
     await settle(tester);
     expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
     expect(vehicleModeStore.value, VehicleMode.bicycle);
+
+    container.invalidate(vehicleModeProvider);
+    await settle(tester);
+    expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
+  });
+
+  testWidgets('map dependencies warm before the Map tab is built', (
+    tester,
+  ) async {
+    var styleLoads = 0;
+    final waiting = Completer<Style>();
+
+    Future<Style> loadStyle() {
+      styleLoads++;
+      return waiting.future;
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ...offlineOverrides(
+            location: location,
+            heading: heading,
+            vehicleModeStore: vehicleModeStore,
+            api: api,
+          ),
+          openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
+        ],
+        child: const MaterialApp(home: MapWarmup(child: Text('App started'))),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(MapScreen), findsNothing);
+    expect(find.text('App started'), findsOneWidget);
+    expect(styleLoads, 1);
+    expect(location.watches, 1);
+    expect(heading.watches, 1);
   });
 
   testWidgets('map style loading uses a skeleton and Retry reloads it', (
