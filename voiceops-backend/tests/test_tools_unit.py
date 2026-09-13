@@ -26,7 +26,7 @@ def test_tool_definitions():
     """Verify tool definitions are registered."""
     tools = get_tools()
     assert isinstance(tools, list)
-    assert len(tools) == 11
+    assert len(tools) == 13
     tool_names = [t["name"] for t in tools]
     assert "call_customer" in tool_names
     assert "notify_customer" in tool_names

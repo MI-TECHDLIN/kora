@@ -1,6 +1,6 @@
 """
 VoiceOps Tool Registry
-Contains all 11 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
+Contains all 13 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
 """
 from typing import Dict, Any, List
 from app.agents.tools.delivery import (
@@ -8,6 +8,8 @@ from app.agents.tools.delivery import (
     update_delivery_status,
     log_exception,
     get_next_order,
+    accept_order,
+    decline_order,
     get_shift_summary
 )
 from app.agents.tools.navigation import (
@@ -164,10 +166,44 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "get_next_order",
-            "description": "Get the next order in the queue from Onfleet. Trigger phrases: 'next order in queue', 'what's coming after this', 'next job'",
+            "description": "Get the next new order waiting for a driver: the one offered to this driver, else the nearest unassigned one. Trigger phrases: 'next order in queue', 'what's coming after this', 'next job', 'any new orders'",
             "parameters": {
                 "type": "object",
                 "properties": {},
+                "required": []
+            }
+        },
+        {
+            "type": "function",
+            "name": "accept_order",
+            "description": "Accept the new order offered to the driver; it becomes the last stop on their run. Call only after the driver says yes. Trigger phrases: 'yes, I'll take it', 'accept', 'add it to my run'",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID. Omit to accept the order currently offered to the driver"
+                    }
+                },
+                "required": []
+            }
+        },
+        {
+            "type": "function",
+            "name": "decline_order",
+            "description": "Decline the new order offered to the driver; it goes to the next nearest driver. Call only after the driver says no. Trigger phrases: 'no', 'pass', 'decline it', 'I can't take it'",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID. Omit to decline the order currently offered to the driver"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Why the driver passed, if they said"
+                    }
+                },
                 "required": []
             }
         },
@@ -234,6 +270,8 @@ TOOL_EXECUTORS = {
     "call_customer": call_customer,
     "notify_customer": notify_customer,
     "get_next_order": get_next_order,
+    "accept_order": accept_order,
+    "decline_order": decline_order,
     "get_shift_summary": get_shift_summary,
     "alert_dispatcher": alert_dispatcher,
     "show_screen": show_screen

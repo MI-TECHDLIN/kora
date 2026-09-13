@@ -278,6 +278,124 @@ async def get_shift_deliveries(shift_id: str) -> List[Dict[str, Any]]:
         return []
 
 
+# ---------------------------------------------------------------------------- order dispatch
+# A new order is a `deliveries` row with shift_id NULL and one of these statuses until a driver
+# accepts it; acceptance sets shift_id and flips it to `pending` (docs/contracts/interface.md §3).
+OPEN_ORDER_STATUSES = ("offered", "unassigned")
+
+
+async def get_delivery_by_external_id(source: str, external_id: str) -> Optional[Dict[str, Any]]:
+    """The delivery a platform's order already became, if any (Order Intake is idempotent)."""
+    response = (
+        get_supabase().table("deliveries")
+        .select("*")
+        .eq("source", source)
+        .eq("external_id", external_id)
+        .limit(1)
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+async def insert_incoming_order(fields: Dict[str, Any]) -> Dict[str, Any]:
+    """Store a new, unassigned order (shift_id NULL). `fields` must carry an OPEN_ORDER_STATUSES status."""
+    response = get_supabase().table("deliveries").insert({**fields, "shift_id": None}).execute()
+    return response.data[0] if response.data else {}
+
+
+async def set_open_order_status(delivery_id: str, status: str) -> Dict[str, Any]:
+    """Move an order between `offered` and `unassigned`; never touches an order a driver has."""
+    response = (
+        get_supabase().table("deliveries")
+        .update({"status": status})
+        .eq("id", delivery_id)
+        .is_("shift_id", "null")
+        .execute()
+    )
+    return response.data[0] if response.data else {}
+
+
+async def assign_order_to_shift(delivery_id: str, shift_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Give an open order to a shift as its last stop: shift_id set, status `pending`, next
+    sequence_order. Returns None when the order is no longer open (someone else got it).
+    """
+    last = (
+        get_supabase().table("deliveries")
+        .select("sequence_order")
+        .eq("shift_id", shift_id)
+        .order("sequence_order", desc=True, nullsfirst=False)
+        .limit(1)
+        .execute()
+    )
+    last_sequence = (last.data[0].get("sequence_order") if last.data else None) or 0
+    response = (
+        get_supabase().table("deliveries")
+        .update({"shift_id": shift_id, "status": "pending", "sequence_order": last_sequence + 1})
+        .eq("id", delivery_id)
+        .is_("shift_id", "null")
+        .in_("status", list(OPEN_ORDER_STATUSES))
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+async def get_open_orders() -> List[Dict[str, Any]]:
+    """Orders no driver has yet, oldest first (reloaded into the dispatcher on startup)."""
+    response = (
+        get_supabase().table("deliveries")
+        .select("*")
+        .is_("shift_id", "null")
+        .in_("status", list(OPEN_ORDER_STATUSES))
+        .order("created_at")
+        .execute()
+    )
+    return response.data or []
+
+
+async def get_active_driver_positions() -> List[Dict[str, Any]]:
+    """
+    Every active shift with its driver's name and latest GPS ping: the dispatch candidates.
+    `latitude` / `longitude` / `pinged_at` are None for a shift with no ping yet.
+    """
+    supabase = get_supabase()
+    shifts = (
+        supabase.table("shifts")
+        .select("id, driver_id, started_at, drivers(name)")
+        .eq("status", "active")
+        .execute()
+    ).data or []
+    if not shifts:
+        return []
+
+    # Newest first, so the first ping seen per shift is its latest. PostgREST has no DISTINCT ON;
+    # at fleet scale this wants a view or RPC instead of the row cap.
+    pings = (
+        supabase.table("location_pings")
+        .select("shift_id, latitude, longitude, pinged_at")
+        .in_("shift_id", [s["id"] for s in shifts])
+        .order("pinged_at", desc=True)
+        .limit(1000)
+        .execute()
+    ).data or []
+    latest: Dict[str, Dict[str, Any]] = {}
+    for ping in pings:
+        latest.setdefault(ping["shift_id"], ping)
+
+    positions = []
+    for shift in shifts:
+        ping = latest.get(shift["id"]) or {}
+        positions.append({
+            "driver_id": shift["driver_id"],
+            "shift_id": shift["id"],
+            "driver_name": (shift.get("drivers") or {}).get("name"),
+            "latitude": ping.get("latitude"),
+            "longitude": ping.get("longitude"),
+            "pinged_at": ping.get("pinged_at"),
+        })
+    return positions
+
+
 async def create_shift(driver_id: str) -> Dict[str, Any]:
     """Create a new shift."""
     response = (

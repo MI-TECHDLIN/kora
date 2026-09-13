@@ -43,6 +43,26 @@ sealed class VoiceEvent {
         text: field('text'),
       ),
       'reply_done' => const ReplyDoneEvent(),
+      'order_offer' => OrderOfferEvent(
+        orderId: field('order_id'),
+        area: field('area'),
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        distanceKm: (json['distance_km'] as num?)?.toDouble(),
+        timeWindow: json['time_window'] as String?,
+        packageCount: (json['package_count'] as num?)?.toInt(),
+        expiresInSeconds: (json['expires_in_s'] as num?)?.toInt() ?? 0,
+      ),
+      'order_offer_closed' => OrderOfferClosedEvent(
+        orderId: field('order_id'),
+        outcome: OrderOfferOutcome.values.firstWhere(
+          (outcome) => outcome.name == json['outcome'],
+          orElse: () => throw FormatException(
+            'order_offer_closed: invalid "outcome"',
+            json,
+          ),
+        ),
+      ),
       'error' => ErrorEvent(
         code: field('code'),
         message: json['message'] as String? ?? '',
@@ -109,6 +129,40 @@ class TranscriptEvent extends VoiceEvent {
 
 class ReplyDoneEvent extends VoiceEvent {
   const ReplyDoneEvent();
+}
+
+/// A time-boxed delivery offered to this driver. Privacy is deliberate:
+/// before acceptance the server sends only [area], never the recipient or
+/// full street address (docs/contracts/interface.md §1).
+class OrderOfferEvent extends VoiceEvent {
+  const OrderOfferEvent({
+    required this.orderId,
+    required this.area,
+    required this.latitude,
+    required this.longitude,
+    required this.distanceKm,
+    required this.timeWindow,
+    required this.packageCount,
+    required this.expiresInSeconds,
+  });
+
+  final String orderId;
+  final String area;
+  final double? latitude;
+  final double? longitude;
+  final double? distanceKm;
+  final String? timeWindow;
+  final int? packageCount;
+  final int expiresInSeconds;
+}
+
+enum OrderOfferOutcome { accepted, declined, expired, withdrawn }
+
+class OrderOfferClosedEvent extends VoiceEvent {
+  const OrderOfferClosedEvent({required this.orderId, required this.outcome});
+
+  final String orderId;
+  final OrderOfferOutcome outcome;
 }
 
 /// `code` ∈ `auth_failed | session_expired | upstream_unavailable |

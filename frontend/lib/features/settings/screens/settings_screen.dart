@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../providers/map_style_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
@@ -15,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicleMode = ref.watch(vehicleModeProvider);
+    final mapStyle = ref.watch(mapStyleProvider);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -44,11 +46,33 @@ class SettingsScreen extends ConsumerWidget {
                 runSpacing: VoiceOpsSpacing.sm,
                 children: [
                   for (final mode in VehicleMode.values)
-                    _VehicleModeChoice(
-                      mode: mode,
+                    _Choice(
+                      label: mode.label,
+                      icon: mode.icon,
                       selected: mode == vehicleMode,
                       onTap: () =>
                           ref.read(vehicleModeProvider.notifier).select(mode),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: VoiceOpsSpacing.lg),
+            Text('MAP STYLE', style: VoiceOpsText.caption),
+            const SizedBox(height: VoiceOpsSpacing.sm),
+            GlassCard(
+              key: const Key('map-style-selector'),
+              padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+              child: Wrap(
+                spacing: VoiceOpsSpacing.sm,
+                runSpacing: VoiceOpsSpacing.sm,
+                children: [
+                  for (final style in MapStyle.values)
+                    _Choice(
+                      label: style.label,
+                      icon: style.icon,
+                      selected: style == mapStyle,
+                      onTap: () =>
+                          ref.read(mapStyleProvider.notifier).select(style),
                     ),
                 ],
               ),
@@ -76,14 +100,17 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _VehicleModeChoice extends StatelessWidget {
-  const _VehicleModeChoice({
-    required this.mode,
+/// One pill in a single-choice row (vehicle mode, map style).
+class _Choice extends StatelessWidget {
+  const _Choice({
+    required this.label,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
-  final VehicleMode mode;
+  final String label;
+  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -92,7 +119,7 @@ class _VehicleModeChoice extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: mode.label,
+      label: label,
       excludeSemantics: true,
       child: InkWell(
         borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
@@ -122,14 +149,14 @@ class _VehicleModeChoice extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                mode.icon,
+                icon,
                 size: VoiceOpsSize.iconMd,
                 color: selected
                     ? VoiceOpsColors.primaryLight
                     : VoiceOpsColors.textMuted,
               ),
               const SizedBox(width: VoiceOpsSpacing.sm),
-              Text(mode.label, style: VoiceOpsText.label),
+              Text(label, style: VoiceOpsText.label),
             ],
           ),
         ),

@@ -17,6 +17,7 @@ import 'auth_provider.dart';
 import 'call_provider.dart';
 import 'map_route_provider.dart';
 import 'navigation_provider.dart';
+import 'order_offer_provider.dart';
 import 'push_to_talk_provider.dart';
 import 'shift_provider.dart';
 import 'summary_stream_provider.dart';
@@ -196,6 +197,25 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     return true;
   }
 
+  /// Answers the visible order card over the existing voice WebSocket.
+  /// The backend invokes the same tool handler as a spoken answer, without
+  /// asking AssemblyAI to interpret a synthetic voice turn.
+  bool respondToOrderOffer(String orderId, {required bool accept}) {
+    final socket = _socket;
+    if (socket == null || state.connection != VoiceConnection.connected) {
+      _setIssue("Voice is offline, so the order couldn't be answered.");
+      return false;
+    }
+    _ref.read(orderOfferProvider.notifier).markResponding(orderId);
+    socket.sendText(
+      jsonEncode({
+        'event': accept ? 'accept_order' : 'decline_order',
+        'order_id': orderId,
+      }),
+    );
+    return true;
+  }
+
   /// Hides the current issue (the banner's dismiss).
   void dismissIssue() =>
       state = VoiceSessionState(connection: state.connection);
@@ -210,6 +230,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _closeSocket();
     await _playback.stop();
     if (!mounted) return;
+    _ref.read(orderOfferProvider.notifier).clear();
     _ptt.set(PushToTalkState.idle);
     state = const VoiceSessionState();
   }
@@ -331,6 +352,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _answerWatchdog?.cancel();
     await _stopMic();
     if (!mounted) return;
+    // The backend immediately reassigns an offer when this socket leaves.
+    // A reconnect will receive it again if this driver still owns it.
+    _ref.read(orderOfferProvider.notifier).clear();
     // No reply_done can arrive on a closed socket, so nothing else would
     // free push-to-talk.
     _ptt.set(PushToTalkState.idle);
@@ -429,6 +453,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         if (role == SpeakerRole.driver) _muted = false;
       case ReplyDoneEvent():
         _onReplyDone();
+      case OrderOfferEvent():
+        _ref.read(orderOfferProvider.notifier).show(event);
+      case OrderOfferClosedEvent(:final orderId, :final outcome):
+        _ref.read(orderOfferProvider.notifier).close(orderId, outcome);
       case ErrorEvent():
         _onError(event);
     }
@@ -462,6 +490,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   void _onError(ErrorEvent error) {
     if (error.isFatal) _rejected = true;
+    _ref.read(orderOfferProvider.notifier).responseFailed();
     _setIssue(
       error.message.isNotEmpty
           ? error.message

@@ -131,7 +131,7 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
 | **n8n Automation Engine** | 🟢 **100% Live** | **Live** | 3 production workflows with background fire-and-forget triggers. Tested and operational against local/remote n8n webhooks. |
 | **Twilio (Voice & SMS)** | 🟡 **Partially Live** | **Live Credentials Ready** | Twilio client configured for voice bridge calls (`call_customer`) and SMS (`notify_customer`). Works live with valid Twilio credentials; falls back safely when credentials missing. |
 | **Google Maps API** | 🟡 **Partially Live** | **Live + Fallback** | Directions API queries for real traffic times and navigation deep-links (`google.navigation:q=`). Falls back to mock Lagos coordinates if API key is not present. |
-| **Onfleet Logistics** | 🟡 **Partially Live** | **Mock Adapter Default** | Provides realistic mock data for 7 Lagos deliveries (addresses, notes, recipient names). Adapter interface ready for live Onfleet API key integration. |
+| **Onfleet Logistics** | 🟡 **Partially Live** | **Mock Adapter Default** | `LogisticsAdapter` + `MockAdapter` (`app/integrations/logistics/`): a random new-order feed (every 3-7 min) in downtown Austin, the demo area, shaped as Order Intake API payloads. No Onfleet adapter yet. |
 
 ---
 
@@ -165,6 +165,10 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
   - Sends a welcoming HTML feature overview email to the new driver explaining all hands-free capabilities.
   - Notifies operations team on Email and Slack.
 - [x] **Non-Blocking Background Task Engine**: Module-level GC-anchored task execution (`_background_tasks`) ensuring n8n webhooks never introduce latency to voice or REST responses.
+- [x] **New-Order Dispatch** (`app/dispatch/order_dispatch.py`):
+  - A logistics platform pushes orders to `POST /v1/logistics/orders` (HMAC-signed), or the MockAdapter's feed generates them.
+  - Each order is offered to the nearest driver with an open voice session (straight-line distance from their latest GPS ping). The co-rider announces it unprompted (`reply.create`), and the driver answers with `accept_order` / `decline_order`. A decline, a lapsed offer, or a disconnect moves it to the next-nearest online driver. With nobody online it waits unassigned until a driver connects.
+  - Needs the "Order dispatch" section of `supabase_schema.sql`. `scripts/push_demo_order.py` sends one signed order on demand.
 - [x] **Native WebSocket Full-Duplex Relay** (`WS /ws/voice/{shift_id}`, `app/api/websocket/voice.py`):
   - Streams PCM16 both ways between the app and the AssemblyAI Voice Agent API, authenticated with the same bearer token as REST.
   - Mirrors tool calls to the app as UI events (`screen_navigate`, `map_route`, `task_step`, `call_started`, ...). The event contract is `docs/contracts/interface.md` §1 at the repo root.
@@ -201,7 +205,7 @@ VoiceOps ensures conversational fluidity on the road by executing LLM tool calls
 
 ## 🛠 Voice Agent Tool Registry
 
-All 11 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/app/agents/tool_registry.py):
+All 13 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projects/Assembly%20Ai%20hackathon/voiceops-backend/app/agents/tool_registry.py):
 
 ```python
 [
@@ -212,7 +216,9 @@ All 11 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
     "start_navigation",        # Route drawn on the in-app map
     "call_customer",           # Masked Twilio bridge call
     "notify_customer",         # SMS arrival alert
-    "get_next_order",          # View queued tasks
+    "get_next_order",          # The new order offered to the driver, else the queue
+    "accept_order",            # Take the offered order onto this shift
+    "decline_order",           # Pass it to the next-nearest driver
     "get_shift_summary",       # Live progress: "How am I doing?"
     "alert_dispatcher",        # Priority escalation to n8n
     "show_screen"              # Open an app screen by voice (map, settings, summary)
@@ -243,6 +249,9 @@ All 11 tools are registered in [`app/agents/tool_registry.py`](file:///d:/Projec
 ### Parallel Tool Dispatch (`/v1/tools`)
 - `POST /v1/tools/execute-parallel` — Executes a batch of tools concurrently using `asyncio.gather()`. Returns timing telemetry, tool results, and validates under-500ms response SLA.
 - `POST /v1/tools/benchmark` — Compares sequential vs `asyncio.gather()` parallel tool execution side-by-side, displaying latency reduction and speedup factor.
+
+### Logistics (`/v1/logistics`)
+- `POST /v1/logistics/orders` — Order Intake API: a logistics platform pushes a new order (`X-VoiceOps-Signature` HMAC, no driver JWT). Shape in `docs/contracts/interface.md` §2.
 
 ### Voice Agent (`/v1`)
 - `POST /v1/voice-agent` — REST turn-based voice interaction with audio (PCM16 24kHz). Concurrently runs multiple tool calls using `asyncio` task scheduling.
@@ -306,6 +315,13 @@ TWILIO_PHONE_NUMBER=your_twilio_number
 
 # Google Maps
 GOOGLE_MAPS_API_KEY=your_google_maps_key
+
+# Order dispatch (optional; defaults shown)
+LOGISTICS_WEBHOOK_SECRET=shared_secret_for_order_intake   # unset: POST /v1/logistics/orders is off
+ORDER_FEED_ENABLED=true                  # MockAdapter's random order feed
+ORDER_FEED_MIN_INTERVAL_SECONDS=180
+ORDER_FEED_MAX_INTERVAL_SECONDS=420
+ORDER_OFFER_WINDOW_SECONDS=75
 
 # n8n Webhook URLs
 N8N_DISPATCHER_WEBHOOK_URL=http://localhost:5678/webhook/dispatcher-alert

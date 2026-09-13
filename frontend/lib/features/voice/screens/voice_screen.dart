@@ -127,9 +127,14 @@ class _MapPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact =
+        MediaQuery.sizeOf(context).height < VoiceOpsMap.compactHeight;
+
     return SizedBox(
       key: const Key('map-preview'),
-      height: MediaQuery.sizeOf(context).height * 0.45,
+      height: compact
+          ? VoiceOpsSize.mapPreviewCompact
+          : VoiceOpsSize.mapPreview,
       width: double.infinity,
       child: DecoratedBox(
         decoration: const BoxDecoration(
@@ -147,7 +152,7 @@ class _MapPreview extends StatelessWidget {
             Positioned(
               top: VoiceOpsSpacing.lg,
               left: VoiceOpsSpacing.gutter,
-              right: VoiceOpsSpacing.gutter,
+              right: VoiceOpsSize.orbVoice + VoiceOpsSpacing.lg,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -168,24 +173,25 @@ class _MapPreview extends StatelessWidget {
                 size: VoiceOpsSize.iconXl,
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: VoiceOpsSpacing.md),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MascotDisplay(
-                      state: state,
-                      size: VoiceOpsSize.orbHero,
-                      material: OrbMaterial.chrome,
-                    ),
-                    Text(
-                      state.label ?? 'Your co-rider is ready',
-                      style: VoiceOpsText.label,
-                    ),
-                  ],
-                ),
+            Positioned(
+              right: VoiceOpsSpacing.md,
+              bottom: VoiceOpsSpacing.md,
+              width: VoiceOpsSize.orbVoice,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MascotDisplay(
+                    state: state,
+                    size: VoiceOpsSize.orbVoice,
+                    material: OrbMaterial.chrome,
+                  ),
+                  Text(
+                    state.label ?? 'Your co-rider is ready',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: VoiceOpsText.label,
+                  ),
+                ],
               ),
             ),
           ],

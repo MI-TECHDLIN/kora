@@ -76,14 +76,15 @@ calling, and TTS. Do not decompose it into separate service calls.
 
 ---
 
-## The 11 Tools
+## The 13 Tools
 
 `get_next_delivery`, `update_delivery_status`, `log_exception`,
 `get_best_route`, `start_navigation`, `call_customer`, `notify_customer`,
-`get_next_order`, `get_shift_summary`, `alert_dispatcher`, `show_screen`
+`get_next_order`, `accept_order`, `decline_order`, `get_shift_summary`,
+`alert_dispatcher`, `show_screen`
 
 Exact input/output JSON shapes and handler signatures are defined in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.1, generated from the
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.4, generated from the
 running code). The Flutter-facing WebSocket, REST, status-enum, and auth
 contract is `docs/contracts/interface.md`. Those documents are the
 contract. Do not invent or alter a tool shape — if the reference is
@@ -101,18 +102,22 @@ These are product features, not nice-to-haves. Preserve them:
 - auto-announce the next stop when a delivery completes
 - proactive ETA updates
 - brief the driver on stops that have prior failure history
+- announce a new order offer unprompted (built: the relay sends AssemblyAI
+  `reply.create` at a quiet moment, `app/api/websocket/voice.py`)
 
 ---
 
 ## Logistics Adapter
 
 ```
-LogisticsAdapter (abstract base)
-├── OnfleetAdapter    — primary, OAuth
-└── MockAdapter       — fallback, seeded Lagos data (7+ deliveries)
+LogisticsAdapter (abstract base)   app/integrations/logistics/
+├── OnfleetAdapter    — primary, OAuth (not built)
+└── MockAdapter       — demo order feed, downtown Austin
 ```
 
 - Never call Onfleet directly from a tool handler — go through the adapter
+- New orders enter through the adapter's feed or `POST /v1/logistics/orders`,
+  and `app/dispatch/order_dispatch.py` offers each to the nearest driver
 - If you change the base class, update `MockAdapter` in the same change
 - `MockAdapter` must stay functional; it is the demo safety net
 
@@ -185,18 +190,11 @@ tracked here so nobody mistakes the docs for a description of built code.
 Where a string or comment needs changing, it waits for the joint Ez +
 backend-owner review session.
 
-- **WebSocket relay** `WS /ws/voice/{shift_id}` emitting the
-  `docs/contracts/interface.md` §1 events. Today there is only the REST
-  harness `POST /v1/voice-agent`
-- **Parallel orchestrator** (`asyncio.gather(..., return_exceptions=True)`).
-  Also correct the backend README's Features line, which claims it is done
-- **`LogisticsAdapter` / `OnfleetAdapter` / `MockAdapter`**. None exist yet.
-  Tool handlers return inline mocks
-- **JWT on the voice path.** The tool context is hardcoded today. Mount the
-  unregistered `driver` / `deliveries` / `shift` routers
-- **`start_navigation`** emits `map_route` for in-app rendering instead of a
-  Google Maps deep link. Also update the "deeplink" docstrings in
-  `navigation.py` and `config.py`
+- **`OnfleetAdapter`**. Not built. `LogisticsAdapter` and `MockAdapter` cover
+  new orders only; `get_next_delivery` and `update_delivery_status` still
+  return inline mocks
+- **REST harness** `POST /v1/voice-agent` still hardcodes its tool context and
+  sends each `tool.result` before `reply.done`. The WS relay is the real path
 - **System prompt and greeting** say "voice assistant" / "VoiceOps
   assistant". The locked term is **co-rider** (`agent_config.py`)
 
