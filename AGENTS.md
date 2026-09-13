@@ -93,7 +93,7 @@ Both layers must remain in the codebase.
 
 ---
 
-## The 10 Agent Tools
+## The 11 Agent Tools
 
 | Tool | What it does | Platform |
 |---|---|---|
@@ -107,9 +107,10 @@ Both layers must remain in the codebase.
 | `get_next_order` | Fetch upcoming orders | Onfleet / MockAdapter |
 | `get_shift_summary` | Summarise current shift stats | Supabase |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
+| `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.0, generated from the running
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.1, generated from the running
 code). The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.

@@ -1,12 +1,13 @@
 # VoiceOps: Agent Tools Reference
 
-> **v2.0, generated from code 2026-09-11.** Every argument shape, enum, and result field below
-> was read from `app/agents/tool_registry.py` and `app/agents/tools/{delivery,navigation,communication}.py`
-> on `features/backend/assemblyai-voice-agent`. That code is the only thing that has actually run
-> against AssemblyAI. This edition supersedes the earlier "reconstructed edition". The code's own
-> header cites "Agent Tools Reference v1.0", and that original was never recovered.
+> **v2.1, 2026-09-12.** v2.0 was generated from code on 2026-09-11. Every argument shape, enum,
+> and result field below was read from `app/agents/tool_registry.py` and
+> `app/agents/tools/{delivery,navigation,communication}.py`. v2.1 adds the WebSocket relay's
+> wiring and context, the in-app `start_navigation` result (§5), and position-aware routing
+> (§4), and adds an 11th tool, `show_screen` (§11). This edition supersedes the earlier "reconstructed edition". The code's own header cites
+> "Agent Tools Reference v1.0", and that original was never recovered.
 
-This document is the **contract** for the 10 agent tools, together with
+This document is the **contract** for the 11 agent tools, together with
 `docs/contracts/interface.md`. The AssemblyAI Voice Agent calls these tools by name with these
 exact argument shapes. A drifted shape gives you an agent that works in testing and misfires in
 the demo.
@@ -27,10 +28,13 @@ Each section is split in two:
 1. At session start the backend sends AssemblyAI a `session.update` whose `tools` array is
    `get_tools()`. Each entry is `{"type": "function", "name", "description", "parameters": <JSON Schema>}`.
 2. AssemblyAI emits `{"type": "tool.call", "name", "call_id", "arguments": {…}}`.
-3. The backend runs `execute_tool(name, arguments, context)`, then replies with
+3. The backend runs `execute_tool(name, arguments, context)` as soon as the call arrives. On
+   that turn's `reply.done` it replies with
    `{"type": "tool.result", "call_id", "result": "<JSON string>", "is_error": bool}`.
-   `is_error` is true whenever the result dict contains `error`.
-4. The Voice Agent LLM speaks from the result.
+   AssemblyAI accepts results only after `reply.done`. `is_error` is true whenever the result
+   dict contains an `error` key, even an empty one.
+4. The Voice Agent LLM speaks from the result. Meanwhile the WebSocket relay mirrors the call to
+   the app as UI events (`docs/contracts/interface.md` §1, "What emits each event").
 
 ---
 
@@ -43,16 +47,21 @@ async def handler(parameters: dict, context: dict) -> dict:
     ...
 ```
 
-`context` is a plain dict built per session in `app/api/routes/voice_agent.py`:
+`context` is a plain dict built once per voice session by the WebSocket relay
+(`app/api/websocket/voice.py`). The REST harness `app/api/routes/voice_agent.py` still builds a
+hardcoded one.
 
 | Key | Meaning |
 |---|---|
-| `driver_id` | authenticated driver. **Code today:** the session id, not a JWT subject |
-| `driver_name` | spoken name (read by `alert_dispatcher`) |
-| `shift_id` | current shift. **Code today:** the session id |
-| `session_id` | voice session id |
-| `current_delivery` | `{id, recipient_name, address, customer_phone, notes, time_window}`. The delivery the driver is on. **Code today:** hardcoded demo row |
-| `location` | optional driver location string (read by `alert_dispatcher`) |
+| `driver_id` | authenticated driver, the Supabase user id from the bearer token |
+| `driver_name` | spoken name (read by `alert_dispatcher`). From the `drivers` row, else the auth metadata |
+| `vehicle_type` | `drivers.vehicle_type`, or `null` |
+| `shift_id` | the socket's shift, checked to belong to `driver_id` |
+| `session_id` | the `voice_sessions` row id, or `null` if it could not be created |
+| `current_delivery` | `{id, recipient_name, address, customer_phone, notes, time_window, latitude, longitude, sequence}`. The delivery the driver is on. It starts as the shift's next pending delivery from Supabase, and a successful `get_next_delivery` replaces it |
+| `deliveries` | `{delivery_id: stop}` for every delivery this session has seen, in the `map_route` stop shape. The navigation tools read destinations from it |
+| `latitude`, `longitude` | the driver's last known position: the latest `location_pings` row for the shift, refreshed before each routing tool. Absent until the app posts a ping |
+| `location` | optional driver location string (read by `alert_dispatcher`). The relay doesn't set it |
 
 **Target:** a typed `ToolContext` (`driver_id` from the JWT, `shift_id`, `adapter:
 LogisticsAdapter`, `db`, `session: aiohttp.ClientSession`), with handlers typed
@@ -109,16 +118,17 @@ replaces the free text with one of these codes:
 `asyncio.gather(*[dispatch(c) for c in tool_calls], return_exceptions=True)`. One failing tool
 must not sink the whole response. Every handler needs a timeout.
 
-**Code today, not built:** each `tool.call` event is dispatched on its own, as it arrives, through
-`execute_tool`. There is no orchestrator that gathers several calls. The `_drain_until_reply_done`
-docstring's "executes tools in parallel" is aspirational, and so is the backend README's
-"asyncio.gather() for sub-500ms" claim (see the open-backend-tasks note in
-`.firstmate/rules/backend.md`). Only the Directions call (10 s) and the n8n webhook (5 s) have
-timeouts.
+**Code today, built in the WebSocket relay.** Each `tool.call` starts as an asyncio task as
+soon as it arrives. On `reply.done` the relay runs `asyncio.gather(..., return_exceptions=True)`
+over that turn's tasks and sends every `tool.result`. Each call has a 10 s budget
+(`TOOL_TIMEOUT` in `voice.py`). A call that runs over it returns
+`{"success": false, "error": "<tool> took too long to respond."}`. The REST harness
+`voice_agent.py` still sends each result as its tool finishes, before `reply.done`, which
+AssemblyAI's protocol does not allow.
 
 ---
 
-## The 10 Tools
+## The 11 Tools
 
 ### 1. `get_next_delivery`
 
@@ -266,10 +276,14 @@ The origin is the driver's current position. Destination coordinates come from t
 `all_routes[].distance` is in metres and `duration` is in seconds (raw from Directions). When
 Directions returns nothing, the tool still succeeds:
 `{"success": true, "has_faster_route": false, "best_route": {"summary": "Current route", "duration_mins": 14}, "time_saved_mins": 0, "destination_address": "…"}`.
-The `polyline` of the chosen route feeds the `map_route` event (`interface.md` §1).
+The `polyline` of the fastest entry in `all_routes` feeds the `map_route` event (`interface.md` §1).
 
-**Gap:** origin and destination are mock coordinates. The Directions call is real when
-`GOOGLE_MAPS_API_KEY` is set, and it has a 10 s timeout.
+The origin is `context.latitude` / `longitude` (the latest GPS ping). The destination is the
+delivery's coordinates from `context.deliveries` or `context.current_delivery`. **Gap:** either
+one falls back to mock coordinates when the session doesn't know it: origin `6.44, 3.39`,
+destination `22 Victoria Island Drive`. The Directions call is real when `GOOGLE_MAPS_API_KEY`
+is set, with an 8 s client timeout. Without a key it returns one mock route whose `polyline`
+is a real straight-line encoding.
 
 ---
 
@@ -287,22 +301,36 @@ Start navigation to the delivery. *Triggers: "navigate", "take me there", "get d
 |---|---|---|
 | `delivery_id` | string | yes |
 
-**Result fields (code today):**
+**Result fields:**
 ```json
 {
   "success": true,
-  "action": "open_navigation",
-  "navigation_url": "https://www.google.com/maps/dir/?api=1&destination=6.4286,3.4108&travelmode=driving",
+  "delivery_id": "uuid",
   "address": "22 Victoria Island Drive",
-  "message": "Navigation opening to 22 Victoria Island Drive."
+  "latitude": 6.4286,
+  "longitude": 3.4108,
+  "route": {
+    "polyline": "<Google encoded overview polyline>",
+    "summary": "Victoria Bridge",
+    "distance_km": 3.2,
+    "duration_mins": 11,
+    "duration_text": "11 mins"
+  },
+  "message": "Route to 22 Victoria Island Drive is on your map: 11 mins via Victoria Bridge."
 }
 ```
 
-**Contract:** navigation happens inside the app. The backend pushes `screen_navigate` (`map`)
-and a `map_route` event (`interface.md` §1), and the Flutter map draws the route. The
-`action` / `navigation_url` deep link is a prototype leftover. The frontend must not launch
-it, because leaving the app breaks "drivers never touch their phone" (PRD §1). Switching the
-handler over is a backend task for the Ez + backend-owner review session.
+`route` is the fastest Directions route from the driver's position, in exactly the `map_route`
+route fields. `distance_km` is rounded to one decimal place and `duration_mins` is whole
+minutes. `route` is `null` when Directions returns nothing, and then the message is
+"<address> is on your map." The origin and destination come from the same place as in
+`get_best_route` (§4).
+
+**Contract:** navigation happens inside the app. For this tool the relay pushes
+`screen_navigate` (`map`) and a `map_route` event built from `route` (`interface.md` §1), and
+the Flutter map draws the route. There is no deep link. Before 2026-09-12 the handler returned
+`action: "open_navigation"` and a Google Maps `navigation_url`. Both are gone, because leaving
+the app breaks "drivers never touch their phone" (PRD §1).
 
 ---
 
@@ -337,6 +365,9 @@ prototype calls Twilio. The shapes below don't depend on the provider.
 ```
 
 `call_sid` is the provider's call id, and it becomes `call_id` in the `call_started` event.
+The relay sends `call_ended` when the driver sends `end_call`, which also hangs up a real call,
+or when polling the provider shows the call has finished. A mock call (`mock-call-…`) ends only
+on `end_call` or when the socket closes.
 Failure example: `{"success": false, "error": "No customer phone number on file."}`. Without
 provider credentials or a from-number, the handler returns a mock success with
 `"call_sid": "mock-call-<delivery_id>"`.
@@ -483,7 +514,43 @@ and alerts land in the `dispatcher_alerts` table.
 
 ---
 
-## Parallel Call Example (target)
+### 11. `show_screen`
+
+Open one of the app's screens when no other tool would. *Triggers: "open the map", "where am
+I", "zoom to my location" (`map`), "show my vehicle", "my profile" (`settings`), "show my
+summary" (`summary`), "go home" (`voice`).*
+**Platform:** internal. The relay emits `screen_navigate` with this screen.
+
+Added 2026-09-12. The routing tools already open the map, and `call_customer` opens the call
+overlay. Without this tool, nothing could take the driver to `settings` (where the app shows
+the driver's vehicle from `GET /v1/driver/profile`) or open the map on their live position when
+there is no route. It adds no WebSocket event. It reuses `screen_navigate` and its frozen
+`screen` enum.
+
+**Arguments:**
+```json
+{ "screen": "settings" }
+```
+
+| Arg | Type | Required | Values |
+|---|---|---|---|
+| `screen` | string | yes | `voice` \| `map` \| `summary` \| `settings`. Exactly `screen_navigate.screen` in `interface.md` §1 |
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "screen": "settings",
+  "message": "Opening your profile and settings."
+}
+```
+
+Any other `screen` returns `{"success": false, "error": "Unknown screen 'x'. Use one of: voice, map, summary, settings."}`,
+and no event is sent.
+
+---
+
+## Parallel Call Example
 
 > Driver: *"Call the customer, check the best route, and get my next order."*
 
@@ -497,15 +564,16 @@ results = await asyncio.gather(
 ```
 
 Three tools fire at once, and the Voice Agent composes one spoken response from all three
-results. The end-to-end target is 200–500 ms. **Not built yet** (see Execution Model).
+results. The end-to-end target is 200–500 ms. The WS relay does this with one task per
+`tool.call`, gathered on `reply.done` (see Execution Model).
 
 ---
 
-## Proactive Behaviours (orchestrator-level, not tools; not built yet)
+## Proactive Behaviours (orchestrator-level, not tools; mostly not built)
 
 | Behaviour | Trigger |
 |---|---|
-| Announce next stop | `update_delivery_status` returns `success: true` |
+| Announce next stop | `update_delivery_status` returns `success: true`. **Code today:** a system-prompt instruction asks the agent to call `get_next_delivery` after a delivery, so the next stop is spoken and drawn on the map. There is no orchestrator-side chaining |
 | Proactive ETA update | `get_best_route` shows `has_faster_route` or a material delay |
 | Prior-failure briefing | `get_next_delivery` flags a prior failure (field still to be added) |
 

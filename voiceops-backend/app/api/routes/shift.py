@@ -11,9 +11,17 @@ from app.db.queries import (
 )
 from app.integrations.n8n_client import trigger_post_shift_report_background
 from app.intelligence.lemur_pipeline import run_shift_intelligence
+from app.api.websocket.voice import stream_summary
 
 
 router = APIRouter()
+
+
+async def run_shift_intelligence_and_stream(shift_id: str, driver_id: str) -> dict:
+    """Run the LeMUR pipeline, then stream its summary to the shift's open voice socket."""
+    result = await run_shift_intelligence(shift_id, driver_id)
+    await stream_summary(shift_id, result.get("analysis", {}).get("executive_summary", ""))
+    return result
 
 
 class ShiftStartResponse(BaseModel):
@@ -63,7 +71,7 @@ async def end_shift(
         sessions = await get_shift_voice_sessions(shift_id)
 
         # 1. Trigger AssemblyAI LeMUR speech analysis pipeline in background
-        background_tasks.add_task(run_shift_intelligence, shift_id, current_user.get("id"))
+        background_tasks.add_task(run_shift_intelligence_and_stream, shift_id, current_user.get("id"))
 
         # 2. Trigger n8n post-shift intelligence notification
         trigger_post_shift_report_background(
@@ -127,6 +135,6 @@ async def analyze_shift_lemur(
     Extracts executive summary, driver sentiment, route issues, and recommendations.
     Persists structured intelligence report directly into Supabase.
     """
-    result = await run_shift_intelligence(shift_id, driver_id=current_user.get("id"))
+    result = await run_shift_intelligence_and_stream(shift_id, current_user.get("id"))
     return result
 

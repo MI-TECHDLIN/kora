@@ -1,6 +1,8 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
-**Version:** 1.0 (draft), 2026-09-11
+**Version:** 1.1 (draft), 2026-09-12. 1.1 records the built WebSocket relay (§1), the
+`start_navigation` result change, the `show_screen` tool, and the nullable fields listed under
+"Changes in 1.1".
 **Status:** DRAFT. It is frozen once Ez (frontend) and the backend owner both sign it off in the
 PR that lands it. Until then, treat every cross-layer field as unfrozen.
 **Authored from:** the running backend on `features/backend/assemblyai-voice-agent`
@@ -26,12 +28,13 @@ This file covers four things: (1) the WebSocket message catalogue, (2) the REST 
 | Binary frames | audio only: PCM16 little-endian, mono, **24 kHz** |
 | Ownership | one socket per app session, owned by a single Riverpod provider (`frontend.md`) |
 
-**Code today:** no WebSocket route exists. `app/api/websocket/` is absent and the include is
-commented out in `app/main.py`. The only voice path is the REST prototype
-`POST /v1/voice-agent` (§2), and it emits none of the events below. The backend README
-documents the path as `/ws/voice/{shift_id}?token={jwt}`. This contract keeps that path but
-moves the token into the `Authorization` header so REST and WS share one auth scheme
-(`contracts.md` § Auth). Building the relay is an open backend task.
+**Code today:** built. The route is `app/api/websocket/voice.py`, mounted in `app/main.py`,
+with event builders in `app/api/websocket/events.py` and tests in
+`voiceops-backend/tests/test_voice_ws.py`. The token goes in the `Authorization` header, not
+the `?token=` query the backend README used to describe, so REST and WS share one auth scheme
+(`contracts.md` § Auth). The socket must be for a shift that belongs to the authenticated
+driver. Any other shift gets `auth_failed`. The REST prototype `POST /v1/voice-agent` (§2)
+still exists as a test harness and emits none of these events.
 
 ### Client → server
 
@@ -91,14 +94,78 @@ outputs:
 }
 ```
 
+`stops` holds the one stop being routed to. When Directions returns no route, `map_route`
+still arrives with the stop: `polyline` is `""` and `summary`, `distance_km`,
+`duration_mins`, and `duration_text` are `null`. The client drops the pin and skips the line.
+Without a Google key, the backend's mock route is a straight line from the driver to the stop.
+It is a real encoded polyline.
+
 **Navigation renders in-app.** `map_route` together with `screen_navigate: map` is the whole
 navigation contract. The Flutter map draws the route itself (SDD §4.5), and the app never hands
-off to an external maps app. Code today: the prototype's `start_navigation` returns a Google
-Maps deep-link URL (`navigation_url`). The frontend must ignore it. Changing the handler to
-emit `map_route` is a backend task, scheduled for the Ez + backend-owner review session.
+off to an external maps app. `start_navigation` returns route data, not a deep link (Tools
+Reference §5).
 
 **Privacy.** No server event carries a full customer phone number (`backend.md` § Security).
 `call_started` carries the name only.
+
+### What emits each event
+
+The relay maps AssemblyAI's upstream events and the agent's tool calls onto the catalogue
+above. Tool calls in one turn run concurrently from the moment each `tool.call` arrives. The
+relay gathers them on the turn's `reply.done`, because AssemblyAI takes `tool.result` only
+after that.
+
+| Source | Events sent to the app, in order |
+|---|---|
+| `reply.audio` | binary audio frame |
+| `transcript.user` | `transcript` (`driver`), then `agent_state: thinking` |
+| `transcript.agent` | `transcript` (`agent`) |
+| any `tool.call` | `agent_state` (mood below), `task_step` `active` … `task_step` `done` |
+| `get_next_delivery` (has a next stop) | `screen_navigate: map`, `map_route` (route from the driver to that stop) |
+| `get_best_route` | `screen_navigate: map`, `map_route` (the fastest of `all_routes`) |
+| `start_navigation` | `screen_navigate: map`, `map_route` (from the result's `route`) |
+| `call_customer` (success) | `call_started`, then `call_ended` on the driver's `end_call` or when the provider reports the call finished |
+| `update_delivery_status` → `delivered` | `agent_state: celebrating` |
+| `get_shift_summary` | `agent_state: summarizing`, `screen_navigate: summary`, `summary_chunk`s of the tool's `message` |
+| `show_screen` | `screen_navigate` with the requested screen |
+| shift end (`POST /v1/shift/{id}/end`) | the same summary sequence, carrying the LeMUR `executive_summary`, then `agent_state: idle`. It goes to every socket open on that shift |
+| `reply.done` (no tool calls that turn) | `reply_done`, then `agent_state: idle` |
+| `reply.done` (tool calls that turn) | nothing. The agent speaks again once it has the results, and that reply ends with `reply_done` |
+| `session.error`, upstream drop, `session.ended` | `error` (`upstream_timeout` for AssemblyAI's `agent_timeout`, otherwise `upstream_unavailable`), then close |
+
+Tool moods: `mapping` for `get_next_delivery`, `get_best_route`, and `start_navigation`.
+`calling` for `call_customer`. `summarizing` for `get_shift_summary`. `task` for the rest.
+Each `task_step.step` is a fixed label per tool, for example "Checking delivery route" for
+`get_best_route` (`TOOL_STEPS` in `events.py`). A failed tool still ends `done`, because the
+enum has no failed state. The spoken reply says what failed.
+
+`summary_chunk`s split the text at sentence boundaries. Concatenating every chunk's `text` in
+order restores it exactly, whitespace included.
+
+`call_started.sequence` is `null` when the backend doesn't know the stop number for that
+delivery. `end_call` for a `call_id` the backend doesn't know still gets a `call_ended` back,
+so a stale overlay can close.
+
+**Close codes.** `1008` after `auth_failed` or `session_expired`. `1011` after an upstream or
+`internal` error. `1000` when the client closes. An unknown or malformed client frame gets
+`error` / `invalid_message` and the socket stays open.
+
+### Driver position and vehicle
+
+Neither needs a new server event. A voice request for either comes through the `show_screen`
+tool (Tools Reference §11), which emits the existing `screen_navigate`.
+
+- **Live position** comes from the phone's GPS. The map shows it client-side (`geolocator`,
+  planned in `AGENTS.md`). When there is no active route, the map screen follows the driver.
+  When a `map_route` arrives, the camera fits the stop and the driver together. If the app
+  posts `POST /v1/deliveries/location` pings, the relay uses the latest ping as the route origin
+  for the routing tools. Otherwise the origin falls back to a mock position.
+- **Vehicle details** are `vehicle_type` and `name` on the driver row, returned by
+  `GET /v1/driver/profile` (§2). The relay puts the driver's name and vehicle into the agent's
+  system prompt, so the co-rider can answer "what am I riding?" out loud. "Show my vehicle"
+  sends `screen_navigate: settings`, and the settings screen renders the profile's vehicle.
+- **"Zoom to my location" / "where am I"** sends `screen_navigate: map` with no `map_route`
+  after it. The map screen then centres on the driver's live position.
 
 ---
 
@@ -121,9 +188,10 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 unauthenticated, single-shot, and runs with a hardcoded driver context. The app uses the §1
 WebSocket.
 
-**Written but not mounted.** The modules `app/api/routes/{driver,deliveries,shift}.py` are
-imported in `main.py` but never passed to `include_router`, so these paths return 404 today.
-The paths are the ones the backend README documents:
+**Also mounted.** `app/main.py` includes the `driver`, `deliveries`, and `shift` routers too.
+Until 2026-09-12 they failed with a 500 after auth, because `get_current_driver` returned a
+Supabase `User` object that the routes indexed as a dict. It now returns a dict. These paths
+match the backend README:
 
 | Method | Path | Request | Response |
 |---|---|---|---|
@@ -188,10 +256,30 @@ Authorization: Bearer <access_token>
   `"Invalid authorization header format"`, or `"Invalid or expired token"`. Over the WebSocket, a
   rejected token closes the socket after an `error` event with code `auth_failed`, or
   `session_expired` if the token expires mid-session.
-- **Code today:** the voice path does not check a JWT at all. `voice_agent.py` hardcodes the
-  driver context and carries the comment "In production this comes from JWT auth". The unused
-  `jwt_secret` / `HS256` settings in `config.py` are not part of this contract, because
+- **Code today:** `authenticate_bearer` in `app/dependencies.py` validates for both REST and
+  the WebSocket. The WS relay builds the tool context from the authenticated driver. Only the
+  REST test harness `voice_agent.py` still hardcodes a driver context. The relay reads the
+  token's `exp` claim, after Supabase has validated the token, to time `session_expired`. The
+  unused `jwt_secret` / `HS256` settings in `config.py` are not part of this contract, because
   validation goes through Supabase. No refresh endpoint exists yet (open item 4).
+
+---
+
+## Changes in 1.1
+
+These change shapes that 1.0 already described. The frontend must handle them.
+
+| Change | Old | New |
+|---|---|---|
+| `map_route` when Directions returns no route | unspecified | `polyline: ""`, and `summary` / `distance_km` / `duration_mins` / `duration_text` are `null` |
+| `call_started.sequence` | always a number | `null` when the stop number is unknown |
+| `start_navigation` result (Tools Reference §5) | `action`, `navigation_url` deep link | `delivery_id`, `address`, `latitude`, `longitude`, `route` (the `map_route` route fields, or `null`) |
+
+Additive in 1.1: the `show_screen` tool (Tools Reference §11), which emits the existing
+`screen_navigate`.
+
+Everything else in 1.1 documents behaviour that 1.0 had left open: when `reply_done` fires,
+close codes, and the source of each event.
 
 ---
 
@@ -200,9 +288,10 @@ Authorization: Bearer <access_token>
 1. **Turn signalling on push-to-talk release.** No source defines one. The proposal is a
    `{"event": "ptt_release"}` client message, so the backend can end the turn without waiting for
    voice-activity detection. Adopt or drop it at sign-off.
-2. **Parallel tool execution** (`asyncio.gather`) is required by `backend.md` and is not built.
-   Today each `tool.call` is dispatched on its own. This doesn't change any shape here, but
-   `task_step` streams assume several steps can be `active` at once.
+2. **Parallel tool execution** is built in the WS relay. Each `tool.call` starts as it
+   arrives, and the turn's calls are gathered with `asyncio.gather` on `reply.done`. Several
+   `task_step`s can therefore be `active` at once. Nothing is left to decide here unless the
+   owners want to reword `backend.md`.
 3. The comms-provider events (`call_started` / `call_ended`) are deliberately provider-neutral
    while the comms stack is undecided.
 4. **Token refresh.** `otp/verify` returns a `refresh_token`, but there is no backend refresh

@@ -185,6 +185,33 @@ async def get_shift_stats(shift_id: str) -> Dict[str, Any]:
         }
 
 
+async def get_shift_by_id(shift_id: str) -> Optional[Dict[str, Any]]:
+    """Get a shift row. Errors propagate so callers can tell "missing" from "DB down"."""
+    if not is_valid_uuid(shift_id):
+        return None
+    response = get_supabase().table("shifts").select("*").eq("id", shift_id).execute()
+    if response.data:
+        return response.data[0]
+    return None
+
+
+async def get_latest_location(shift_id: str) -> Optional[Dict[str, Any]]:
+    """Get the most recent GPS ping for a shift."""
+    if not is_valid_uuid(shift_id):
+        return None
+    response = (
+        get_supabase().table("location_pings")
+        .select("latitude, longitude, pinged_at")
+        .eq("shift_id", shift_id)
+        .order("pinged_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if response.data:
+        return response.data[0]
+    return None
+
+
 async def get_intelligence_report_by_shift(shift_id: str) -> Optional[Dict[str, Any]]:
     """Get intelligence report for a shift."""
     if not is_valid_uuid(shift_id):
