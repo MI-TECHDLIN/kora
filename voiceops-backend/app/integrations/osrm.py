@@ -1,78 +1,12 @@
 """
 OSRM (Open Source Routing Machine) Integration
 Provides turn-by-turn driving directions, route geometry, distance, and duration.
-
-`get_directions` backs the get_best_route / start_navigation tools (all routes, raw metres and
-seconds, encoded polylines for the in-app map). `osrm_client` backs routing_service.
 """
 import logging
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional
 import httpx
-from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-_http_client: Optional[httpx.AsyncClient] = None
-
-
-def _get_client() -> httpx.AsyncClient:
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(timeout=8.0)
-    return _http_client
-
-
-async def get_directions(
-    origin_lat: float,
-    origin_lng: float,
-    dest_lat: float,
-    dest_lng: float
-) -> List[Dict[str, Any]]:
-    """
-    Fetch driving directions from OSRM (`OSRM_BASE_URL`, the public demo by default).
-
-    Returns:
-        List of route dicts, fastest first: {summary, distance (metres), duration (seconds),
-        polyline (Google encoded polyline, precision 5)}. Empty when there is no route or
-        OSRM can't be reached.
-    """
-    # OSRM takes coordinates as lng,lat
-    coordinates = f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
-    url = f"{settings.osrm_base_url.rstrip('/')}/route/v1/driving/{coordinates}"
-
-    params = {
-        "alternatives": "true",
-        "overview": "full",
-        "geometries": "polyline",
-        # A leg's summary (its main road names) is only filled in when steps are requested
-        "steps": "true",
-    }
-
-    try:
-        client = _get_client()
-        response = await client.get(url, params=params)
-        # OSRM reports a failed lookup (NoRoute, NoSegment) as HTTP 400 with a JSON `code`
-        data = response.json()
-        if data.get("code") != "Ok":
-            if data.get("code") != "NoRoute":
-                logger.warning(f"[OSRM] Routing error: {data.get('code')} {data.get('message', '')}")
-            return []
-
-        routes = []
-        for route in data.get("routes", []):
-            leg = route.get("legs", [{}])[0]
-            routes.append({
-                "summary": leg.get("summary") or "Route",
-                "distance": round(route.get("distance", 0)),
-                "duration": round(route.get("duration", 0)),
-                "polyline": route.get("geometry", "")
-            })
-
-        return routes
-
-    except Exception as e:
-        logger.warning(f"[OSRM] Request failed: {e}")
-        return []
 
 
 class OSRMClient:

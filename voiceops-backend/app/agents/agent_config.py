@@ -30,29 +30,14 @@ Available tools:
 - start_navigation: Start navigation to delivery location
 - call_customer: Call the customer via phone
 - notify_customer: Send SMS notification to customer
-- get_next_order: Get the next new order waiting for a driver
-- accept_order: Accept the new order offered to the driver
-- decline_order: Decline the new order offered to the driver, so it goes to the next nearest driver
+- get_next_order: Get the next order in the queue
 - get_shift_summary: Get shift statistics and progress
 - alert_dispatcher: Alert dispatcher with priority message
-- show_screen: Open an app screen (map, settings for the driver's vehicle and profile, summary, voice)
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
-Routes and stops appear on the driver's in-app map automatically when you use get_next_delivery, get_best_route, or start_navigation. Never tell the driver to open another maps app.
-
-After a delivery is marked delivered, call get_next_delivery and announce the next stop.
-
-New orders can be offered to the driver at any time, and you will be told when one is. Announce it briefly and ask whether they will take it. Call accept_order when they say yes and decline_order when they say no. Never accept or decline an order without the driver's answer.
-
 Be concise and helpful in your responses."""
-
-    driver_facts = [f"The driver's name is {driver_name}."]
-    if vehicle_type and vehicle_type != "vehicle":
-        driver_facts.append(f"They ride a {vehicle_type}.")
-    if next_stop_info:
-        driver_facts.append(f"Their current stop: {next_stop_info}.")
-    return f"{system_prompt}\n\n{' '.join(driver_facts)}"
+    return system_prompt
 
 
 def get_agent_greeting() -> str:
@@ -71,34 +56,48 @@ def get_audio_config() -> Dict[str, Any]:
         "output": {
             "format": {
                 "encoding": "audio/pcm"
-            }
+            },
+            "voice": "anna"  # Specify voice for TTS
         }
     }
 
 
-def get_session_config(driver_id: str, shift_id: str,
-                     agent_id: Optional[str] = None,
-                     driver_name: str = "Driver", vehicle_type: str = "vehicle",
-                     next_stop_info: str = "") -> Dict[str, Any]:
+def get_session_config(driver_id: str, shift_id: str, 
+                     agent_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Build the complete session configuration for AssemblyAI Voice Agent.
-
+    
     Args:
         driver_id: Driver ID for context
         shift_id: Shift ID for context
         agent_id: Optional stored agent ID to use instead of inline config
-        driver_name: Driver's name (the voice WebSocket loads it from the drivers row)
-        vehicle_type: Driver's vehicle (drivers.vehicle_type)
-        next_stop_info: One-line description of the delivery the driver is on
-
+    
     Returns:
         Complete session configuration dictionary
     """
+    if agent_id:
+        # Use stored agent ID for proper AssemblyAI configuration
+        return {
+            "type": "session.update",
+            "session": {
+                "agent_id": agent_id
+            }
+        }
+    
+    # If no agent_id provided, use inline configuration
     # Import here to avoid circular dependency
     from app.agents.tool_registry import get_tools
     
+    # Build dynamic context with defaults (DB not connected yet)
+    driver_name = "Driver"
+    vehicle_type = "vehicle"
+    next_stop_info = ""
+    
+    # TODO: Fetch from DB when database is connected
+    # For now, use defaults
+    
     # Build inline configuration
-    session_config = {
+    return {
         "type": "session.update",
         "session": {
             "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
@@ -107,8 +106,3 @@ def get_session_config(driver_id: str, shift_id: str,
             "tools": get_tools()
         }
     }
-
-    if agent_id:
-        session_config["session"]["agent_id"] = agent_id
-
-    return session_config
