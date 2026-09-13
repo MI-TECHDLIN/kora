@@ -1,12 +1,12 @@
 """
 Navigation tools for VoiceOps agent.
 Tools: get_best_route, start_navigation, show_screen
-Platform: Google Directions API. Routes render in-app on the Flutter map: the voice
+Platform: OSRM (app/integrations/osrm.py). Routes render in-app on the Flutter map: the voice
 WebSocket turns these results into `screen_navigate` + `map_route` events. There is no
 external maps deep link.
 """
 from typing import Dict, Any, List, Optional, Tuple
-from app.integrations.google_maps import get_directions
+from app.integrations.osrm import get_directions
 
 
 # Used until the session knows the driver's position / the delivery's coordinates.
@@ -101,7 +101,7 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
     """
     Get the best route with traffic information.
 
-    Platform: Google Directions API (departure_time=now, alternatives=true, traffic_model=best_guess)
+    Platform: OSRM (alternatives=true). The public demo server has no live traffic
     Trigger phrases: "best route", "any traffic", "check my route", "faster way"
 
     Input:
@@ -132,7 +132,7 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
         stop = resolve_stop(delivery_id, context)
         destination_address = stop["address"]
 
-        # Call Google Directions API
+        # Call OSRM
         routes = await routes_to_stop(stop, context)
 
         if not routes:

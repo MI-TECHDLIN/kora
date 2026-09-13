@@ -158,7 +158,7 @@ because driver and agent turns are stored separately (`voice_sessions`).
 - External API calls need timeouts — none may block the voice loop
   indefinitely
 - Failures return structured errors the agent can speak, not stack traces
-- Respect rate limits on Onfleet, Google Directions, LiveKit, Vonage
+- Respect rate limits on Onfleet, OSRM (the public demo server is shared), LiveKit, Vonage
 - On a tool failure, the driver should hear what failed and what to do
   next
 

@@ -42,6 +42,8 @@ dependencies:
   vector_map_tiles: ^8.0.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
+  flutter_compass: ^0.8.1
+  shared_preferences: ^2.5.5
   # record 7.x needs Flutter >= 3.44; the captain's local SDK is older.
   record: ^6.2.1
   just_audio: ^0.10.5

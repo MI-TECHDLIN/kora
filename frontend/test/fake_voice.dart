@@ -9,8 +9,11 @@ import 'package:voiceops/core/audio/voice_playback.dart';
 import 'package:voiceops/core/audio/voice_recorder.dart';
 import 'package:voiceops/core/realtime/voice_socket.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
+import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/providers/location_provider.dart';
+import 'package:voiceops/providers/heading_provider.dart';
+import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
@@ -179,6 +182,31 @@ class FakeLocationSource implements LocationSource {
       opened.add(problem);
 }
 
+class FakeHeadingSource implements HeadingSource {
+  final _headings = StreamController<double>.broadcast();
+  int watches = 0;
+
+  void emit(double heading) => _headings.add(heading);
+
+  @override
+  Stream<double> watch() {
+    watches++;
+    return _headings.stream;
+  }
+}
+
+class FakeVehicleModeStore implements VehicleModeStore {
+  FakeVehicleModeStore([this.value]);
+
+  VehicleMode? value;
+
+  @override
+  Future<VehicleMode?> load() async => value;
+
+  @override
+  Future<void> save(VehicleMode mode) async => value = mode;
+}
+
 /// Everything a pumped app or screen needs to stay offline. Pass the fakes
 /// a test wants to script; the rest are fresh defaults.
 List<Override> offlineOverrides({
@@ -187,6 +215,8 @@ List<Override> offlineOverrides({
   FakePlayback? playback,
   FakeVoiceOpsApi? api,
   FakeLocationSource? location,
+  FakeHeadingSource? heading,
+  FakeVehicleModeStore? vehicleModeStore,
   bool backendConfigured = true,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
@@ -199,6 +229,10 @@ List<Override> offlineOverrides({
     voiceRecorderProvider.overrideWithValue(recorder ?? FakeRecorder()),
     voicePlaybackProvider.overrideWithValue(playback ?? FakePlayback()),
     locationSourceProvider.overrideWithValue(location ?? FakeLocationSource()),
+    headingSourceProvider.overrideWithValue(heading ?? FakeHeadingSource()),
+    vehicleModeStoreProvider.overrideWithValue(
+      vehicleModeStore ?? FakeVehicleModeStore(),
+    ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
   ];
 }

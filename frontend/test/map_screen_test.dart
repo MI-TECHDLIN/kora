@@ -1,17 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/map_route.dart';
 import 'package:voiceops/features/map/screens/map_screen.dart';
 import 'package:voiceops/features/map/widgets/map_markers.dart';
+import 'package:voiceops/features/map/widgets/map_warmup.dart';
+import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/settings/screens/settings_screen.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
+import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
 import 'fake_auth.dart';
 import 'fake_voice.dart';
@@ -26,11 +32,15 @@ void main() {
   setUpAll(disableGoogleFontsFetching);
 
   late FakeLocationSource location;
+  late FakeHeadingSource heading;
+  late FakeVehicleModeStore vehicleModeStore;
   late FakeVoiceOpsApi api;
   late ProviderContainer container;
 
   setUp(() {
     location = FakeLocationSource();
+    heading = FakeHeadingSource();
+    vehicleModeStore = FakeVehicleModeStore();
     api = FakeVoiceOpsApi(
       profile: const DriverProfile(
         id: 'driver-1',
@@ -50,7 +60,12 @@ void main() {
     addTearDown(tester.view.reset);
     container = ProviderContainer(
       overrides: [
-        ...offlineOverrides(location: location, api: api),
+        ...offlineOverrides(
+          location: location,
+          heading: heading,
+          vehicleModeStore: vehicleModeStore,
+          api: api,
+        ),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(signedIn: true),
         ),
@@ -80,10 +95,12 @@ void main() {
       MapCamera.of(tester.element(find.byType(MarkerLayer).first));
 
   /// [point] is on screen, below the top controls and clear of the bottom
-  /// sheet (attribution and card), where the driver can actually see it.
+  /// route card, where the driver can actually see it.
   void expectInClearView(WidgetTester tester, LatLng point) {
     final onScreen = camera(tester).latLngToScreenPoint(point);
-    final sheetTop = tester.getRect(find.textContaining('OpenFreeMap')).top;
+    final sheetTop = tester
+        .getRect(find.byKey(const Key('map-bottom-sheet')))
+        .top;
     final width = tester.view.physicalSize.width;
     expect(onScreen.x, inInclusiveRange(0, width), reason: '$point x');
     expect(
@@ -106,6 +123,7 @@ void main() {
     expect(find.text('NO ROUTE YET'), findsOneWidget);
     expect(find.byType(PolylineLayer), findsNothing);
     expect(find.byType(PositionMarker), findsNothing);
+    expect(find.textContaining('OpenFreeMap'), findsNothing);
     // Vehicle from GET /v1/driver/profile (faked).
     expect(find.text('Ada Obi'), findsOneWidget);
     expect(find.text('Motorbike'), findsOneWidget);
@@ -125,6 +143,22 @@ void main() {
     expect(
       tester.widget<PositionMarker>(find.byType(PositionMarker)).heading,
       90,
+    );
+
+    // Turning the phone while stopped updates the marker independently of
+    // the GPS course.
+    heading.emit(225);
+    await settle(tester);
+    expect(
+      tester.widget<PositionMarker>(find.byType(PositionMarker)).heading,
+      225,
+    );
+
+    container.read(vehicleModeProvider.notifier).select(VehicleMode.bicycle);
+    await settle(tester);
+    expect(
+      tester.widget<PositionMarker>(find.byType(PositionMarker)).vehicleMode,
+      VehicleMode.bicycle,
     );
   });
 
@@ -309,5 +343,91 @@ void main() {
       find.descendant(of: card, matching: find.text('Motorbike')),
       findsOneWidget,
     );
+    expect(find.byKey(const Key('map-source-credit')), findsOneWidget);
+    expect(find.textContaining('OpenStreetMap contributors'), findsOneWidget);
+    expect(find.byKey(const Key('vehicle-mode-selector')), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Bicycle'));
+    await settle(tester);
+    expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
+    expect(vehicleModeStore.value, VehicleMode.bicycle);
+
+    container.invalidate(vehicleModeProvider);
+    await settle(tester);
+    expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
+  });
+
+  testWidgets('map dependencies warm before the Map tab is built', (
+    tester,
+  ) async {
+    var styleLoads = 0;
+    final waiting = Completer<Style>();
+
+    Future<Style> loadStyle() {
+      styleLoads++;
+      return waiting.future;
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ...offlineOverrides(
+            location: location,
+            heading: heading,
+            vehicleModeStore: vehicleModeStore,
+            api: api,
+          ),
+          openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
+        ],
+        child: const MaterialApp(home: MapWarmup(child: Text('App started'))),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(MapScreen), findsNothing);
+    expect(find.text('App started'), findsOneWidget);
+    expect(styleLoads, 1);
+    expect(location.watches, 1);
+    expect(heading.watches, 1);
+  });
+
+  testWidgets('map style loading uses a skeleton and Retry reloads it', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final waiting = Completer<Style>();
+
+    Future<Style> loadStyle() {
+      attempts++;
+      if (attempts == 1) return Future.error(StateError('offline'));
+      return waiting.future;
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
+        ],
+        child: MaterialApp(
+          theme: buildVoiceOpsTheme(),
+          home: const Scaffold(body: OpenFreeMapLayer()),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Retry'), findsOneWidget);
+    expect(attempts, 1);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(attempts, 2);
+    expect(find.byKey(const Key('map-loading-skeleton')), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+  });
+
+  test('the detailed OpenFreeMap Liberty style is selected', () {
+    expect(openFreeMapStyleUrl, endsWith('/styles/liberty'));
+    expect(openFreeMapLayerMode, VectorTileLayerMode.vector);
+    expect(openFreeMapTileSubstitutionLevels, 3);
   });
 }
