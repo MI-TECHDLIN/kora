@@ -1,9 +1,12 @@
 """
 Delivery tools for VoiceOps agent — wired to live Supabase.
-Tools: get_next_delivery, update_delivery_status, log_exception, get_next_order, get_shift_summary
+Tools: get_next_delivery, update_delivery_status, log_exception, get_next_order, accept_order,
+decline_order, get_shift_summary
 """
 import logging
 from typing import Dict, Any
+
+from app.dispatch.order_dispatch import get_order_dispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -247,41 +250,63 @@ async def log_exception(parameters: dict, context: dict) -> dict:
 
 async def get_next_order(parameters: dict, context: dict) -> dict:
     """
-    Get the next order in the queue (second pending delivery after current).
+    Get the next order waiting for a driver from the order dispatcher's live queue:
+    the order offered to this driver, else the nearest unassigned one.
 
     Trigger phrases: "next order in queue", "what's coming after this", "next job"
     """
     try:
-        from app.db.queries import get_shift_deliveries
-
-        shift_id = context.get("shift_id")
-        if not shift_id:
-            return {"success": True, "has_next": False, "message": "No active shift."}
-
-        deliveries = await get_shift_deliveries(shift_id)
-        pending = [d for d in deliveries if d.get("status") == "pending"]
-
-        # Skip the first pending (current), return the second
-        if len(pending) < 2:
-            return {
-                "success": True,
-                "has_next": False,
-                "message": "No further deliveries queued after the current stop.",
-            }
-
-        nxt = pending[1]
-        return {
-            "success": True,
-            "has_next": True,
-            "delivery_id": nxt["id"],
-            "recipient_name": nxt.get("recipient_name", "Customer"),
-            "address": nxt.get("address", ""),
-            "notes": nxt.get("notes", ""),
-            "sequence_order": nxt.get("sequence_order"),
-        }
+        found = get_order_dispatcher().next_order_for(
+            context.get("driver_id"), context.get("latitude"), context.get("longitude"))
+        if not found:
+            return {"success": True, "has_next": False, "message": "No new orders are waiting right now."}
+        if found["offered_to_you"]:
+            message = (f"Order offered to you: {found['address']}, {found['distance_km']:.1f} km away. "
+                       "Accept or decline it.")
+        else:
+            message = (f"Next order in the queue: {found['address']}, {found['distance_km']:.1f} km away. "
+                       "It is not assigned to anyone yet.")
+        # sequence_order: an order has no place on a run until a driver accepts it
+        return {"success": True, "has_next": True, **found, "sequence_order": None, "message": message}
 
     except Exception as e:
         logger.error(f"[Tool:get_next_order] {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def accept_order(parameters: dict, context: dict) -> dict:
+    """
+    Accept a new order: it becomes the last pending stop on the driver's shift.
+    order_id is optional and defaults to the order currently offered to the driver.
+
+    Trigger phrases: "yes, I'll take it", "accept", "add it to my run"
+    """
+    try:
+        if not context.get("driver_id") or not context.get("shift_id"):
+            return {"success": False, "error": "No active shift to add the order to."}
+        return await get_order_dispatcher().accept(
+            context["driver_id"], context["shift_id"], parameters.get("order_id"))
+
+    except Exception as e:
+        logger.error(f"[Tool:accept_order] {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def decline_order(parameters: dict, context: dict) -> dict:
+    """
+    Decline the order offered to the driver: it goes to the next-nearest free driver.
+    order_id is optional and defaults to the order currently offered to the driver.
+
+    Trigger phrases: "no", "pass", "decline it", "I can't take it"
+    """
+    try:
+        if not context.get("driver_id"):
+            return {"success": False, "error": "No driver on this session."}
+        return await get_order_dispatcher().decline(
+            context["driver_id"], parameters.get("order_id"), parameters.get("reason"))
+
+    except Exception as e:
+        logger.error(f"[Tool:decline_order] {e}")
         return {"success": False, "error": str(e)}
 
 
