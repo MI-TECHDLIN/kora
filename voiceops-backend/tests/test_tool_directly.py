@@ -1,6 +1,6 @@
 """
 Direct tool testing without AssemblyAI Voice Agent.
-Tests each tool individually with mock parameters.
+Tests all 13 tools individually with mock parameters.
 """
 import sys
 import os
@@ -41,9 +41,9 @@ async def run_tool_test(tool_name: str, parameters: dict):
 
 
 async def main():
-    """Test all tools."""
+    """Test all 13 tools."""
     print("=" * 60)
-    print("VoiceOps - Direct Tool Testing")
+    print("VoiceOps - Direct Tool Testing (All 13 Tools)")
     print("=" * 60)
     
     # Test 1: get_next_delivery
@@ -89,18 +89,34 @@ async def main():
     # Test 8: get_next_order
     await run_tool_test("get_next_order", {})
     
-    # Test 9: get_shift_summary
+    # Test 9: accept_order
+    await run_tool_test("accept_order", {
+        "order_id": ""
+    })
+    
+    # Test 10: decline_order
+    await run_tool_test("decline_order", {
+        "order_id": "",
+        "reason": "Already running late, can't take more orders"
+    })
+    
+    # Test 11: get_shift_summary
     await run_tool_test("get_shift_summary", {})
     
-    # Test 10: alert_dispatcher
+    # Test 12: alert_dispatcher
     await run_tool_test("alert_dispatcher", {
         "delivery_id": "mock-delivery-789",
         "message": "Customer is being aggressive. Need support at 14 Broad Street.",
         "priority": "urgent"
     })
     
+    # Test 13: show_screen
+    await run_tool_test("show_screen", {
+        "screen": "map"
+    })
+    
     print("\n" + "=" * 60)
-    print("All tools tested successfully!")
+    print("All 13 tools tested successfully!")
     print("=" * 60)
 
 
