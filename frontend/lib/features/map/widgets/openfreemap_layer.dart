@@ -4,27 +4,47 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../providers/map_style_provider.dart';
 import 'map_chip.dart';
 
-/// OpenFreeMap's maintained, detail-rich style: free OpenStreetMap vector
-/// tiles, no API key or billing account (https://openfreemap.org).
-const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
-const openFreeMapLayerMode = VectorTileLayerMode.vector;
-const openFreeMapTileSubstitutionLevels = 3;
+/// Raster mode renders each tile to an image once; a pinch then only scales
+/// images. Vector mode re-renders every visible tile's geometry on every
+/// zoom frame, which measured 20-40x the per-frame cost and janked zooming.
+/// flutter_map keeps loaded parent/child tiles on screen until the next zoom
+/// level's tiles are ready, so raster mode needs no substitution knob.
+const openFreeMapLayerMode = VectorTileLayerMode.raster;
 
-typedef MapStyleLoader = Future<Style> Function();
+typedef MapStyleLoader = Future<Style> Function(MapStyle style);
 
 /// Split out so the loading and retry paths can be exercised without network.
 final openFreeMapStyleLoaderProvider = Provider<MapStyleLoader>(
   (ref) =>
-      () => StyleReader(uri: openFreeMapStyleUrl).read(),
+      (style) => StyleReader(uri: style.url).read(),
 );
 
-/// The style, its tile sources and sprites, fetched once per app run.
+/// Each style, with its tile sources and sprites, fetched once per app run.
 /// vector_map_tiles caches the tiles themselves on disk.
-final openFreeMapStyleProvider = FutureProvider<Style>(
-  (ref) => ref.watch(openFreeMapStyleLoaderProvider)(),
-);
+final openFreeMapStyleProvider = FutureProvider.family<Style, MapStyle>((
+  ref,
+  mapStyle,
+) async {
+  final style = await ref.watch(openFreeMapStyleLoaderProvider)(mapStyle);
+  return Style(
+    name: style.name,
+    // Every OpenFreeMap style parses with the same theme id ("default").
+    // vector_map_tiles keys its rendered-tile disk cache, sprite atlas and
+    // tile widgets by that id, so without a unique one a switch would show
+    // the other style's cached tiles.
+    theme: style.theme.copyWith(id: openFreeMapThemeId(mapStyle)),
+    providers: style.providers,
+    sprites: style.sprites,
+    center: style.center,
+    zoom: style.zoom,
+  );
+});
+
+String openFreeMapThemeId(MapStyle style) =>
+    'openfreemap-${style.openFreeMapName}';
 
 /// The base map under the route and markers. Tests override this so no
 /// style or tile request leaves the machine.
@@ -32,35 +52,38 @@ final baseMapLayerProvider = Provider<Widget>(
   (ref) => const OpenFreeMapLayer(),
 );
 
-/// OpenFreeMap tiles as a flutter_map layer. A branded map skeleton remains
-/// behind the tiles while they fill the viewport; if the style fails, a chip
-/// offers a real provider refresh.
+/// The driver's chosen OpenFreeMap style as a flutter_map layer, over the
+/// style's own ground colour. A branded skeleton in the same palette shows
+/// while the style loads; if it fails, a chip offers a real provider refresh.
 class OpenFreeMapLayer extends ConsumerWidget {
   const OpenFreeMapLayer({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mapStyle = ref.watch(mapStyleProvider);
     return ref
-        .watch(openFreeMapStyleProvider)
+        .watch(openFreeMapStyleProvider(mapStyle))
         .when(
           skipLoadingOnRefresh: false,
           data: (style) => Stack(
             fit: StackFit.expand,
             children: [
-              const MapLoadingSkeleton(),
+              ColoredBox(
+                key: const Key('map-ground'),
+                color: mapStyle.ground,
+              ),
               VectorTileLayer(
+                // A new layer per style: nothing rendered for the previous
+                // style (tiles, caches) survives a switch.
+                key: ValueKey(mapStyle),
                 theme: style.theme,
                 sprites: style.sprites,
                 tileProviders: style.providers,
-                // Vector mode can retain rendered ancestor/child tiles while
-                // the next zoom level arrives. Raster mode ignores this knob.
                 layerMode: openFreeMapLayerMode,
-                maximumTileSubstitutionDifference:
-                    openFreeMapTileSubstitutionLevels,
               ),
             ],
           ),
-          loading: () => const MapLoadingSkeleton(),
+          loading: () => MapLoadingSkeleton(style: mapStyle),
           error: (error, _) => Align(
             alignment: Alignment.center,
             child: Padding(
@@ -69,7 +92,8 @@ class OpenFreeMapLayer extends ConsumerWidget {
                 icon: TablerIcons.map2,
                 message: "The map didn't load. Your route still works.",
                 actionLabel: 'Retry',
-                onAction: () => ref.invalidate(openFreeMapStyleProvider),
+                onAction: () =>
+                    ref.invalidate(openFreeMapStyleProvider(mapStyle)),
               ),
             ),
           ),
@@ -77,20 +101,23 @@ class OpenFreeMapLayer extends ConsumerWidget {
   }
 }
 
-/// A quiet street-grid placeholder, using the app's map palette instead of a
-/// blank canvas or bare spinner.
+/// A quiet street-grid placeholder in the chosen map style's palette, instead
+/// of a blank canvas or bare spinner. Only while the style loads: under live
+/// tiles, a static fake street grid would show through as a second map.
 class MapLoadingSkeleton extends StatelessWidget {
-  const MapLoadingSkeleton({super.key});
+  const MapLoadingSkeleton({super.key, required this.style});
+
+  final MapStyle style;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Map loading',
-      child: const ExcludeSemantics(
+      child: ExcludeSemantics(
         child: ColoredBox(
-          key: Key('map-loading-skeleton'),
-          color: VoiceOpsColors.canvas,
-          child: CustomPaint(painter: _StreetGridPainter()),
+          key: const Key('map-loading-skeleton'),
+          color: style.ground,
+          child: CustomPaint(painter: _StreetGridPainter(dark: style.isDark)),
         ),
       ),
     );
@@ -98,12 +125,16 @@ class MapLoadingSkeleton extends StatelessWidget {
 }
 
 class _StreetGridPainter extends CustomPainter {
-  const _StreetGridPainter();
+  const _StreetGridPainter({required this.dark});
+
+  final bool dark;
 
   @override
   void paint(Canvas canvas, Size size) {
     final minor = Paint()
-      ..color = VoiceOpsColors.divider
+      ..color = dark
+          ? VoiceOpsColors.divider
+          : VoiceOpsColors.mapSkeletonLightRoad
       ..strokeWidth = VoiceOpsMap.skeletonRoadWidth
       ..style = PaintingStyle.stroke;
     final major = Paint()
@@ -111,7 +142,9 @@ class _StreetGridPainter extends CustomPainter {
       ..strokeWidth = VoiceOpsMap.skeletonMainRoadWidth
       ..style = PaintingStyle.stroke;
     final buildings = Paint()
-      ..color = VoiceOpsColors.elevated
+      ..color = dark
+          ? VoiceOpsColors.elevated
+          : VoiceOpsColors.mapSkeletonLightBlock
       ..style = PaintingStyle.fill;
 
     for (final rect in <Rect>[
@@ -167,5 +200,6 @@ class _StreetGridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StreetGridPainter oldDelegate) =>
+      oldDelegate.dark != dark;
 }

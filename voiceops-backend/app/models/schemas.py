@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import datetime
 
 
@@ -32,3 +32,38 @@ class SendOTPRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     phone: str
     token: str
+
+
+# Order Intake API: what a logistics platform sends to POST /v1/logistics/orders
+# (docs/contracts/interface.md §2). The MockAdapter's order feed builds the same payload.
+
+class OrderRecipient(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+
+
+class OrderDropoff(BaseModel):
+    address: str = Field(..., min_length=1)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+
+
+class OrderTimeWindow(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class OrderDetails(BaseModel):
+    recipient: OrderRecipient
+    dropoff: OrderDropoff
+    notes: Optional[str] = None
+    time_window: Optional[OrderTimeWindow] = None
+    package_count: Optional[int] = Field(None, ge=1)
+
+
+class OrderCreatedEvent(BaseModel):
+    event: Literal["order.created"]
+    source: str = Field(..., min_length=1, max_length=100, description="The sending platform")
+    external_id: str = Field(..., min_length=1, max_length=100, description="The platform's order id")
+    created_at: Optional[datetime] = None
+    order: OrderDetails

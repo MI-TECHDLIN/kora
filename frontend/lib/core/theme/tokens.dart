@@ -46,6 +46,18 @@ class VoiceOpsColors {
   // ── Lines ────────────────────────────────────────────────────────────
   static const divider = Color(0x14FFFFFF); // white @ 8%
   static const scrim = Color(0xB307060B); // canvas @ 70%
+
+  // ── Map grounds ──────────────────────────────────────────────────────
+  // Each OpenFreeMap style's own `background` colour, painted under its
+  // tiles: a tile still rendering mid-zoom reads as bare map, not a ghost of
+  // another palette.
+  static const mapGroundDark = Color(0xFF0C0C0C); // styles/dark
+  static const mapGroundLight = Color(0xFFF2F3F0); // styles/positron
+  static const mapGroundDetailed = Color(0xFFF8F4F0); // styles/liberty
+
+  // Loading skeleton on a light map; the dark map reuses the surfaces.
+  static const mapSkeletonLightBlock = Color(0x0F000000); // black @ 6%
+  static const mapSkeletonLightRoad = Color(0xFFFFFFFF);
 }
 
 /// Restrained glass. Readability and 60fps on a mid-range Android come
@@ -205,9 +217,16 @@ class VoiceOpsSize {
   static const pushToTalk = 88.0;
   static const pushToTalkMin = 80.0;
 
+  /// Main driver-screen map preview heights. The compact height keeps the
+  /// operational cards reachable on short phones without crowding the orb.
+  static const mapPreview = 288.0;
+  static const mapPreviewCompact = 224.0;
+
   /// Co-rider orb sizes. [orbOnboarding] is the Hook screen's waking orb;
-  /// the welcome screen after it settles back to the smaller [orbHero].
+  /// [orbVoice] is the active co-rider on the driver screen, and the welcome
+  /// screen settles back to the smaller [orbHero].
   static const orbOnboarding = 220.0;
+  static const orbVoice = 180.0;
   static const orbHero = 150.0;
   static const orbBubble = 60.0;
   static const orbBubbleSmall = 40.0;
@@ -238,7 +257,7 @@ class VoiceOpsMap {
   static const headingRing = 38.0;
   static const headingArrow = 12.0;
 
-  /// Branded street-grid placeholder shown until OpenFreeMap has a frame.
+  /// Branded street-grid placeholder shown while the map style loads.
   static const skeletonRoadWidth = 5.0;
   static const skeletonMainRoadWidth = 12.0;
 
@@ -280,6 +299,10 @@ class VoiceOpsMotion {
 
   /// How long a snackbar notice stays up: long enough to read two lines.
   static const notice = Duration(seconds: 8);
+
+  /// Order-offer countdown refresh. The server remains authoritative for
+  /// closing an offer; this only keeps the displayed seconds moving.
+  static const countdownTick = Duration(seconds: 1);
 
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubic;
