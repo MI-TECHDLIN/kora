@@ -15,9 +15,11 @@ import os
 import json
 import asyncio
 import numpy as np
+import requests
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.config import settings
 from app.agents.agent_config import get_session_config
@@ -93,13 +95,13 @@ async def _drain_until_reply_done(
         elapsed = asyncio.get_event_loop().time() - start_time
         
         if elapsed > timeout:
-            print(f"[VoiceOps] ⚠️ Drain timed out after {elapsed:.1f}s")
+            print(f"[VoiceOps] WARNING: Drain timed out after {elapsed:.1f}s")
             break
 
         try:
             response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
         except asyncio.TimeoutError:
-            print(f"[VoiceOps] ⚠️ No message received for 5s, ending drain")
+            print(f"[VoiceOps] WARNING: No message received for 5s, ending drain")
             break
 
 
@@ -136,7 +138,7 @@ async def _drain_until_reply_done(
             tool_call_id = data.get("call_id")
             tool_arguments = data.get("arguments", {})
             tool_was_called = True
-            print(f"[VoiceOps] 🔧 Tool call: {tool_name} | args: {tool_arguments}")
+            print(f"[VoiceOps] TOOL CALL: {tool_name} | args: {tool_arguments}")
 
             async def _execute_and_reply(t_name, t_args, t_id):
                 tool_res = await ToolOrchestrator.execute_single_tool(
@@ -175,10 +177,13 @@ async def _drain_until_reply_done(
             break
 
         elif msg_type == "session.error":
-            print(f"[VoiceOps] ❌ Session error: {json.dumps(data, indent=2)}")
+            print(f"[VoiceOps] ERROR: Session error: {json.dumps(data, indent=2)}")
             break
 
         else:
+            print(f"[VoiceOps] Received message type: {msg_type}")
+            if msg_type not in ["session.ready", "session.updated", "input.speech.started", "input.speech.stopped", "transcript.user", "transcript.user.delta", "reply.started", "reply.audio", "transcript.agent", "tool.call", "tool.result", "reply.done", "session.ended", "session.error"]:
+                print(f"[VoiceOps] UNKNOWN MESSAGE TYPE: {msg_type} | data: {json.dumps(data, indent=2)[:200]}")
             pass  # silently ignore unknown event types
 
     return audio_chunks, user_texts, agent_texts, last_msg_type == "session.ended"
@@ -198,69 +203,111 @@ async def handle_assemblyai_session(audio_data: bytes, session_id: str, context:
 
     print(f"[VoiceOps] New session: {session_id} (driver: {driver_id}) | audio: {len(audio_data)} bytes")
 
-    headers = {"Authorization": f"Bearer {settings.assemblyai_api_key}"}
-
-    async with websockets.connect(
-        settings.assemblyai_voice_agent_url,
-        additional_headers=headers
-    ) as websocket:
-        # Step 2: Send session.update immediately after connecting
-        session_config = get_session_config(
-            driver_id=str(driver_id), 
-            shift_id=str(shift_id),
-            agent_id=settings.assemblyai_agent_id
+    # Use token-based authentication for compatibility with current websockets library
+    # This is the recommended approach for environments that can't set custom headers
+    try:
+        # Generate temporary token for authentication
+        token_url = f"https://agents.assemblyai.com/v1/token?expires_in_seconds=300"
+        token_response = await asyncio.to_thread(
+            lambda: requests.get(token_url, headers={"Authorization": f"Bearer {settings.assemblyai_api_key}"})
         )
-        await websocket.send(json.dumps(session_config))
+        
+        if token_response.status_code == 200:
+            token_data = token_response.json()
+            temp_token = token_data.get("token")
+            
+            if temp_token:
+                ws_url_with_token = f"{settings.assemblyai_voice_agent_url}?token={temp_token}"
+                print(f"[VoiceOps] Using temporary token authentication")
+                
+                async with websockets.connect(ws_url_with_token) as websocket:
+                    # Step 2: Send session.update immediately after connecting
+                    session_config = get_session_config(
+                        driver_id=str(driver_id), 
+                        shift_id=str(shift_id),
+                        agent_id=None  # Use inline config for now to get audio
+                    )
+                    await websocket.send(json.dumps(session_config))
 
-        # Step 3: Wait for session.updated or session.ready
-        try:
-            first_response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
-            first_data = json.loads(first_response)
-            first_type = first_data.get("type")
-            
-            if first_type == "session.error":
-                print(f"[VoiceOps] ❌ Session error: {json.dumps(first_data, indent=2)}")
+                    # Step 3: Wait for session.updated then session.ready
+                    try:
+                        first_response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                        first_data = json.loads(first_response)
+                        first_type = first_data.get("type")
+                        
+                        if first_type == "session.error":
+                            print(f"[VoiceOps] ERROR: Session error: {json.dumps(first_data, indent=2)}")
+                            return None, [], []
+                        
+                        # Handle the expected sequence: session.updated -> session.ready
+                        if first_type == "session.updated":
+                            print("[VoiceOps] Session configuration updated")
+                            # Wait for session.ready
+                            second_response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                            second_data = json.loads(second_response)
+                            second_type = second_data.get("type")
+                            
+                            if second_type == "session.ready":
+                                print(f"[VoiceOps] Session ready: {second_data.get('session_id')}")
+                            else:
+                                print(f"[VoiceOps] ERROR: Expected session.ready, got {second_type}")
+                                return None, [], []
+                        
+                        elif first_type == "session.ready":
+                            print(f"[VoiceOps] Session ready: {first_data.get('session_id')}")
+                        
+                        else:
+                            print(f"[VoiceOps] ERROR: Unexpected first response: {first_type}")
+                            return None, [], []
+                        
+                    except asyncio.TimeoutError:
+                        print(f"[VoiceOps] ERROR: Timeout waiting for session ready")
+                        return None, [], []
+
+                    # Step 4: Drain the greeting first
+                    print("[VoiceOps] Draining greeting audio...")
+                    greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(
+                        websocket, session_id, context=effective_context
+                    )
+                    print(f"[VoiceOps] Greeting drained: {len(greeting_audio)} bytes, text: {greeting_agent_text}")
+                    
+                    # Step 5: Stream user audio in chunks (50ms = 2400 bytes at 24kHz)
+                    total_chunks = (len(audio_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
+                    print(f"[VoiceOps] Streaming {total_chunks} audio chunks to AssemblyAI...")
+
+                    for i in range(total_chunks):
+                        start = i * CHUNK_SIZE
+                        end = min(start + CHUNK_SIZE, len(audio_data))
+                        chunk = audio_data[start:end]
+                        chunk_b64 = base64.b64encode(chunk).decode('utf-8')
+                        await websocket.send(json.dumps({"type": "input.audio", "audio": chunk_b64}))
+                        await asyncio.sleep(0.05)
+
+                    print(f"[VoiceOps] Audio streaming complete — {total_chunks} chunks, {len(audio_data)//1024}KB sent")
+
+                    # Step 6: Wait for reply.done to get complete response
+                    print("[VoiceOps] Waiting for agent response...")
+                    response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(
+                        websocket, session_id, context=effective_context
+                    )
+
+                    combined_audio = b"".join(response_audio)
+                    print(f"[VoiceOps] Response received: {len(combined_audio)} bytes audio, user texts: {user_texts}, agent texts: {agent_texts}")
+
+                    # Step 7: Send session.end
+                    await websocket.send(json.dumps({"type": "session.end"}))
+
+                    return combined_audio, user_texts, agent_texts
+            else:
+                print("[VoiceOps] ERROR: Failed to generate temporary token")
                 return None, [], []
-            
-            if first_type not in ['session.updated', 'session.ready']:
-                print(f"[VoiceOps] ❌ Unexpected first response: {first_type}")
-                return None, [], []
-            
-        except asyncio.TimeoutError:
-            print(f"[VoiceOps] ❌ Timeout waiting for session ready")
+        else:
+            print(f"[VoiceOps] ERROR: Token request failed: {token_response.status_code}")
             return None, [], []
-
-        # Drain the greeting
-        greeting_audio, _, greeting_agent_text, greeting_ended = await _drain_until_reply_done(
-            websocket, session_id, context=effective_context
-        )
-
-        if greeting_ended:
-            return b"".join(greeting_audio), [], greeting_agent_text
-
-        # Step 4: Stream user audio in chunks (50ms = 2400 bytes at 24kHz)
-        total_chunks = (len(audio_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
-        print(f"[VoiceOps] Streaming {total_chunks} audio chunks to AssemblyAI...")
-
-        for i in range(total_chunks):
-            start = i * CHUNK_SIZE
-            end = min(start + CHUNK_SIZE, len(audio_data))
-            chunk = audio_data[start:end]
-            chunk_b64 = base64.b64encode(chunk).decode('utf-8')
-            await websocket.send(json.dumps({"type": "input.audio", "audio": chunk_b64}))
-            await asyncio.sleep(0.05)
-
-        # Step 5: Wait for reply.done to get complete response
-        response_audio, user_texts, agent_texts, response_ended = await _drain_until_reply_done(
-            websocket, session_id, context=effective_context
-        )
-
-        combined_audio = b"".join(response_audio)
-
-        # Step 6: Send session.end
-        await websocket.send(json.dumps({"type": "session.end"}))
-
-        return combined_audio, user_texts, agent_texts
+            
+    except Exception as e:
+        print(f"[VoiceOps] Token-based authentication failed: {e}")
+        return None, [], []
 
 
 @router.post("/voice-agent", response_model=AudioResponse)
@@ -299,7 +346,7 @@ async def voice_agent_endpoint(request: AudioRequest):
             audio_data, request.session_id, context=context
         )
     except Exception as e:
-        print(f"[VoiceOps] ❌ AssemblyAI error: {str(e)}")
+        print(f"[VoiceOps] ERROR: AssemblyAI error: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"AssemblyAI error: {str(e)}")

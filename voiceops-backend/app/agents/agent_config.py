@@ -56,7 +56,8 @@ def get_audio_config() -> Dict[str, Any]:
         "output": {
             "format": {
                 "encoding": "audio/pcm"
-            }
+            },
+            "voice": "anna"  # Specify voice for TTS
         }
     }
 
@@ -75,7 +76,7 @@ def get_session_config(driver_id: str, shift_id: str,
         Complete session configuration dictionary
     """
     if agent_id:
-        # Use stored agent
+        # Use stored agent ID for proper AssemblyAI configuration
         return {
             "type": "session.update",
             "session": {
@@ -83,6 +84,7 @@ def get_session_config(driver_id: str, shift_id: str,
             }
         }
     
+    # If no agent_id provided, use inline configuration
     # Import here to avoid circular dependency
     from app.agents.tool_registry import get_tools
     

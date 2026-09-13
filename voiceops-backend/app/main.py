@@ -15,7 +15,8 @@ from app.api.routes import (
     fleet,
     routes,
 )
-from app.api.websocket import driver_ws
+from app.api.websocket.driver_ws import router as driver_ws_router
+from app.api.websocket.voice_agent_router import router as voice_agent_router
 
 
 @asynccontextmanager
@@ -61,7 +62,8 @@ app.include_router(locations.router, prefix="/v1", tags=["locations"])
 app.include_router(pod.router, prefix="/v1", tags=["pod"])
 app.include_router(fleet.router, prefix="/v1/fleet", tags=["fleet"])
 app.include_router(routes.router, prefix="/v1", tags=["routes"])
-app.include_router(driver_ws.router, tags=["websocket"])
+app.include_router(driver_ws_router, tags=["websocket"])
+app.include_router(voice_agent_router, prefix="/ws", tags=["voice-websocket"])
 
 
 

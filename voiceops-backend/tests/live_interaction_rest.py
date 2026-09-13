@@ -1,7 +1,6 @@
 """
-Live interaction with AssemblyAI Voice Agent.
-Note: Each request creates a new session, so agent will greet each time.
-This is the current behavior of the voice agent endpoint.
+Live interaction with AssemblyAI Voice Agent using REST API.
+This is the working version that uses the existing REST endpoint.
 """
 import sys
 import os
@@ -104,14 +103,13 @@ def record_audio(duration):
     
     return recording.tobytes()
 
-def single_interaction():
-    """Run a single voice interaction"""
+def main():
+    """Run single voice interaction"""
     print("=" * 60)
     print("LIVE INTERACTION WITH ASSEMBLYAI VOICE AGENT")
     print("=" * 60)
     print("\nNOTE: Each request creates a new session.")
     print("The agent will greet you and then respond to your command.")
-    print("For a true conversation, a WebSocket endpoint would be needed.")
     print("\nAvailable commands to try:")
     print("  - 'What's my next delivery?'")
     print("  - 'Get me the fastest route'")
@@ -190,4 +188,4 @@ def single_interaction():
     print("=" * 60)
 
 if __name__ == "__main__":
-    single_interaction()
+    main()
