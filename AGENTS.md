@@ -100,7 +100,7 @@ Both layers must remain in the codebase.
 | `get_next_delivery` | Fetch the next stop | Onfleet / MockAdapter |
 | `update_delivery_status` | Mark delivery complete or failed | Onfleet / MockAdapter |
 | `log_exception` | Record a delivery exception | Supabase |
-| `get_best_route` | Compute optimal route | Google Directions |
+| `get_best_route` | Compute optimal route (also routes `start_navigation`) | OSRM, public demo or `OSRM_BASE_URL` |
 | `start_navigation` | Push route to the Flutter map (in-app, never a deep link) | internal |
 | `call_customer` | Outbound voice call | LiveKit SIP/PSTN |
 | `notify_customer` | Outbound SMS | Vonage |
@@ -110,7 +110,7 @@ Both layers must remain in the codebase.
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.1, generated from the running
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.2, generated from the running
 code). The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.
@@ -139,8 +139,8 @@ storage), Railway hosting, Firebase FCM.
 1,000 agent mins/mo). Vonage for global SMS.
 
 **External APIs:** AssemblyAI (Voice Agent + Speech Understanding),
-Google Directions (backend routing), OpenFreeMap (app map tiles), Onfleet,
-n8n.
+OSRM (routing, no key; `OSRM_BASE_URL` for self-hosting), OpenFreeMap (app
+map tiles), Onfleet, n8n.
 
 Dropped and must not be reintroduced: **Twilio** (too expensive),
 **Africa's Talking** (VoiceOps is global, not Africa-specific).

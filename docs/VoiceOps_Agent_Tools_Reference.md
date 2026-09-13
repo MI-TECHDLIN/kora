@@ -1,10 +1,11 @@
 # VoiceOps: Agent Tools Reference
 
-> **v2.1, 2026-09-12.** v2.0 was generated from code on 2026-09-11. Every argument shape, enum,
+> **v2.2, 2026-09-13.** v2.0 was generated from code on 2026-09-11. Every argument shape, enum,
 > and result field below was read from `app/agents/tool_registry.py` and
 > `app/agents/tools/{delivery,navigation,communication}.py`. v2.1 adds the WebSocket relay's
 > wiring and context, the in-app `start_navigation` result (§5), and position-aware routing
-> (§4), and adds an 11th tool, `show_screen` (§11). This edition supersedes the earlier "reconstructed edition". The code's own header cites
+> (§4), and adds an 11th tool, `show_screen` (§11). v2.2 moves routing (§4, §5) from Google Directions
+> to OSRM and leaves every shape unchanged. This edition supersedes the earlier "reconstructed edition". The code's own header cites
 > "Agent Tools Reference v1.0", and that original was never recovered.
 
 This document is the **contract** for the 11 agent tools, together with
@@ -241,7 +242,7 @@ leaves this tool out, although `get_tools()` registers it.
 ### 4. `get_best_route`
 
 Best route with traffic. *Triggers: "best route", "any traffic", "check my route", "faster way".*
-**Platform:** Google Directions API (`departure_time=now`, `alternatives=true`, `traffic_model=best_guess`)
+**Platform:** OSRM (`alternatives=true`, `geometries=polyline`), no live traffic
 
 **Arguments:**
 ```json
@@ -273,17 +274,21 @@ The origin is the driver's current position. Destination coordinates come from t
 }
 ```
 
-`all_routes[].distance` is in metres and `duration` is in seconds (raw from Directions). When
-Directions returns nothing, the tool still succeeds:
+`all_routes[].distance` is in metres and `duration` is in seconds (from OSRM, rounded to whole
+numbers). `summary` is OSRM's leg summary, up to two main road names such as
+`"Victoria Bridge, Ahmadu Bello Way"`, or `"Route"` when OSRM gives none. When OSRM returns
+nothing, the tool still succeeds:
 `{"success": true, "has_faster_route": false, "best_route": {"summary": "Current route", "duration_mins": 14}, "time_saved_mins": 0, "destination_address": "…"}`.
 The `polyline` of the fastest entry in `all_routes` feeds the `map_route` event (`interface.md` §1).
 
 The origin is `context.latitude` / `longitude` (the latest GPS ping). The destination is the
 delivery's coordinates from `context.deliveries` or `context.current_delivery`. **Gap:** either
 one falls back to mock coordinates when the session doesn't know it: origin `6.44, 3.39`,
-destination `22 Victoria Island Drive`. The Directions call is real when `GOOGLE_MAPS_API_KEY`
-is set, with an 8 s client timeout. Without a key it returns one mock route whose `polyline`
-is a real straight-line encoding.
+destination `22 Victoria Island Drive`. Routes come from OSRM (`app/integrations/osrm.py`) with
+an 8 s client timeout and no API key: the public demo server `router.project-osrm.org` unless
+`OSRM_BASE_URL` points at a self-hosted `osrm-routed`. OSRM has no live traffic, so durations
+are typical driving times and the first route is already the fastest (`has_faster_route` is
+false). No route, an OSRM error, or an unreachable server all mean no routes.
 
 ---
 
@@ -320,9 +325,9 @@ Start navigation to the delivery. *Triggers: "navigate", "take me there", "get d
 }
 ```
 
-`route` is the fastest Directions route from the driver's position, in exactly the `map_route`
+`route` is the fastest OSRM route from the driver's position, in exactly the `map_route`
 route fields. `distance_km` is rounded to one decimal place and `duration_mins` is whole
-minutes. `route` is `null` when Directions returns nothing, and then the message is
+minutes. `route` is `null` when OSRM returns nothing, and then the message is
 "<address> is on your map." The origin and destination come from the same place as in
 `get_best_route` (§4).
 
