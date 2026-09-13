@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 24
     environment: str = "development"
     
+    # Security & Optimization
+    allowed_origins: str = "*"
+    timefold_url: str = "http://localhost:8080/route-plans"
+
     class Config:
         env_file = ".env"
         case_sensitive = False
