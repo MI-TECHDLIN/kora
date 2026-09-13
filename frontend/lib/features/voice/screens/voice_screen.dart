@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
+import '../../../core/realtime/voice_events.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/push_to_talk_button.dart';
 import '../../../mascot/mascot_display.dart';
 import '../../../mascot/mascot_state.dart';
 import '../../../providers/agent_state_provider.dart';
+import '../../../providers/push_to_talk_provider.dart';
+import '../../../providers/transcript_provider.dart';
 import '../widgets/action_chips_grid.dart';
 
 class VoiceScreen extends ConsumerStatefulWidget {
@@ -99,7 +102,13 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 const PushToTalkButton(),
                 const SizedBox(height: VoiceOpsSpacing.sm),
                 Text(
-                  'Voice preview · no audio captured',
+                  switch (ref.watch(pushToTalkProvider)) {
+                    PushToTalkState.idle => 'Tap to talk to your co-rider',
+                    PushToTalkState.recording => 'Listening · tap to send',
+                    PushToTalkState.processing => 'Working on it…',
+                    PushToTalkState.speaking => 'Tap to interrupt',
+                  },
+                  key: const Key('ptt-hint'),
                   style: VoiceOpsText.caption,
                 ),
               ],
@@ -216,11 +225,20 @@ class _NextStopCard extends StatelessWidget {
   }
 }
 
-class _TranscriptCard extends StatelessWidget {
+/// The conversation from the voice session's `transcript` events; the
+/// sample exchange shows until the driver first talks.
+class _TranscriptCard extends ConsumerWidget {
   const _TranscriptCard();
 
+  /// The latest lines only: the card is a glance, not a history.
+  static const _visibleLines = 4;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lines = ref.watch(transcriptProvider);
+    final shown = lines.length > _visibleLines
+        ? lines.sublist(lines.length - _visibleLines)
+        : lines;
     return GlassCard(
       frosted: false,
       shadow: false,
@@ -228,24 +246,55 @@ class _TranscriptCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('CONVERSATION · SAMPLE', style: VoiceOpsText.caption),
-          const SizedBox(height: VoiceOpsSpacing.md),
-          Text('You', style: VoiceOpsText.label),
-          Text('Where am I heading next?', style: VoiceOpsText.bodyMuted),
-          const SizedBox(height: VoiceOpsSpacing.md),
           Text(
-            'Co-rider',
-            style: VoiceOpsText.label.copyWith(
-              color: VoiceOpsColors.primaryLight,
+            lines.isEmpty ? 'CONVERSATION · SAMPLE' : 'CONVERSATION',
+            style: VoiceOpsText.caption,
+          ),
+          if (lines.isEmpty) ...[
+            const SizedBox(height: VoiceOpsSpacing.md),
+            const _TranscriptLineView(
+              TranscriptLine(SpeakerRole.driver, 'Where am I heading next?'),
             ),
-          ),
-          Text(
-            'Your next stop is Ada on Lavaca Street. '
-            'You’re about 8 minutes away.',
-            style: VoiceOpsText.body,
-          ),
+            const SizedBox(height: VoiceOpsSpacing.md),
+            const _TranscriptLineView(
+              TranscriptLine(
+                SpeakerRole.agent,
+                'Your next stop is Ada on Lavaca Street. '
+                'You’re about 8 minutes away.',
+              ),
+            ),
+          ],
+          for (final line in shown) ...[
+            const SizedBox(height: VoiceOpsSpacing.md),
+            _TranscriptLineView(line),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _TranscriptLineView extends StatelessWidget {
+  const _TranscriptLineView(this.line);
+  final TranscriptLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDriver = line.role == SpeakerRole.driver;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isDriver ? 'You' : 'Co-rider',
+          style: isDriver
+              ? VoiceOpsText.label
+              : VoiceOpsText.label.copyWith(color: VoiceOpsColors.primaryLight),
+        ),
+        Text(
+          line.text,
+          style: isDriver ? VoiceOpsText.bodyMuted : VoiceOpsText.body,
+        ),
+      ],
     );
   }
 }

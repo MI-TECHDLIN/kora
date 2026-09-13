@@ -35,7 +35,19 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   flutter_riverpod: ^2.5.1
   rive: ^0.14.11
-  google_maps_flutter: ^2.6.1
+  # Map: flutter_map + OpenFreeMap vector tiles (no API key, no billing).
+  # vector_map_tiles renders the vector tiles; 8.x is its stable line and
+  # pins flutter_map to 7.x.
+  flutter_map: ^7.0.2
+  vector_map_tiles: ^8.0.0
+  latlong2: ^0.9.1
+  geolocator: ^14.0.2
+  flutter_compass: ^0.8.1
+  shared_preferences: ^2.5.5
+  # record 7.x needs Flutter >= 3.44; the captain's local SDK is older.
+  record: ^6.2.1
+  just_audio: ^0.10.5
+  http: ^1.2.1
   supabase_flutter: ^2.5.6
   google_fonts: ^6.2.1
   web_socket_channel: ^2.4.0
@@ -46,6 +58,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Drives the voice session's reconnect and answer timers in tests
+  # (already resolved through flutter_test).
+  fake_async: ^1.3.1
 
  
   flutter_lints: ^6.0.0

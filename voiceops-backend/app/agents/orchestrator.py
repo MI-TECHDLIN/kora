@@ -33,7 +33,8 @@ class ToolOrchestrator:
         t0 = time.perf_counter()
         try:
             result = await execute_tool(tool_name, parameters, context)
-            is_error = bool(isinstance(result, dict) and result.get("error"))
+            # Key presence, not truthiness: str(TimeoutError()) is "", and that is still an error
+            is_error = isinstance(result, dict) and "error" in result
         except Exception as e:
             logger.error(f"[Orchestrator] Tool '{tool_name}' failed: {e}")
             result = {"success": False, "error": str(e)}

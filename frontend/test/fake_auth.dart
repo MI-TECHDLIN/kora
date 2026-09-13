@@ -32,12 +32,21 @@ class FakeAuthRepository implements AuthRepository {
     _changes.add(AuthChangeEvent.signedIn);
   }
 
+  /// The session ends, as on sign-out.
+  void signOut() {
+    signedIn = false;
+    _changes.add(AuthChangeEvent.signedOut);
+  }
+
   void _failIfScripted() {
     if (failure case final f?) throw f;
   }
 
   @override
   bool get hasValidSession => signedIn;
+
+  @override
+  String? get accessToken => signedIn ? 'test-access-token' : null;
 
   @override
   Stream<AuthChangeEvent> get changes => _changes.stream;

@@ -93,23 +93,24 @@ Both layers must remain in the codebase.
 
 ---
 
-## The 10 Agent Tools
+## The 11 Agent Tools
 
 | Tool | What it does | Platform |
 |---|---|---|
 | `get_next_delivery` | Fetch the next stop | Onfleet / MockAdapter |
 | `update_delivery_status` | Mark delivery complete or failed | Onfleet / MockAdapter |
 | `log_exception` | Record a delivery exception | Supabase |
-| `get_best_route` | Compute optimal route | Google Directions |
+| `get_best_route` | Compute optimal route (also routes `start_navigation`) | OSRM, public demo or `OSRM_BASE_URL` |
 | `start_navigation` | Push route to the Flutter map (in-app, never a deep link) | internal |
 | `call_customer` | Outbound voice call | LiveKit SIP/PSTN |
 | `notify_customer` | Outbound SMS | Vonage |
 | `get_next_order` | Fetch upcoming orders | Onfleet / MockAdapter |
 | `get_shift_summary` | Summarise current shift stats | Supabase |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
+| `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.0, generated from the running
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.2, generated from the running
 code). The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.
@@ -124,12 +125,12 @@ invent tool shapes.
 ## Tech Stack
 
 **Frontend:** Flutter. Canonical dependencies (`frontend/pubspec.yaml`):
-`flutter_riverpod` (state), `go_router` (routing), `google_maps_flutter`,
+`flutter_riverpod` (state), `go_router` (routing), `flutter_map` with
+OpenFreeMap vector tiles via `vector_map_tiles` (map; no API key, no billing),
 `web_socket_channel`, `tabler_icons_plus`, `google_fonts` (Plus Jakarta
-Sans), `rive` (co-rider swap-in), and `supabase_flutter`. Also planned:
-`just_audio` (audio out), `record` (audio in), and `geolocator`. Add these
-three to `pubspec.yaml` when the voice and location work starts. They are
-not in it yet.
+Sans), `rive` (co-rider swap-in), `supabase_flutter`, `just_audio` (audio
+out), `record` (audio in), and `geolocator` (live position).
+`google_maps_flutter` was dropped for billing and must not come back.
 
 **Backend:** Python FastAPI + asyncio, Supabase (PostgreSQL + auth +
 storage), Railway hosting, Firebase FCM.
@@ -138,7 +139,8 @@ storage), Railway hosting, Firebase FCM.
 1,000 agent mins/mo). Vonage for global SMS.
 
 **External APIs:** AssemblyAI (Voice Agent + Speech Understanding),
-Google Maps + Directions, Onfleet, n8n.
+OSRM (routing, no key; `OSRM_BASE_URL` for self-hosting), OpenFreeMap (app
+map tiles), Onfleet, n8n.
 
 Dropped and must not be reintroduced: **Twilio** (too expensive),
 **Africa's Talking** (VoiceOps is global, not Africa-specific).
@@ -201,9 +203,11 @@ States: `idle → recording → processing → speaking`.
 Home screen layout: map (top 45%), next stop card, transcript display,
 push-to-talk button, bottom nav.
 
-Onboarding is 4 screens: a splash with giant editorial type and inline
-holographic pills ("Meet your co-rider for every delivery route", white
-"Get started" CTA), then hook, power, and trust screens.
+Onboarding is 3 screens, shown before the auth gate: a splash with giant
+editorial type and inline holographic pills ("Meet your co-rider for every
+delivery route", white "Get started" CTA), then hook and power. Next on
+Power hands off to the auth welcome screen's "Get started" and sign-up. The
+fourth, trust, screen was retired on 2026-09-12 (captain's call).
 
 ---
 

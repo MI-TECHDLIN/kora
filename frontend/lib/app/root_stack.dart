@@ -4,6 +4,7 @@ import '../core/theme/tokens.dart';
 import '../core/widgets/gradient_orb_bg.dart';
 import '../mascot/mascot_overlay.dart';
 import '../overlays/task_progress_card.dart';
+import '../overlays/voice_overlay.dart';
 
 /// Wraps the router (passed in as [child]) in a Stack so global overlays sit
 /// above every route at once — they are overlays, not routes. SDD v2.0 §2.1.
@@ -25,7 +26,12 @@ class RootStack extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: Stack(
-            children: [child, const MascotOverlay(), const TaskProgressCard()],
+            children: [
+              child,
+              const MascotOverlay(),
+              const TaskProgressCard(),
+              const VoiceOverlay(),
+            ],
           ),
         ),
       ),

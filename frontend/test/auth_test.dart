@@ -17,9 +17,12 @@ import 'package:voiceops/features/auth/widgets/auth_controls.dart';
 import 'package:voiceops/features/auth/widgets/auth_text_field.dart';
 import 'package:voiceops/features/auth/widgets/terms_agreement.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_flow.dart';
+import 'package:voiceops/features/onboarding/screens/onboarding_screen_2.dart';
+import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
+import 'package:voiceops/providers/onboarding_provider.dart';
 
 import 'fake_auth.dart';
 import 'test_fonts.dart';
@@ -35,10 +38,13 @@ void main() {
   }
 
   /// Boots the real app (router and auth gate included) on a phone-sized
-  /// view, against a fake Supabase: nothing touches the network.
+  /// view, against a fake Supabase: nothing touches the network. Onboarding
+  /// comes before the gate, so it starts already completed unless
+  /// [onboarded] is false (test/onboarding_test.dart covers each screen).
   Future<FakeAuthRepository> pumpApp(
     WidgetTester tester, {
     Size logical = phone,
+    bool onboarded = true,
   }) async {
     final auth = FakeAuthRepository();
     tester.view.physicalSize = logical * 3;
@@ -46,7 +52,13 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(auth)],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(auth),
+          if (onboarded)
+            onboardingProvider.overrideWith(
+              (ref) => OnboardingNotifier()..complete(),
+            ),
+        ],
         child: const VoiceOpsApp(),
       ),
     );
@@ -96,6 +108,46 @@ void main() {
     await enter(tester, 'Password', 'correct-horse');
     await enter(tester, 'Phone number', '+234 801-234-5678');
   }
+
+  testWidgets('a first launch shows onboarding, then welcome, then sign up', (
+    tester,
+  ) async {
+    final auth = await pumpApp(tester, onboarded: false);
+
+    // Onboarding comes before the auth gate, even with no session…
+    expect(find.byType(OnboardingFlow), findsOneWidget);
+    expect(find.byType(WelcomeScreen), findsNothing);
+
+    // …and deep links bounce back to it rather than to welcome.
+    final router = ProviderScope.containerOf(
+      tester.element(find.byType(OnboardingFlow)),
+    ).read(routerProvider);
+    for (final location in [AppRoutes.map, AppRoutes.signUp]) {
+      router.go(location);
+      await settle(tester);
+      expect(find.byType(OnboardingFlow), findsOneWidget, reason: location);
+    }
+
+    // Splash → Hook → Power; Next on Power finishes into welcome.
+    await tap(tester, find.text('Get started'));
+    await tap(tester, find.bySemanticsLabel('Next'));
+    expect(find.byType(OnboardingPower), findsOneWidget);
+    await tap(tester, find.bySemanticsLabel('Next'));
+    expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
+
+    await tap(tester, find.text('Get started'));
+    expect(find.byType(SignUpScreen), findsOneWidget);
+    await fillSignUp(tester);
+    await tap(tester, find.byType(Checkbox));
+    await tap(tester, createAccount);
+
+    // The session lands past onboarding: straight into the main app.
+    expect(auth.lastSignUp, isNotNull);
+    expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(find.byType(VoiceScreen), findsOneWidget);
+  });
 
   testWidgets('signed out, the app is gated to welcome, sign up and sign in', (
     tester,
@@ -197,10 +249,47 @@ void main() {
     expect(sent.password, 'correct-horse');
     expect(sent.phone, '+2348012345678'); // E.164 for drivers.phone
 
-    // The session lands: the gate hands over to the unchanged onboarding.
-    expect(find.byType(OnboardingFlow), findsOneWidget);
+    // The session lands: onboarding is behind the driver, so the gate hands
+    // over to the main app.
+    expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(SignUpScreen), findsNothing);
     expect(auth.profileChecks, 1);
+  });
+
+  testWidgets('a policy link never covers the terms checkbox', (tester) async {
+    await pumpApp(tester);
+    await tap(tester, find.text('Get started'));
+
+    // The last field is focused and the keyboard is up, which leaves the
+    // terms row at the bottom of what's still visible.
+    await enter(tester, 'Phone number', '+234 801 234 5678');
+    for (var i = 1; i <= 10; i++) {
+      tester.view.viewInsets = FakeViewPadding(bottom: 300 * 3 * i / 10);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await tester.pump(VoiceOpsMotion.slow);
+    final box = find.byType(Checkbox);
+    expect(
+      tester.getRect(box).bottom,
+      greaterThan(phone.height - 300 - 60),
+      reason: 'the terms row should sit just above the keyboard',
+    );
+
+    // Most of the sentence is policy links. Tapping one explains the
+    // document isn't out yet, without putting anything over the box.
+    await tester.tapOnText(
+      find.textRange.ofSubstring(LegalDocument.terms.title),
+    );
+    await settle(tester);
+    expect(
+      find.text("The Terms of Service isn't published yet."),
+      findsOneWidget,
+    );
+    expect(tester.widget<Checkbox>(box).value, isFalse);
+
+    await tester.tap(box);
+    await settle(tester);
+    expect(tester.widget<Checkbox>(box).value, isTrue);
   });
 
   testWidgets('sign up waiting on email confirmation stays signed out', (
@@ -215,7 +304,7 @@ void main() {
 
     expect(find.text('Check your inbox'), findsOneWidget);
     expect(find.textContaining('ada@voiceops.test'), findsOneWidget);
-    expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(MainShell), findsNothing);
     expect(auth.profileChecks, 0);
 
     await tap(tester, find.text('Go to sign in'));
@@ -238,7 +327,7 @@ void main() {
     expect(find.byType(AuthErrorBanner), findsOneWidget);
     expect(find.text("That email and password don't match."), findsOneWidget);
     expect(find.byType(SignInScreen), findsOneWidget);
-    expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(MainShell), findsNothing);
 
     auth.failure = null;
     await enter(tester, 'Password', 'correct-horse');
@@ -247,7 +336,7 @@ void main() {
       email: 'ada@voiceops.test',
       password: 'correct-horse',
     ));
-    expect(find.byType(OnboardingFlow), findsOneWidget);
+    expect(find.byType(MainShell), findsOneWidget);
   });
 
   testWidgets('Google sign-in starts from both forms', (tester) async {
@@ -289,7 +378,7 @@ void main() {
     debugPrint = originalDebugPrint; // must be restored inside the test body
 
     // Auth itself succeeded, so the driver moves on…
-    expect(find.byType(OnboardingFlow), findsOneWidget);
+    expect(find.byType(MainShell), findsOneWidget);
     // …but the missing profile is on screen and in the log.
     expect(find.text(failure.message), findsOneWidget);
     expect(auth.profileChecks, 1);

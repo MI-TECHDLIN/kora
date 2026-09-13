@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local compile-time environment files. Keep only the example in Git.
+/config/*.json
+!/config/*.json.example
 # Symbolication related
 app.*.symbols
 

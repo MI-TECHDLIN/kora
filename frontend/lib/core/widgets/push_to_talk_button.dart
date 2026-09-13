@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../providers/push_to_talk_provider.dart';
+import '../../providers/voice_session_provider.dart';
 import '../theme/tokens.dart';
 
 /// The central interaction of the app: a large circular push-to-talk
@@ -12,8 +13,8 @@ import '../theme/tokens.dart';
 /// and each of the four states has its own fill, icon and motion so the
 /// driver can read it at a glance. Only `recording` is lime ([VoiceOpsColors.live]).
 ///
-/// Shell only — no audio capture. [onPressed] defaults to advancing the
-/// placeholder provider so the states can be reviewed on device.
+/// A tap goes to the voice session ([onPressed] overrides it): idle starts
+/// the mic, recording sends the turn, speaking interrupts the co-rider.
 class PushToTalkButton extends ConsumerStatefulWidget {
   const PushToTalkButton({
     super.key,
@@ -79,7 +80,7 @@ class _PushToTalkButtonState extends ConsumerState<PushToTalkButton>
         behavior: HitTestBehavior.opaque,
         onTap:
             widget.onPressed ??
-            () => ref.read(pushToTalkProvider.notifier).advance(),
+            () => ref.read(voiceSessionProvider.notifier).onPushToTalk(),
         child: CustomPaint(
           painter: _PttHaloPainter(state: state, progress: _loop),
           child: AnimatedContainer(
