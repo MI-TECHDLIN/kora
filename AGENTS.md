@@ -89,7 +89,7 @@ Both layers must remain in the codebase.
 | Layer | API | Role |
 |---|---|---|
 | 1 — real-time | Voice Agent API | STT + LLM + tool calling + TTS over one WebSocket, ~$4.50/hr flat |
-| 2 — post-shift | Speech Understanding API | transcription, topic detection (failure patterns), sentiment (customer mood), LeMUR (report prompts + shift summary). Not built yet. Diarization and entity extraction are not needed because driver and agent turns are stored separately |
+| 2 — post-shift | Speech Understanding API | transcription, topic detection (failure patterns), sentiment (customer mood), LeMUR (report prompts + shift summary). A LeMUR-only first cut is built (see Post-Shift Intelligence); the rest is not. Diarization and entity extraction are not needed because driver and agent turns are stored separately |
 
 ---
 
@@ -185,7 +185,16 @@ customer sentiment, driver performance summary, AI recommendations (LeMUR).
 LeMUR prompts: `failure_patterns`, `route_issues`, `recommendations`.
 Model: `anthropic/claude-sonnet-5` (current Claude Sonnet, in LeMUR's
 `anthropic/<model>` form). Check it against AssemblyAI's supported-model
-list when the pipeline is built. No post-shift code exists yet.
+list when the pipeline is finished.
+
+**Built so far:** `POST /v1/shift/{id}/end` runs
+`voiceops-backend/app/intelligence/lemur_pipeline.py` in FastAPI: one LeMUR
+task over the stored turns (still sending `anthropic/claude-3-5-sonnet`,
+with a keyword fallback). It stores the report, streams the summary to the
+app, and fires the n8n webhook. The n8n workflows are exported JSON in
+`voiceops-backend/n8n/workflows/`. `post_shift_intelligence.json` builds
+its report from the webhook payload, stores it, and emails or Slacks the
+operator. Nothing calls Speech Understanding yet.
 
 n8n also handles: operator email/Slack notifications, daily fleet
 summaries, driver welcome SMS.
