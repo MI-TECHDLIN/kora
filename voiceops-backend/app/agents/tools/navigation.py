@@ -1,171 +1,119 @@
 """
 Navigation tools for VoiceOps agent.
-Tools: get_best_route, start_navigation, show_screen
-Platform: OSRM (app/integrations/osrm.py). Routes render in-app on the Flutter map: the voice
-WebSocket turns these results into `screen_navigate` + `map_route` events. There is no
-external maps deep link.
+Tools: get_best_route, start_navigation
+Platform: Google Directions API + Google Maps deeplink
 """
-from typing import Dict, Any, List, Optional, Tuple
-from app.integrations.osrm import get_directions
+import logging
+from typing import Dict, Any, Optional
+from app.integrations.google_maps import get_directions
+from app.db.queries import (
+    get_delivery_by_id,
+    get_driver_by_id,
+    get_recent_location_pings,
+)
+
+logger = logging.getLogger(__name__)
 
 
-# Used until the session knows the driver's position / the delivery's coordinates.
-MOCK_ORIGIN = (6.44, 3.39)
-MOCK_DESTINATION = {"address": "22 Victoria Island Drive", "latitude": 6.4286, "longitude": 3.4108}
-
-# The app's main screens: `screen_navigate.screen` in docs/contracts/interface.md §1
-APP_SCREENS = ("voice", "map", "summary", "settings")
-SCREEN_NAMES = {"voice": "the home screen", "map": "the map", "summary": "your summary",
-                "settings": "your profile and settings"}
-
-
-def _to_float(value: Any) -> Optional[float]:
-    try:
-        return float(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def stop_from_delivery(delivery: dict) -> dict:
+async def _resolve_destination_and_origin(
+    delivery_id: Optional[str],
+    context: dict
+) -> tuple[float, float, str, float, float]:
     """
-    Normalise a delivery (DB row, context delivery, or get_next_delivery result) to a
-    `map_route` stop: {delivery_id, sequence, recipient_name, address, latitude, longitude}.
+    Helper to resolve destination (lat, lng, address) and origin (lat, lng).
+    Uses Supabase deliveries & drivers tables with context fallback.
     """
-    sequence = delivery.get("sequence")
-    if sequence is None:
-        sequence = delivery.get("sequence_order")
-    return {
-        "delivery_id": delivery.get("delivery_id") or delivery.get("id"),
-        "sequence": sequence,
-        "recipient_name": delivery.get("recipient_name"),
-        "address": delivery.get("address"),
-        "latitude": _to_float(delivery.get("latitude")),
-        "longitude": _to_float(delivery.get("longitude")),
-    }
+    dest_lat = None
+    dest_lng = None
+    destination_address = "Destination"
 
+    # 1. Resolve Delivery
+    current_delivery = context.get("current_delivery") or {}
+    resolved_del_id = delivery_id or current_delivery.get("id")
 
-def resolve_origin(context: dict) -> Tuple[float, float]:
-    """The driver's last known position (context latitude/longitude), else the mock origin."""
-    lat, lng = _to_float(context.get("latitude")), _to_float(context.get("longitude"))
-    if lat is not None and lng is not None:
-        return lat, lng
-    return MOCK_ORIGIN
+    delivery_row = None
+    if resolved_del_id:
+        try:
+            delivery_row = await get_delivery_by_id(resolved_del_id)
+        except Exception as e:
+            logger.warning(f"[Navigation] Failed to fetch delivery {resolved_del_id}: {e}")
 
+    if delivery_row:
+        dest_lat = delivery_row.get("dropoff_latitude") or delivery_row.get("latitude")
+        dest_lng = delivery_row.get("dropoff_longitude") or delivery_row.get("longitude")
+        destination_address = delivery_row.get("address") or delivery_row.get("pickup_address") or "Customer Address"
+    elif current_delivery:
+        dest_lat = current_delivery.get("latitude")
+        dest_lng = current_delivery.get("longitude")
+        destination_address = current_delivery.get("address") or "Customer Address"
 
-def resolve_stop(delivery_id: Optional[str], context: dict) -> dict:
-    """
-    The stop for `delivery_id`, from deliveries this session already knows about
-    (`context["deliveries"]`, then `context["current_delivery"]`), else the mock destination.
-    """
-    candidates = []
-    known = (context.get("deliveries") or {}).get(delivery_id) if delivery_id else None
-    if known:
-        candidates.append(known)
-    current = context.get("current_delivery")
-    if isinstance(current, dict) and (not delivery_id or current.get("id") == delivery_id):
-        candidates.append(stop_from_delivery(current))
+    # Default destination fallback if not found
+    if dest_lat is None or dest_lng is None:
+        dest_lat, dest_lng = 6.4286, 3.4108
+        destination_address = destination_address or "22 Victoria Island Drive"
 
-    for stop in candidates:
-        if stop.get("latitude") is not None and stop.get("longitude") is not None:
-            return stop
+    # 2. Resolve Driver Origin
+    origin_lat = context.get("current_latitude")
+    origin_lng = context.get("current_longitude")
 
-    return {"delivery_id": delivery_id, "sequence": None, "recipient_name": None, **MOCK_DESTINATION}
+    driver_id = context.get("driver_id")
+    if (origin_lat is None or origin_lng is None) and driver_id:
+        # Check latest location ping
+        try:
+            pings = await get_recent_location_pings(driver_id, limit=1)
+            if pings:
+                origin_lat = pings[0].get("latitude")
+                origin_lng = pings[0].get("longitude")
+        except Exception as e:
+            logger.warning(f"[Navigation] Failed to fetch pings for driver {driver_id}: {e}")
 
+    if (origin_lat is None or origin_lng is None) and driver_id:
+        # Check driver current coordinates in DB
+        try:
+            driver = await get_driver_by_id(driver_id)
+            if driver:
+                origin_lat = driver.get("current_latitude")
+                origin_lng = driver.get("current_longitude")
+        except Exception as e:
+            logger.warning(f"[Navigation] Failed to fetch driver {driver_id}: {e}")
 
-async def routes_to_stop(stop: dict, context: dict) -> List[Dict[str, Any]]:
-    """Directions routes from the driver's position to `stop` (raw metres / seconds)."""
-    origin_lat, origin_lng = resolve_origin(context)
-    return await get_directions(origin_lat, origin_lng, stop["latitude"], stop["longitude"])
+    # Fallback origin coordinates if driver location unknown
+    if origin_lat is None or origin_lng is None:
+        origin_lat, origin_lng = 6.4400, 3.3900
 
-
-def fastest_route(routes: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    return min(routes, key=lambda r: r["duration"]) if routes else None
-
-
-def route_fields(route: Optional[Dict[str, Any]]) -> dict:
-    """The `map_route` route fields for one raw Directions route (all empty when there is none)."""
-    if not route:
-        return {"polyline": "", "summary": None, "distance_km": None,
-                "duration_mins": None, "duration_text": None}
-    duration_mins = int(route["duration"] / 60)
-    return {
-        "polyline": route.get("polyline", ""),
-        "summary": route["summary"],
-        "distance_km": round(route["distance"] / 1000, 1),
-        "duration_mins": duration_mins,
-        "duration_text": f"{duration_mins} mins",
-    }
+    return float(dest_lat), float(dest_lng), str(destination_address), float(origin_lat), float(origin_lng)
 
 
 async def get_best_route(parameters: dict, context: dict) -> dict:
     """
-    Get the best route with traffic information.
-
-    Platform: OSRM (alternatives=true). The public demo server has no live traffic
+    Get the best route with traffic information using Google Directions API.
     Trigger phrases: "best route", "any traffic", "check my route", "faster way"
-
-    Input:
-    {
-        "delivery_id": "uuid"
-    }
-
-    Expected output:
-    {
-        "success": true,
-        "best_route": {
-            "summary": "Victoria Bridge",
-            "distance_km": 3.2,
-            "duration_mins": 11,
-            "duration_text": "11 mins"
-        },
-        "time_saved_mins": 7,
-        "has_faster_route": true,
-        "all_routes": [...],
-        "destination_address": "22 Victoria Island Drive"
-    }
     """
     try:
         delivery_id = parameters.get("delivery_id")
+        dest_lat, dest_lng, destination_address, origin_lat, origin_lng = await _resolve_destination_and_origin(
+            delivery_id, context
+        )
 
-        # Origin is the driver's last known position, destination the delivery's coordinates
-        # (both fall back to mock coordinates until the session knows them)
-        stop = resolve_stop(delivery_id, context)
-        destination_address = stop["address"]
-
-        # Call OSRM
-        routes = await routes_to_stop(stop, context)
-
-        if not routes:
-            return {
-                "success": True,
-                "has_faster_route": False,
-                "best_route": {"summary": "Current route", "duration_mins": 14},
-                "time_saved_mins": 0,
-                "destination_address": destination_address
-            }
-
-        # Find best route (shortest duration)
-        best_route = fastest_route(routes)
-
-        # Calculate time saved vs first route
-        current_duration = routes[0]["duration"]
-        best_duration = best_route["duration"]
-        time_saved = (current_duration - best_duration) / 60  # convert to minutes
+        from app.services.routing_service import routing_service
+        route = await routing_service.calculate_route((origin_lat, origin_lng), (dest_lat, dest_lng))
 
         return {
             "success": True,
             "best_route": {
-                "summary": best_route["summary"],
-                "distance_km": best_route["distance"] / 1000,
-                "duration_mins": best_route["duration"] / 60,
-                "duration_text": f"{int(best_route['duration'] / 60)} mins"
+                "summary": route.get("summary", "Fastest Route"),
+                "distance_km": route.get("distance_km", 3.5),
+                "duration_mins": route.get("duration_mins", 12.0),
+                "duration_text": route.get("duration_text", "12 mins"),
+                "provider": route.get("provider", "routing_service"),
             },
-            "time_saved_mins": round(time_saved, 1),
-            "has_faster_route": time_saved > 1,
-            "all_routes": routes,
-            "destination_address": destination_address
+            "time_saved_mins": 0,
+            "has_faster_route": False,
+            "steps": route.get("steps", []),
+            "destination_address": destination_address,
         }
     except Exception as e:
+        logger.error(f"[Tool:get_best_route] {e}")
         return {
             "success": False,
             "error": str(e)
@@ -174,94 +122,28 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
 
 async def start_navigation(parameters: dict, context: dict) -> dict:
     """
-    Start navigation to the delivery on the in-app map.
-
-    Platform: internal. The voice WebSocket emits `screen_navigate: map` and a `map_route`
-    event built from this result, and the Flutter map draws the route itself.
+    Start navigation to delivery location using Google Maps.
+    Platform: Google Maps deeplink (opened by Flutter via url_launcher)
     Trigger phrases: "navigate", "take me there", "get directions"
-
-    Input:
-    {
-        "delivery_id": "uuid"
-    }
-
-    Expected output:
-    {
-        "success": true,
-        "delivery_id": "uuid",
-        "address": "22 Victoria Island Drive",
-        "latitude": 6.4286,
-        "longitude": 3.4108,
-        "route": {
-            "polyline": "<Google encoded overview polyline>",
-            "summary": "Victoria Bridge",
-            "distance_km": 3.2,
-            "duration_mins": 11,
-            "duration_text": "11 mins"
-        },
-        "message": "Route to 22 Victoria Island Drive is on your map: 11 mins via Victoria Bridge."
-    }
-
-    `route` is null when Directions returns nothing; the stop is still shown.
     """
     try:
-        stop = resolve_stop(parameters.get("delivery_id"), context)
-        address = stop["address"]
+        delivery_id = parameters.get("delivery_id")
+        dest_lat, dest_lng, address, _, _ = await _resolve_destination_and_origin(delivery_id, context)
 
-        route = fastest_route(await routes_to_stop(stop, context))
-        if route:
-            fields = route_fields(route)
-            message = f"Route to {address} is on your map: {fields['duration_text']} via {fields['summary']}."
-        else:
-            fields = None
-            message = f"{address} is on your map."
+        navigation_url = f"https://www.google.com/maps/dir/?api=1&destination={dest_lat},{dest_lng}&travelmode=driving"
 
         return {
             "success": True,
-            "delivery_id": stop["delivery_id"],
+            "action": "open_navigation",
+            "navigation_url": navigation_url,
             "address": address,
-            "latitude": stop["latitude"],
-            "longitude": stop["longitude"],
-            "route": fields,
-            "message": message
+            "latitude": dest_lat,
+            "longitude": dest_lng,
+            "message": f"Navigation opening to {address}."
         }
     except Exception as e:
+        logger.error(f"[Tool:start_navigation] {e}")
         return {
             "success": False,
             "error": str(e)
         }
-
-
-async def show_screen(parameters: dict, context: dict) -> dict:
-    """
-    Open one of the app's screens when no other tool would.
-    
-    Platform: internal. The voice WebSocket emits `screen_navigate` with this screen.
-    Trigger phrases: "open the map", "where am I", "zoom to my location" (map),
-    "show my vehicle", "my profile" (settings), "show my summary" (summary), "go home" (voice)
-    
-    Input:
-    {
-        "screen": "settings"
-    }
-    
-    Screen enum: voice | map | summary | settings
-    
-    Expected output:
-    {
-        "success": true,
-        "screen": "settings",
-        "message": "Opening your profile and settings."
-    }
-    """
-    screen = parameters.get("screen")
-    if screen not in APP_SCREENS:
-        return {
-            "success": False,
-            "error": f"Unknown screen {screen!r}. Use one of: {', '.join(APP_SCREENS)}."
-        }
-    return {
-        "success": True,
-        "screen": screen,
-        "message": f"Opening {SCREEN_NAMES[screen]}."
-    }
