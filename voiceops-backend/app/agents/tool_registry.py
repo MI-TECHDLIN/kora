@@ -2,23 +2,53 @@
 VoiceOps Tool Registry
 Contains all 14 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
 """
+import logging
 from typing import Dict, Any, List
+
+logger = logging.getLogger(__name__)
 from app.agents.tools.delivery import (
     get_next_delivery,
     update_delivery_status,
     log_exception,
     get_next_order,
-    accept_order,
-    decline_order,
     get_shift_summary
 )
 from app.agents.tools.navigation import (
-    APP_SCREENS,
     get_best_route,
     start_navigation,
-    accept_reroute,
-    show_screen
+    accept_reroute
 )
+
+# Screen options for show_screen tool
+APP_SCREENS = ["map", "settings", "summary", "voice"]
+
+async def show_screen(parameters: dict, context: dict) -> dict:
+    """
+    Open a screen in the driver's app when no other tool shows what they asked for.
+    map: 'open the map', 'where am I', 'zoom to my location'. 
+    settings: 'show my vehicle', 'my profile'. 
+    summary: 'show my summary'. 
+    voice: 'go home'.
+    """
+    try:
+        screen = parameters.get("screen", "map")
+        if screen not in APP_SCREENS:
+            return {
+                "success": False,
+                "error": f"Invalid screen: {screen}. Must be one of {APP_SCREENS}"
+            }
+        
+        return {
+            "success": True,
+            "screen": screen,
+            "message": f"Opening {screen} screen."
+        }
+    except Exception as e:
+        logger.error(f"[Tool:show_screen] {e}")
+        return {"success": False, "error": str(e)}
+
+# Screen options for show_screen tool
+APP_SCREENS = ["map", "settings", "summary", "voice"]
 from app.agents.tools.communication import (
     call_customer,
     notify_customer,
@@ -295,8 +325,6 @@ TOOL_EXECUTORS = {
     "call_customer": call_customer,
     "notify_customer": notify_customer,
     "get_next_order": get_next_order,
-    "accept_order": accept_order,
-    "decline_order": decline_order,
     "get_shift_summary": get_shift_summary,
     "alert_dispatcher": alert_dispatcher,
     "show_screen": show_screen

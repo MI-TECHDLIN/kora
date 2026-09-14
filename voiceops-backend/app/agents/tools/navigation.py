@@ -14,6 +14,67 @@ from app.db.queries import (
 
 logger = logging.getLogger(__name__)
 
+# Screen options for show_screen tool
+APP_SCREENS = ["map", "settings", "summary", "voice"]
+
+# Helper functions for WebSocket integration
+def stop_from_delivery(delivery: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert delivery dict to stop format for map display."""
+    return {
+        "delivery_id": delivery.get("id"),
+        "sequence": delivery.get("sequence_order"),
+        "recipient_name": delivery.get("recipient_name", "Customer"),
+        "address": delivery.get("address", ""),
+        "latitude": delivery.get("latitude"),
+        "longitude": delivery.get("longitude"),
+    }
+
+def resolve_stop(delivery_id: Optional[str], context: dict) -> Optional[Dict[str, Any]]:
+    """Resolve stop information from delivery ID or context."""
+    if delivery_id:
+        try:
+            delivery = get_delivery_by_id(delivery_id)
+            if delivery:
+                return stop_from_delivery(delivery)
+        except Exception as e:
+            logger.warning(f"[Navigation] Failed to resolve stop {delivery_id}: {e}")
+    
+    # Fallback to current delivery from context
+    current = context.get("current_delivery")
+    if current:
+        return stop_from_delivery(current)
+    
+    return None
+
+def route_fields(route: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract standard route fields from routing service response."""
+    return {
+        "polyline": route.get("geometry", ""),
+        "summary": route.get("summary", "Route"),
+        "distance_km": route.get("distance_km", 0),
+        "duration_mins": route.get("duration_mins", 0),
+        "duration_text": route.get("duration_text", "0 mins"),
+    }
+
+def fastest_route(origin: tuple, destination: tuple) -> Dict[str, Any]:
+    """Get the fastest route between two points."""
+    from app.services.routing_service import routing_service
+    import asyncio
+    
+    try:
+        route = asyncio.run(routing_service.calculate_route(origin, destination))
+        return route_fields(route)
+    except Exception as e:
+        logger.warning(f"[Navigation] Failed to get fastest route: {e}")
+        return route_fields({})
+
+def routes_to_stop(stop: Dict[str, Any], route: Dict[str, Any]) -> Dict[str, Any]:
+    """Combine stop and route information for map display."""
+    return {
+        **stop,
+        **route_fields(route),
+    }
+
 
 async def _resolve_destination_and_origin(
     delivery_id: Optional[str],
