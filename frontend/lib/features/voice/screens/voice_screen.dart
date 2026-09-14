@@ -104,9 +104,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 Text(
                   switch (ref.watch(pushToTalkProvider)) {
                     PushToTalkState.idle => 'Tap to talk to your co-rider',
-                    PushToTalkState.recording => 'Listening · tap to send',
+                    PushToTalkState.recording => 'Listening · tap to end',
                     PushToTalkState.processing => 'Working on it…',
-                    PushToTalkState.speaking => 'Tap to interrupt',
+                    PushToTalkState.speaking =>
+                      ref.watch(micLiveProvider)
+                          ? 'Talk or tap to interrupt'
+                          : 'Tap to interrupt',
                   },
                   key: const Key('ptt-hint'),
                   style: VoiceOpsText.caption,

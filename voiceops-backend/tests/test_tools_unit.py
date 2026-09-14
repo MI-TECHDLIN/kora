@@ -26,11 +26,12 @@ def test_tool_definitions():
     """Verify tool definitions are registered."""
     tools = get_tools()
     assert isinstance(tools, list)
-    assert len(tools) == 13
+    assert len(tools) == 14
     tool_names = [t["name"] for t in tools]
     assert "call_customer" in tool_names
     assert "notify_customer" in tool_names
     assert "get_next_delivery" in tool_names
+    assert "end_conversation" in tool_names
 
 
 def test_get_next_delivery(mock_context):

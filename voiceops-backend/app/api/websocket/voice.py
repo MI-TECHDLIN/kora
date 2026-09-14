@@ -620,7 +620,7 @@ class VoiceSession:
                 self._start_tool(data)
             elif msg_type == "reply.done":
                 self._reply_active = False
-                await self._finish_reply()
+                await self._finish_reply(interrupted=data.get("status") == "interrupted")
                 self._announce_wake.set()
             elif msg_type == "session.ended":
                 await self.fail("upstream_unavailable", "The voice session ended.")
@@ -644,16 +644,19 @@ class VoiceSession:
         task = asyncio.create_task(self._run_tool(name, call_id, arguments))
         self.pending_tools.append((call_id, name, task))
 
-    async def _finish_reply(self) -> None:
+    async def _finish_reply(self, interrupted: bool = False) -> None:
         """
         reply.done. AssemblyAI takes tool results only now: gather every tool call from this
         turn (they have been running concurrently since their tool.call) and send the results.
         The agent then speaks again, so the app gets `reply_done` only after a tool-free reply.
         """
         if not self.pending_tools:
-            await self.emit(events.reply_done())
+            await self.emit(events.reply_done(interrupted=interrupted))
             await self.emit(events.agent_state("idle"))
             return
+
+        if interrupted:
+            await self.emit(events.reply_done(interrupted=True))
 
         batch, self.pending_tools = self.pending_tools, []
         self._finishing_tools = True
@@ -682,8 +685,10 @@ class VoiceSession:
 
     async def _run_tool(self, name: str, call_id: str, arguments: dict) -> dict:
         step = events.step_for_tool(name)
-        await self.emit(events.agent_state(events.mood_for_tool(name)))
-        await self.emit(events.task_step(step, "active"))
+        silent = name == "end_conversation"
+        if not silent:
+            await self.emit(events.agent_state(events.mood_for_tool(name)))
+            await self.emit(events.task_step(step, "active"))
 
         if name in ROUTING_TOOLS:
             ping = await _try_db(get_latest_location, self.shift_id)
@@ -711,7 +716,8 @@ class VoiceSession:
             logger.exception(f"[VoiceWS] UI events for {name} failed")
 
         # A failed tool still ends `done` (the enum has no failed state); the reply says what failed
-        await self.emit(events.task_step(step, "done"))
+        if not silent:
+            await self.emit(events.task_step(step, "done"))
         return outcome
 
     async def _emit_tool_events(self, name: str, arguments: dict, result: Any) -> None:
@@ -754,6 +760,9 @@ class VoiceSession:
 
         elif name == "show_screen":
             await self.emit(events.screen_navigate(result["screen"]))
+
+        elif name == "end_conversation":
+            await self.emit(events.conversation_end())
 
         elif name == "accept_order":
             # The accepted order is now a stop on this shift: the navigation tools can route to it

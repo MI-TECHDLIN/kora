@@ -46,6 +46,10 @@ class RecordVoiceRecorder implements VoiceRecorder {
       numChannels: 1,
       echoCancel: true,
       noiseSuppress: true,
+      audioInterruption: AudioInterruptionMode.none,
+      androidConfig: AndroidRecordConfig(
+        audioSource: AndroidAudioSource.voiceCommunication,
+      ),
     ),
   );
 

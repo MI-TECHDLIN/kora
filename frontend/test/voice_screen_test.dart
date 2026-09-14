@@ -67,7 +67,7 @@ void main() {
       // The hint under the button tells the driver what a tap does now.
       const hints = {
         PushToTalkState.idle: 'Tap to talk to your co-rider',
-        PushToTalkState.recording: 'Listening · tap to send',
+        PushToTalkState.recording: 'Listening · tap to end',
         PushToTalkState.processing: 'Working on it…',
         PushToTalkState.speaking: 'Tap to interrupt',
       };
