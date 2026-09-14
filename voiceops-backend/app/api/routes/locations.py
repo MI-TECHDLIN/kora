@@ -111,11 +111,14 @@ async def receive_location_ping(
                 dest_lat = delivery.get("dropoff_latitude") or delivery.get("latitude")
                 dest_lng = delivery.get("dropoff_longitude") or delivery.get("longitude")
                 if dest_lat is not None and dest_lng is not None:
-                    eta = eta_service.compute_eta_minutes(
+                    # Use traffic-aware ETA with fallback to haversine
+                    eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                         (ping.latitude, ping.longitude),
                         (float(dest_lat), float(dest_lng)),
+                        delivery_id=delivery_id,
                         current_speed_kmh=ping.speed
                     )
+                    eta = eta_result["eta_minutes"]
                     delivery_id = delivery["id"]
                     if await notification_policy_service.should_notify_customer(delivery_id, eta):
                         background_tasks.add_task(

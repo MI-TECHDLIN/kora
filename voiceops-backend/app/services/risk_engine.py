@@ -134,11 +134,14 @@ class RiskEngine:
 
         if dest_lat is not None and dest_lng is not None and origin_lat is not None and origin_lng is not None:
             speed = float(location_update.get("speed", 30.0) or 30.0)
-            eta = eta_service.compute_eta_minutes(
+            # Use traffic-aware ETA with fallback to haversine
+            eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                 (float(origin_lat), float(origin_lng)),
                 (float(dest_lat), float(dest_lng)),
+                delivery_id=delivery_id,
                 current_speed_kmh=speed
             )
+            eta = eta_result["eta_minutes"]
 
             # Update estimated arrival
             delivery_id = delivery["id"]
