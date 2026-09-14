@@ -44,10 +44,15 @@ class ProactiveAlertService:
         severity: str = "normal",
         risk_type: str = "operational_alert",
         delivery_id: Optional[str] = None,
+        route_suggestion: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Dispatches proactive voice alert to the driver.
         Stores record in dispatcher_alerts for real-time WebSocket pickup and telemetry.
+        
+        Args:
+            route_suggestion: Optional dict with route data for ROUTE_DEVIATION alerts
+                {"eta_minutes": int, "current_eta_minutes": int, "geometry": str}
         """
         logger.info(f"[AlertService] 📢 Proactive Alert [{severity.upper()}] to driver {driver_id}: {message}")
 
@@ -63,13 +68,20 @@ class ProactiveAlertService:
 
             # Push directly to driver via live WebSocket channel
             from app.api.websocket.driver_ws import ws_manager
-            await ws_manager.send_to_driver(driver_id, {
+            
+            ws_payload = {
                 "type": "PROACTIVE_ALERT",
                 "severity": severity,
                 "risk_type": risk_type,
                 "message": message,
                 "delivery_id": delivery_id,
-            })
+            }
+            
+            # Add route suggestion for ROUTE_DEVIATION alerts
+            if risk_type == "ROUTE_DEVIATION" and route_suggestion:
+                ws_payload["route_suggestion"] = route_suggestion
+            
+            await ws_manager.send_to_driver(driver_id, ws_payload)
             return True
         except Exception as e:
             logger.warning(f"[AlertService] Failed to record alert to DB: {e}")

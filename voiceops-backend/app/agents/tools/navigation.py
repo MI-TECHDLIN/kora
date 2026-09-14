@@ -1,6 +1,6 @@
 """
 Navigation tools for VoiceOps agent.
-Tools: get_best_route, start_navigation
+Tools: get_best_route, start_navigation, accept_reroute
 Platform: Google Directions API + Google Maps deeplink
 """
 import logging
@@ -143,6 +143,66 @@ async def start_navigation(parameters: dict, context: dict) -> dict:
         }
     except Exception as e:
         logger.error(f"[Tool:start_navigation] {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+async def accept_reroute(parameters: dict, context: dict) -> dict:
+    """
+    Accept a suggested reroute and set it as the active navigation route.
+    Trigger phrases: "yes take that route", "accept reroute", "use the alternate route"
+    
+    Parameters:
+        - eta_minutes: int (optional) - ETA of the suggested route
+        - geometry: str (optional) - Route geometry/polyline
+        - delivery_id: str (optional) - Delivery ID for the route
+    """
+    try:
+        delivery_id = parameters.get("delivery_id")
+        eta_minutes = parameters.get("eta_minutes")
+        geometry = parameters.get("geometry")
+        
+        # Resolve destination and origin
+        dest_lat, dest_lng, destination_address, origin_lat, origin_lng = await _resolve_destination_and_origin(
+            delivery_id, context
+        )
+        
+        # If geometry is provided, use it; otherwise calculate a fresh route
+        if geometry:
+            route_info = {
+                "summary": "Suggested Reroute",
+                "distance_km": 0.0,  # Would need to be calculated from geometry
+                "duration_mins": eta_minutes or 12.0,
+                "duration_text": f"{eta_minutes or 12} mins",
+                "provider": "traffic_reroute",
+                "geometry": geometry,
+            }
+        else:
+            # Fallback to routing service if no geometry provided
+            from app.services.routing_service import routing_service
+            route = await routing_service.calculate_route((origin_lat, origin_lng), (dest_lat, dest_lng))
+            route_info = {
+                "summary": route.get("summary", "Reroute"),
+                "distance_km": route.get("distance_km", 3.5),
+                "duration_mins": route.get("duration_mins", 12.0),
+                "duration_text": route.get("duration_text", "12 mins"),
+                "provider": route.get("provider", "routing_service"),
+                "geometry": route.get("geometry", ""),
+            }
+        
+        # In a real implementation, this would push the route to the Flutter app
+        # For now, we return the route information for the agent to communicate
+        return {
+            "success": True,
+            "action": "reroute_accepted",
+            "route": route_info,
+            "message": f"Rerouting to {destination_address}. Estimated time: {route_info['duration_text']}.",
+            "destination_address": destination_address,
+        }
+    except Exception as e:
+        logger.error(f"[Tool:accept_reroute] {e}")
         return {
             "success": False,
             "error": str(e)

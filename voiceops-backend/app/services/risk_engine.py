@@ -158,6 +158,13 @@ class RiskEngine:
                 }
                 sev = severity_map.get(risk_check["risk"], RiskSeverity.MEDIUM)
 
+                # Check for reroute opportunity when risk is MEDIUM or higher
+                reroute_risk = await self._check_reroute_available(
+                    driver_id, shift_id, location_update, delivery, eta, sev
+                )
+                if reroute_risk:
+                    return reroute_risk
+
                 return RiskEvent(
                     risk_type=RiskType.TIME_WINDOW_RISK,
                     severity=sev,
@@ -167,6 +174,74 @@ class RiskEngine:
                     delivery_id=delivery_id,
                     driver_id=driver_id,
                 )
+
+        return None
+
+    async def _check_reroute_available(
+        self,
+        driver_id: str,
+        shift_id: str,
+        location_update: Dict[str, Any],
+        delivery: Dict[str, Any],
+        current_eta: int,
+        current_severity: RiskSeverity,
+    ) -> Optional[RiskEvent]:
+        """
+        Check if an alternate route offers meaningful time savings.
+        Returns ROUTE_DEVIATION risk event if alternate route saves 3+ minutes.
+        """
+        if not is_valid_uuid(driver_id):
+            return None
+
+        # Only check for reroute when current risk is MEDIUM or higher
+        if current_severity not in [RiskSeverity.MEDIUM, RiskSeverity.HIGH, RiskSeverity.CRITICAL]:
+            return None
+
+        try:
+            from app.integrations.traffic_routing import traffic_routing_client
+            
+            origin_lat = location_update.get("latitude")
+            origin_lng = location_update.get("longitude")
+            dest_lat = delivery.get("dropoff_latitude") or delivery.get("latitude")
+            dest_lng = delivery.get("dropoff_longitude") or delivery.get("longitude")
+
+            if not all([origin_lat, origin_lng, dest_lat, dest_lng]):
+                return None
+
+            # Get traffic-aware route (this should return the best available route)
+            alternate_route = await traffic_routing_client.get_traffic_aware_eta(
+                (float(origin_lat), float(origin_lng)),
+                (float(dest_lat), float(dest_lng))
+            )
+
+            if alternate_route and alternate_route.get("success"):
+                alternate_eta = alternate_route["eta_minutes"]
+                time_savings = current_eta - alternate_eta
+
+                # Only suggest reroute if it saves at least 3 minutes
+                if time_savings >= 3:
+                    traffic_delay = alternate_route.get("traffic_delay_minutes", 0)
+                    message = (f"Traffic ahead adds about {traffic_delay:.0f} minutes on your current route. "
+                              f"An alternate route saves {time_savings} minutes. Want me to reroute?")
+
+                    return RiskEvent(
+                        risk_type=RiskType.ROUTE_DEVIATION,
+                        severity=current_severity,
+                        confidence=0.85,
+                        evidence={
+                            "current_eta_minutes": current_eta,
+                            "alternate_eta_minutes": alternate_eta,
+                            "time_savings_minutes": time_savings,
+                            "traffic_delay_minutes": traffic_delay,
+                            "geometry": alternate_route.get("geometry", ""),
+                        },
+                        recommended_action=message,
+                        delivery_id=delivery["id"],
+                        driver_id=driver_id,
+                    )
+
+        except Exception as e:
+            logger.warning(f"[RiskEngine] Failed to check reroute availability: {e}")
 
         return None
 

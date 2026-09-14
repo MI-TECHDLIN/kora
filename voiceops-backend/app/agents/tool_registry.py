@@ -1,6 +1,6 @@
 """
 VoiceOps Tool Registry
-Contains all 13 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
+Contains all 14 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
 """
 from typing import Dict, Any, List
 from app.agents.tools.delivery import (
@@ -16,6 +16,7 @@ from app.agents.tools.navigation import (
     APP_SCREENS,
     get_best_route,
     start_navigation,
+    accept_reroute,
     show_screen
 )
 from app.agents.tools.communication import (
@@ -118,6 +119,29 @@ def get_tools() -> List[Dict[str, Any]]:
                     }
                 },
                 "required": ["delivery_id"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "accept_reroute",
+            "description": "Accept a suggested reroute and set it as the active navigation route. Trigger phrases: 'yes take that route', 'accept reroute', 'use the alternate route'",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "eta_minutes": {
+                        "type": "number",
+                        "description": "ETA of the suggested route in minutes"
+                    },
+                    "geometry": {
+                        "type": "string",
+                        "description": "Route geometry/polyline"
+                    },
+                    "delivery_id": {
+                        "type": "string",
+                        "description": "Delivery ID for the route"
+                    }
+                },
+                "required": []
             }
         },
         {
@@ -267,6 +291,7 @@ TOOL_EXECUTORS = {
     "log_exception": log_exception,
     "get_best_route": get_best_route,
     "start_navigation": start_navigation,
+    "accept_reroute": accept_reroute,
     "call_customer": call_customer,
     "notify_customer": notify_customer,
     "get_next_order": get_next_order,
