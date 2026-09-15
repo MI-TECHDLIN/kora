@@ -40,8 +40,17 @@ class LocationUnavailable implements Exception {
 /// The driver's live position. Tests override `locationSourceProvider` with
 /// a fake so no platform channel is touched.
 abstract interface class LocationSource {
-  /// Asks for permission if needed, then streams fixes. Errors with
-  /// [LocationUnavailable] when location can't be used.
+  /// Whether location is already allowed. Never asks.
+  Future<bool> hasPermission();
+
+  /// Asks for location permission if the OS still lets the app ask; true
+  /// once allowed. Onboarding's Power screen asks, and the map asks again
+  /// only when the driver taps to allow.
+  Future<bool> requestPermission();
+
+  /// Streams fixes. Never asks for permission: errors with
+  /// [LocationUnavailable] when location can't be used, including before
+  /// [requestPermission] is granted.
   Stream<LocationFix> watch();
 
   /// Opens the system screen that fixes [problem] (location or app settings).
@@ -51,16 +60,29 @@ abstract interface class LocationSource {
 class GeolocatorLocationSource implements LocationSource {
   const GeolocatorLocationSource();
 
+  static bool _allowed(LocationPermission permission) =>
+      permission == LocationPermission.whileInUse ||
+      permission == LocationPermission.always;
+
+  @override
+  Future<bool> hasPermission() async =>
+      _allowed(await Geolocator.checkPermission());
+
+  @override
+  Future<bool> requestPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return _allowed(permission);
+  }
+
   @override
   Stream<LocationFix> watch() async* {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const LocationUnavailable(LocationProblem.serviceOff);
     }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    switch (permission) {
+    switch (await Geolocator.checkPermission()) {
       case LocationPermission.denied:
         throw const LocationUnavailable(LocationProblem.denied);
       case LocationPermission.deniedForever:

@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from app.agents.tool_registry import execute_tool, get_tools
+from app.agents.tool_registry import TOOL_EXECUTORS, execute_tool, get_tools
 from app.api.routes.logistics import sign_body
 from app.api.websocket import events, voice
 from app.config import settings
@@ -581,7 +581,9 @@ def test_order_tools_are_registered():
     for name in ("accept_order", "decline_order"):
         assert tools[name]["parameters"]["required"] == []
         assert "order_id" in tools[name]["parameters"]["properties"]
+        assert name in TOOL_EXECUTORS
         assert events.step_for_tool(name) != f"Running {name.replace('_', ' ')}"
+    assert set(tools) == set(TOOL_EXECUTORS)
 
 
 def test_get_next_order_reads_the_live_queue(store, adapter, monkeypatch):

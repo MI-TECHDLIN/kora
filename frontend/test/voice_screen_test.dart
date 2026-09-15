@@ -130,4 +130,45 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  testWidgets('the co-rider renders every mood with its caption', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final container = ProviderContainer(
+      overrides: [
+        ...offlineOverrides(),
+        authRepositoryProvider.overrideWithValue(
+          FakeAuthRepository(signedIn: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildVoiceOpsTheme(),
+          home: const Scaffold(body: VoiceScreen()),
+        ),
+      ),
+    );
+
+    for (final mood in AgentState.values) {
+      container.read(agentStateProvider.notifier).setState(mood);
+      // Through the orb's morph, so the new mood is fully blended in.
+      await tester.pump();
+      await tester.pump(VoiceOpsMotion.orbMorph);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.widget<MascotDisplay>(find.byType(MascotDisplay)).state,
+        mood,
+      );
+      expect(find.text(mood.label ?? 'Your co-rider is ready'), findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

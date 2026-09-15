@@ -262,6 +262,47 @@ void main() {
     });
   });
 
+  test('every agent_state key reaches the co-rider as its own mood', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+
+      for (final mood in AgentState.values.reversed) {
+        socket.emit({'event': 'agent_state', 'state': mood.riveKey});
+        flush();
+        expect(container.read(agentStateProvider), mood);
+      }
+    });
+  });
+
+  test('the co-rider shows speaking while its reply plays', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+
+      socket.emit({'event': 'agent_state', 'state': 'thinking'});
+      flush();
+      socket
+        ..emitAudio(Uint8List(960))
+        ..emit({'event': 'agent_state', 'state': 'speaking'});
+      flush();
+      expect(container.read(agentStateProvider), AgentState.speaking);
+      // The button keeps its own speaking state; the orb's mood is separate.
+      expect(ptt(), PushToTalkState.speaking);
+
+      socket
+        ..emit({'event': 'reply_done'})
+        ..emit({'event': 'agent_state', 'state': 'idle'});
+      flush();
+      expect(container.read(agentStateProvider), AgentState.idle);
+      expect(ptt(), PushToTalkState.idle);
+    });
+  });
+
   test('a tool turn: no reply_done until the answer after the tools', () {
     onFakeTime((async, flush) {
       session().onPushToTalk();

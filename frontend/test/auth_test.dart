@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/app/router.dart';
+import 'package:voiceops/core/audio/voice_recorder.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/core/widgets/primary_button.dart';
 import 'package:voiceops/features/auth/data/auth_repository.dart';
@@ -22,9 +23,11 @@ import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
+import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 
 import 'fake_auth.dart';
+import 'fake_voice.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -54,10 +57,13 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
-          if (onboarded)
-            onboardingProvider.overrideWith(
-              (ref) => OnboardingNotifier()..complete(),
-            ),
+          onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
+          onboardingStoreProvider.overrideWithValue(
+            FakeOnboardingStore(completed: onboarded),
+          ),
+          // Onboarding's Power screen checks the mic and location.
+          voiceRecorderProvider.overrideWithValue(FakeRecorder()),
+          locationSourceProvider.overrideWithValue(FakeLocationSource()),
         ],
         child: const VoiceOpsApp(),
       ),
@@ -227,17 +233,24 @@ void main() {
     expect(find.text(TermsAgreement.errorText), findsOneWidget);
     expect(auth.lastSignUp, isNull);
 
-    // Policy links are stubs until the real documents exist, and tapping
-    // one doesn't tick the box.
+    // The privacy link opens its bundled document and does not tick the box.
     await tester.tapOnText(
       find.textRange.ofSubstring(LegalDocument.privacy.title),
     );
     await settle(tester);
     expect(
-      find.text("The Privacy Policy isn't published yet."),
+      find.text('VoiceOps — Privacy Policy', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Voice audio — captured while you talk to the co-rider assistant',
+        findRichText: true,
+      ),
       findsOneWidget,
     );
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
+    await tap(tester, find.byTooltip('Close Privacy Policy'));
 
     await tap(tester, find.byType(Checkbox));
     expect(find.text(TermsAgreement.errorText), findsNothing);
@@ -256,7 +269,9 @@ void main() {
     expect(auth.profileChecks, 1);
   });
 
-  testWidgets('a policy link never covers the terms checkbox', (tester) async {
+  testWidgets('the terms link opens the matching bundled document', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tap(tester, find.text('Get started'));
 
@@ -275,18 +290,25 @@ void main() {
       reason: 'the terms row should sit just above the keyboard',
     );
 
-    // Most of the sentence is policy links. Tapping one explains the
-    // document isn't out yet, without putting anything over the box.
+    // Tapping the terms link opens the scrollable document without agreeing.
     await tester.tapOnText(
       find.textRange.ofSubstring(LegalDocument.terms.title),
     );
     await settle(tester);
     expect(
-      find.text("The Terms of Service isn't published yet."),
+      find.text('VoiceOps — Terms of Service', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'VoiceOps is a voice-driven delivery driver assistant',
+        findRichText: true,
+      ),
       findsOneWidget,
     );
     expect(tester.widget<Checkbox>(box).value, isFalse);
 
+    await tap(tester, find.byTooltip('Close Terms of Service'));
     await tester.tap(box);
     await settle(tester);
     expect(tester.widget<Checkbox>(box).value, isTrue);

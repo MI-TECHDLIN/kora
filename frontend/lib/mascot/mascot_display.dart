@@ -381,6 +381,16 @@ class _OrbMood {
       pulseDepth: 0.03,
       spin: 1.6,
     ),
+    // Talking follows thinking, so it must read differently: lit up rather
+    // than violet, a quick deep pulse like a speech cadence, and a slow spin.
+    AgentState.speaking => const _OrbMood(
+      tint: VoiceOpsOrbColors.specular,
+      tintStrength: 0.35,
+      glow: 0.70,
+      pulseHz: 1.4,
+      pulseDepth: 0.05,
+      spin: 0.4,
+    ),
     AgentState.calling => const _OrbMood(
       tint: VoiceOpsColors.success,
       tintStrength: 0.40,

@@ -7,7 +7,12 @@ import 'package:record/record.dart';
 /// The mic, as the voice socket needs it: PCM16 little-endian, mono, 24 kHz
 /// (docs/contracts/interface.md §1). Tests override [voiceRecorderProvider].
 abstract interface class VoiceRecorder {
+  /// Whether the mic is already allowed. Never asks.
+  Future<bool> hasPermission();
+
   /// Asks for mic permission if needed; false when the driver refuses.
+  /// Onboarding's Power screen asks first; the mic button asks again only
+  /// if it was refused or revoked since.
   Future<bool> ensurePermission();
 
   /// Starts capturing. The stream ends when [stop] is called.
@@ -34,6 +39,9 @@ class RecordVoiceRecorder implements VoiceRecorder {
   // app sessions (and every test) never press the mic.
   AudioRecorder? _recorder;
   AudioRecorder get _mic => _recorder ??= AudioRecorder();
+
+  @override
+  Future<bool> hasPermission() => _mic.hasPermission(request: false);
 
   @override
   Future<bool> ensurePermission() => _mic.hasPermission();

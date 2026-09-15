@@ -337,7 +337,10 @@ def test_session_update_carries_driver_context(upstream):
         assert "Emeka Okafor" in session["system_prompt"]
         assert "motorcycle" in session["system_prompt"]
         assert "3 Marina Road, Lagos" in session["system_prompt"]
-        assert {t["name"] for t in session["tools"]} >= {"get_next_delivery", "start_navigation"}
+        tool_names = {t["name"] for t in session["tools"]}
+        assert tool_names == set(tool_registry.TOOL_EXECUTORS)
+        assert {"get_next_delivery", "start_navigation", "accept_order", "decline_order"} <= tool_names
+        assert all(name in session["system_prompt"] for name in ("accept_order", "decline_order"))
 
 
 def test_greeting_relays_audio_transcript_and_reply_done(upstream):

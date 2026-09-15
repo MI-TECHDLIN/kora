@@ -3,6 +3,7 @@
 enum AgentState {
   idle,
   thinking,
+  speaking,
   calling,
   mapping,
   taskWorking,
@@ -17,6 +18,8 @@ extension AgentStateX on AgentState {
         return 'idle';
       case AgentState.thinking:
         return 'thinking';
+      case AgentState.speaking:
+        return 'speaking';
       case AgentState.calling:
         return 'calling';
       case AgentState.mapping:
@@ -36,6 +39,8 @@ extension AgentStateX on AgentState {
         return null;
       case AgentState.thinking:
         return 'Thinking...';
+      case AgentState.speaking:
+        return 'Speaking...';
       case AgentState.calling:
         return 'Calling...';
       case AgentState.mapping:

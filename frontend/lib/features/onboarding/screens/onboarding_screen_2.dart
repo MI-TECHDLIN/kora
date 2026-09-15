@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
@@ -11,16 +14,18 @@ import '../widgets/fill_or_scroll.dart';
 /// lavender mood. A layered card stack, not a flat grid, is a static demo
 /// of the co-rider doing three things at once.
 ///
-/// The "Mic access" card is a visual mock: no permission package is a
-/// dependency yet, so its action only flips [micAllowed] through
-/// [onAllowMic]. Wire the real OS request here when the voice work adds
-/// the audio-in package.
+/// It is also where the app asks for every OS permission it needs: the
+/// "Mic access" and "Location" cards. [micAllowed] and [locationAllowed]
+/// are the real OS answers, and [onAllowMic] / [onAllowLocation] ask.
+/// The onboarding flow owns both.
 class OnboardingPower extends StatelessWidget {
   const OnboardingPower({
     super.key,
     required this.driverName,
     required this.micAllowed,
     required this.onAllowMic,
+    required this.locationAllowed,
+    required this.onAllowLocation,
   });
 
   static const headline = 'Three things happen at once. You do nothing.';
@@ -28,6 +33,8 @@ class OnboardingPower extends StatelessWidget {
   final String driverName;
   final bool micAllowed;
   final VoidCallback onAllowMic;
+  final bool locationAllowed;
+  final VoidCallback onAllowLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -43,12 +50,13 @@ class OnboardingPower extends StatelessWidget {
             children: [
               const SizedBox(height: VoiceOpsSpacing.lg),
               _Greeting(driverName: driverName),
-              const SizedBox(height: VoiceOpsSpacing.lg),
+              const SizedBox(height: VoiceOpsSpacing.sm),
               Expanded(
                 child: _CardStack(
-                  compact: FillOrScroll.isCompact(viewport),
                   micAllowed: micAllowed,
                   onAllowMic: onAllowMic,
+                  locationAllowed: locationAllowed,
+                  onAllowLocation: onAllowLocation,
                 ),
               ),
               const SizedBox(height: VoiceOpsSpacing.lg),
@@ -62,7 +70,7 @@ class OnboardingPower extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: VoiceOpsSpacing.xl),
+              const SizedBox(height: VoiceOpsSpacing.md),
             ],
           ),
         ),
@@ -147,20 +155,21 @@ class _Greeting extends StatelessWidget {
 }
 
 /// "Next stop" behind, the holographic "Live route" teaser peeking in from
-/// the right edge, and the action-required "Mic access" card in front. The
-/// three cards arrive almost together, staggered just enough to read as
-/// parallel work.
+/// the right edge, and the action-required "Mic access" and "Location"
+/// cards in front. The cards arrive almost together, staggered just enough
+/// to read as parallel work.
 class _CardStack extends StatefulWidget {
   const _CardStack({
-    required this.compact,
     required this.micAllowed,
     required this.onAllowMic,
+    required this.locationAllowed,
+    required this.onAllowLocation,
   });
 
-  /// Short phones fan the cards tighter.
-  final bool compact;
   final bool micAllowed;
   final VoidCallback onAllowMic;
+  final bool locationAllowed;
+  final VoidCallback onAllowLocation;
 
   @override
   State<_CardStack> createState() => _CardStackState();
@@ -177,15 +186,17 @@ class _CardStackState extends State<_CardStack>
   static const _tiltBack = 0.05;
   static const _tiltTeaser = -0.08;
   static const _tiltFront = -0.03;
+  static const _tiltLocation = 0.03;
 
-  static const _clusterHeight = 330.0;
-  static const _clusterHeightCompact = 300.0;
+  // How far a card slides under the one after it: never more than its
+  // bottom padding, so the mic card can't cover the stop's two rows and the
+  // location card can't cover the mic button, at any text size.
+  static const _underNextStop = VoiceOpsSpacing.md;
+  static const _underMic = VoiceOpsSpacing.sm;
 
-  // Where the front card sits: low enough that the Next stop card's two rows
-  // show above it. Short phones need it lower because their front card
-  // wraps taller.
-  static const _frontAt = Alignment.centerLeft;
-  static const _frontAtCompact = Alignment(-1, 0.4);
+  static const _teaserAt = Alignment(1, -0.3);
+
+  static const _cardCount = 4;
 
   @override
   void didChangeDependencies() {
@@ -206,7 +217,7 @@ class _CardStackState extends State<_CardStack>
 
   /// Fades and lifts card [order] (0 = first) into place.
   Widget _arrive(int order, Widget child) {
-    final start = order * 0.2;
+    final start = order * 0.4 / (_cardCount - 1);
     final curve = CurvedAnimation(
       parent: _entrance,
       curve: Interval(start, start + 0.6, curve: VoiceOpsMotion.standard),
@@ -224,76 +235,170 @@ class _CardStackState extends State<_CardStack>
   }
 
   /// Card [order] at [alignment] within the stack, [widthFactor] of its width.
-  Widget _place(
+  Widget _deal(
     int order, {
     required Alignment alignment,
     required double widthFactor,
     required Widget card,
-  }) => Positioned.fill(
-    child: Align(
-      alignment: alignment,
-      child: FractionallySizedBox(
-        widthFactor: widthFactor,
-        child: _arrive(order, card),
-      ),
+  }) => Align(
+    alignment: alignment,
+    child: FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: _arrive(order, card),
     ),
   );
 
   @override
   Widget build(BuildContext context) {
-    // A fixed-height cluster keeps the cards overlapping as a stack on tall
-    // phones instead of drifting apart; on short ones it shrinks and they
-    // overlap more. Cards are placed by alignment rather than measured
-    // offsets so the stack keeps intrinsic sizing (FillOrScroll needs it).
+    // The light cards stack in reading order, each laid over the bottom
+    // padding of the one before. Bigger text pushes them down, and the page
+    // scrolls, instead of piling them onto each other's buttons. The teaser
+    // sits behind them all, placed by alignment.
     return Center(
-      child: SizedBox(
-        height: widget.compact ? _clusterHeightCompact : _clusterHeight,
-        width: double.infinity,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            _place(
-              0,
-              alignment: Alignment.topRight,
-              widthFactor: 0.64,
-              card: Transform.rotate(
-                angle: _tiltBack,
-                child: const _NextStopCard(),
-              ),
-            ),
-            _place(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: _deal(
               1,
-              alignment: Alignment.bottomRight,
+              alignment: _teaserAt,
               widthFactor: 0.56,
               // Slides past the page edge so it peeks in from the side.
               card: FractionalTranslation(
-                translation: const Offset(0.36, 0),
+                translation: const Offset(0.45, 0),
                 child: Transform.rotate(
                   angle: _tiltTeaser,
                   child: const _LiveRouteTeaser(),
                 ),
               ),
             ),
-            _place(
-              2,
-              alignment: widget.compact ? _frontAtCompact : _frontAt,
-              widthFactor: 0.7,
-              card: Transform.rotate(
-                angle: _tiltFront,
-                child: _MicAccessCard(
-                  allowed: widget.micAllowed,
-                  onAllow: widget.onAllowMic,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Overlapped(
+                overlap: _underNextStop,
+                child: _deal(
+                  0,
+                  alignment: Alignment.centerRight,
+                  widthFactor: 0.64,
+                  card: Transform.rotate(
+                    angle: _tiltBack,
+                    child: const _NextStopCard(),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+              _Overlapped(
+                overlap: _underMic,
+                child: _deal(
+                  2,
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 0.76,
+                  card: Transform.rotate(
+                    angle: _tiltFront,
+                    child: _AccessCard(
+                      title: 'Mic access',
+                      reason:
+                          'Your co-rider needs the mic so it can hear you '
+                          'over road noise.',
+                      allowIcon: TablerIcons.microphone,
+                      allowLabel: 'Allow mic',
+                      allowedLabel: 'Mic allowed',
+                      allowed: widget.micAllowed,
+                      onAllow: widget.onAllowMic,
+                    ),
+                  ),
+                ),
+              ),
+              _deal(
+                3,
+                alignment: Alignment.centerRight,
+                widthFactor: 0.7,
+                card: Transform.rotate(
+                  angle: _tiltLocation,
+                  child: _AccessCard(
+                    title: 'Location',
+                    reason: 'It routes you stop to stop.',
+                    allowIcon: TablerIcons.currentLocation,
+                    allowLabel: 'Allow location',
+                    allowedLabel: 'Location allowed',
+                    allowed: widget.locationAllowed,
+                    onAllow: widget.onAllowLocation,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Frosted-white card surface shared by the two light cards.
+/// Lays [child] out as usual but takes [overlap] less height in its parent,
+/// so the next card in the column slides over that much of its bottom edge.
+/// Keeps intrinsic sizing, which [FillOrScroll] needs.
+class _Overlapped extends SingleChildRenderObjectWidget {
+  const _Overlapped({required this.overlap, required super.child});
+
+  final double overlap;
+
+  @override
+  _RenderOverlapped createRenderObject(BuildContext context) =>
+      _RenderOverlapped(overlap);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderOverlapped renderObject,
+  ) => renderObject.overlap = overlap;
+}
+
+class _RenderOverlapped extends RenderProxyBox {
+  _RenderOverlapped(this._overlap);
+
+  double _overlap;
+  set overlap(double value) {
+    if (value == _overlap) return;
+    _overlap = value;
+    markNeedsLayout();
+  }
+
+  double _trim(double height) => math.max(0, height - _overlap);
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _trim(super.computeMinIntrinsicHeight(width));
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _trim(super.computeMaxIntrinsicHeight(width));
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final full = child!.getDryLayout(constraints);
+    return constraints.constrain(Size(full.width, _trim(full.height)));
+  }
+
+  @override
+  void performLayout() {
+    child!.layout(constraints, parentUsesSize: true);
+    size = constraints.constrain(
+      Size(child!.size.width, _trim(child!.size.height)),
+    );
+  }
+
+  // It paints all of the child, the overlap included (and below it while
+  // the card slides in), so it takes taps on all of it too.
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestChildren(result, position: position)) return false;
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+}
+
+/// Frosted-white card surface shared by the light cards.
 BoxDecoration _paperCard({required bool front}) => BoxDecoration(
   color: front ? VoiceOpsMood.paper : VoiceOpsMood.paperGlass,
   borderRadius: BorderRadius.circular(VoiceOpsRadius.card),
@@ -404,9 +509,26 @@ class _LiveRouteTeaser extends StatelessWidget {
   }
 }
 
-class _MicAccessCard extends StatelessWidget {
-  const _MicAccessCard({required this.allowed, required this.onAllow});
+/// An action-required card for one OS permission: "ALL SET" and a check
+/// once [allowed], otherwise an allow button that asks the OS.
+class _AccessCard extends StatelessWidget {
+  const _AccessCard({
+    required this.title,
+    required this.reason,
+    required this.allowIcon,
+    required this.allowLabel,
+    required this.allowedLabel,
+    required this.allowed,
+    required this.onAllow,
+  });
 
+  final String title;
+
+  /// Why the co-rider needs it, in a line or two.
+  final String reason;
+  final IconData allowIcon;
+  final String allowLabel;
+  final String allowedLabel;
   final bool allowed;
   final VoidCallback onAllow;
 
@@ -444,12 +566,12 @@ class _MicAccessCard extends StatelessWidget {
           ),
           const SizedBox(height: VoiceOpsSpacing.sm),
           Text(
-            'Mic access',
+            title,
             style: VoiceOpsText.headline.copyWith(color: VoiceOpsMood.ink),
           ),
           const SizedBox(height: VoiceOpsSpacing.xs),
           Text(
-            'Your co-rider needs the mic so it can hear you over road noise.',
+            reason,
             style: VoiceOpsText.weight(
               VoiceOpsText.label,
               FontWeight.w400,
@@ -459,27 +581,39 @@ class _MicAccessCard extends StatelessWidget {
           AnimatedSwitcher(
             duration: VoiceOpsMotion.base,
             child: allowed
-                ? Row(
+                // As tall as the button it replaces, so the stack holds
+                // still when the OS answers.
+                ? ConstrainedBox(
                     key: const ValueKey('allowed'),
-                    children: [
-                      const Icon(
-                        TablerIcons.circleCheck,
-                        size: VoiceOpsSize.iconMd,
-                        color: VoiceOpsMood.ink,
-                      ),
-                      const SizedBox(width: VoiceOpsSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          'Mic allowed',
-                          style: VoiceOpsText.label.copyWith(
-                            color: VoiceOpsMood.ink,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                    constraints: const BoxConstraints(
+                      minHeight: VoiceOpsSize.touchTarget,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          TablerIcons.circleCheck,
+                          size: VoiceOpsSize.iconMd,
+                          color: VoiceOpsMood.ink,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: VoiceOpsSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            allowedLabel,
+                            style: VoiceOpsText.label.copyWith(
+                              color: VoiceOpsMood.ink,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
-                : _AllowButton(key: const ValueKey('allow'), onTap: onAllow),
+                : _AllowButton(
+                    key: const ValueKey('allow'),
+                    icon: allowIcon,
+                    label: allowLabel,
+                    onTap: onAllow,
+                  ),
           ),
         ],
       ),
@@ -489,8 +623,15 @@ class _MicAccessCard extends StatelessWidget {
 
 /// Compact dark pill on the white card. Still a full 48px touch target.
 class _AllowButton extends StatelessWidget {
-  const _AllowButton({super.key, required this.onTap});
+  const _AllowButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -499,7 +640,7 @@ class _AllowButton extends StatelessWidget {
     return Semantics(
       container: true,
       button: true,
-      label: 'Allow mic',
+      label: label,
       excludeSemantics: true,
       child: Material(
         color: VoiceOpsMood.ink,
@@ -518,15 +659,15 @@ class _AllowButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    TablerIcons.microphone,
+                  Icon(
+                    icon,
                     size: VoiceOpsSize.iconSm,
                     color: VoiceOpsMood.paper,
                   ),
                   const SizedBox(width: VoiceOpsSpacing.sm),
                   Flexible(
                     child: Text(
-                      'Allow mic',
+                      label,
                       style: VoiceOpsText.label.copyWith(
                         color: VoiceOpsMood.paper,
                       ),
