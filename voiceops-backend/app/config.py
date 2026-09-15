@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # OSRM (routes for get_best_route / start_navigation; navigation renders in-app, no deeplink).
     # Public demo by default; set OSRM_BASE_URL to a self-hosted osrm-routed.
     osrm_base_url: str = "https://router.project-osrm.org"
+    
+    # TomTom (Traffic-aware routing for proactive alerts and ETA calculations)
+    tomtom_api_key: Optional[str] = None
 
     # Onfleet (Optional - External logistics platform, use mock if not provided)
     onfleet_api_key: Optional[str] = None
