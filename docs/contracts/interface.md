@@ -1,5 +1,6 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.4 (draft), 2026-09-14. 1.4 adds traffic-aware routing and proactive reroute suggestions: new `PROACTIVE_ALERT` event with `route_suggestion` field for ROUTE_DEVIATION alerts, and traffic-aware ETA integration in order offers.
 **Version:** 1.3 (draft), 2026-09-13. 1.3 lets the offer card answer an order offer over the
 voice WebSocket (§1). See "Changes in 1.3". 1.2 added new-order dispatch: the `order_offer` and
 `order_offer_closed` events and unprompted agent replies (§1), the Order Intake API (§2), the
@@ -145,6 +146,50 @@ may be `null`. `expires_in_s` counts down from when the event was sent. The offe
 `order_offer_closed`. On `accepted` the order is a `pending` stop on this shift, so
 `GET /v1/deliveries` returns it with the full address. The driver answers by voice or with the
 card's Accept / Decline buttons (the `accept_order` / `decline_order` client events above).
+
+**Traffic-aware enhancement (v1.4):** The order offer now includes traffic-aware ETA information:
+```json
+{
+  "event": "order_offer",
+  "order_id": "…",
+  "area": "Lavaca St, Austin",
+  "latitude": 30.271,
+  "longitude": -97.746,
+  "distance_km": 0.51,
+  "eta_minutes": 12,
+  "traffic_delay_minutes": 4,
+  "time_window": "3:00 PM – 5:00 PM",
+  "package_count": 2,
+  "expires_in_s": 75
+}
+```
+`eta_minutes` is the traffic-aware ETA in minutes, and `traffic_delay_minutes` shows how much
+longer than free-flow the current traffic conditions add. These fields are computed using the
+TomTom Routing API with traffic data and are only present for the winning candidate (not during
+candidate ranking to minimize API calls).
+
+**`PROACTIVE_ALERT`.** Proactive alert from the risk engine for time window risks, excessive idle,
+or route deviations. The alert is pushed via the driver WebSocket and includes optional route
+suggestion data for ROUTE_DEVIATION alerts.
+
+```json
+{
+  "event": "PROACTIVE_ALERT",
+  "severity": "HIGH",
+  "risk_type": "ROUTE_DEVIATION",
+  "message": "Traffic ahead adds about 8 minutes on your current route. Want me to reroute?",
+  "delivery_id": "…",
+  "route_suggestion": {
+    "eta_minutes": 12,
+    "current_eta_minutes": 20,
+    "geometry": "route_geometry_string"
+  }
+}
+```
+
+For plain TIME_WINDOW_RISK or EXCESSIVE_IDLE alerts, `route_suggestion` is absent/`null`. Only
+ROUTE_DEVIATION alerts include route suggestion data. The frontend can use the `geometry` to draw
+the alternate route on the map and display the time savings comparison.
 
 **Unprompted replies.** When an offer arrives, the relay asks AssemblyAI to speak now
 (`reply.create`, below). The app then gets agent audio, a `transcript` (`agent`), and
@@ -419,6 +464,21 @@ Additive: the `accept_order` and `decline_order` client WebSocket events in §1 
 offer card invoke the same handlers as a voice answer without going through the LLM. When the
 co-rider had already spoken the offer, it confirms a tapped answer in one sentence. No existing
 client or server event changed shape.
+
+---
+
+## Changes in 1.4
+
+Additive: traffic-aware routing and proactive reroute suggestions.
+
+|| Addition | Where |
+|---|---|
+| `PROACTIVE_ALERT` server event with optional `route_suggestion` field | §1 |
+| `eta_minutes` and `traffic_delay_minutes` fields in `order_offer` event | §1 |
+| `accept_reroute` tool for accepting traffic-based reroute suggestions | Tools Reference §5.5 |
+| Traffic-aware ETA integration in risk detection and order dispatch | Backend services |
+
+**Frontend:** The order offer card should display traffic-aware ETA and delay information when available. The `PROACTIVE_ALERT` event should be handled to display traffic alerts, and when `route_suggestion` is present, the alternate route should be drawn on the map with time savings comparison. The new `accept_reroute` tool allows drivers to accept suggested reroutes via voice.
 
 ---
 

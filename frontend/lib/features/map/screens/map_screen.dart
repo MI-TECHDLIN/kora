@@ -394,17 +394,24 @@ class _LocationStatus extends ConsumerWidget {
         final opensSettings =
             problem == LocationProblem.serviceOff ||
             problem == LocationProblem.deniedForever;
+        // Onboarding asks for permission. This is the fallback for a driver
+        // who skipped it there or revoked it since, and only a tap asks.
+        final asks = problem == LocationProblem.denied;
         return MapChip(
           icon: TablerIcons.mapPinOff,
           tone: VoiceOpsColors.amber,
           message: error is LocationUnavailable
               ? error.message
               : const LocationUnavailable(LocationProblem.unavailable).message,
-          actionLabel: opensSettings ? 'Settings' : 'Try again',
+          actionLabel: opensSettings
+              ? 'Settings'
+              : asks
+              ? 'Allow'
+              : 'Try again',
           onAction: () async {
-            if (opensSettings) {
-              await ref.read(locationSourceProvider).openSettings(problem);
-            }
+            final source = ref.read(locationSourceProvider);
+            if (opensSettings) await source.openSettings(problem);
+            if (asks) await source.requestPermission();
             ref.invalidate(locationProvider);
           },
         );

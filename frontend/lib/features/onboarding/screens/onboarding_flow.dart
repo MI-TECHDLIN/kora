@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/voice_recorder.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../providers/location_provider.dart';
 import '../../../providers/onboarding_provider.dart';
 import '../widgets/onboarding_backdrop.dart';
 import '../widgets/onboarding_controls.dart';
@@ -21,6 +25,10 @@ const _placeholderDriverName = 'Mary';
 /// the driver to the welcome screen's "Get started", or straight into the
 /// main app when already signed in.
 ///
+/// Power is also where the app asks for the mic and location. The flow
+/// holds the real OS answers: it checks them silently on open, so anything
+/// granted before shows as allowed, and asks only when the driver taps.
+///
 /// The co-rider here takes the holographic material from the onboarding
 /// route's OrbMaterialScope.
 class OnboardingFlow extends ConsumerStatefulWidget {
@@ -36,8 +44,12 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   final _pages = PageController();
   int _index = 0;
 
-  // Local to the flow so it survives the Power page being swiped offscreen.
+  // Local to the flow so they survive the Power page being swiped offscreen.
   bool _micAllowed = false;
+  bool _locationAllowed = false;
+
+  // One OS prompt at a time: a second tap mid-prompt is ignored.
+  bool _asking = false;
 
   /// Fractional page, tracking a swipe frame by frame.
   double get _page => _pages.hasClients && _pages.position.hasContentDimensions
@@ -55,6 +67,63 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     duration: VoiceOpsMotion.slow,
     curve: VoiceOpsMotion.emphasized,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_checkPermissions());
+  }
+
+  Future<void> _checkPermissions() async {
+    final mic = await _answer(ref.read(voiceRecorderProvider).hasPermission);
+    final location = await _answer(
+      ref.read(locationSourceProvider).hasPermission,
+    );
+    if (!mounted) return;
+    // Never undo a grant that landed while the check was in flight.
+    setState(() {
+      _micAllowed |= mic;
+      _locationAllowed |= location;
+    });
+  }
+
+  Future<void> _allowMic() async {
+    final allowed = await _ask(
+      ref.read(voiceRecorderProvider).ensurePermission,
+    );
+    if (allowed != null && mounted) setState(() => _micAllowed = allowed);
+  }
+
+  Future<void> _allowLocation() async {
+    final allowed = await _ask(
+      ref.read(locationSourceProvider).requestPermission,
+    );
+    if (allowed == null || !mounted) return;
+    setState(() => _locationAllowed = allowed);
+    // The app-wide position stream started at launch without permission and
+    // stopped there; start it again now that it can run.
+    if (allowed) ref.invalidate(locationProvider);
+  }
+
+  /// Shows [request]'s OS prompt, or null while another is already up.
+  Future<bool?> _ask(Future<bool> Function() request) async {
+    if (_asking) return null;
+    _asking = true;
+    try {
+      return await _answer(request);
+    } finally {
+      _asking = false;
+    }
+  }
+
+  /// A permission plugin that fails counts as not allowed.
+  static Future<bool> _answer(Future<bool> Function() permission) async {
+    try {
+      return await permission();
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void dispose() {
@@ -97,7 +166,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                       OnboardingPower(
                         driverName: _placeholderDriverName,
                         micAllowed: _micAllowed,
-                        onAllowMic: () => setState(() => _micAllowed = true),
+                        onAllowMic: _allowMic,
+                        locationAllowed: _locationAllowed,
+                        onAllowLocation: _allowLocation,
                       ),
                     ],
                   ),

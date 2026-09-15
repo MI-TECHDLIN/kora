@@ -327,6 +327,24 @@ void main() {
     expect(location.watches, 2); // asked again after Settings
   });
 
+  testWidgets('a driver who skipped location in onboarding can allow it', (
+    tester,
+  ) async {
+    location.problem = LocationProblem.denied;
+    await pump(tester, const MapScreen());
+    await settle(tester);
+    expect(location.permissionRequests, 0); // the map never asks by itself
+    expect(
+      find.text(const LocationUnavailable(LocationProblem.denied).message),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Allow'));
+    await settle(tester);
+    expect(location.permissionRequests, 1);
+    expect(location.opened, isEmpty);
+    expect(location.watches, 2); // started again once allowed
+  });
+
   testWidgets('the vehicle card retries a failed profile load', (tester) async {
     api.profileFailure = const ApiException("Can't reach VoiceOps right now.");
     await pump(tester, const MapScreen());

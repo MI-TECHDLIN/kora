@@ -20,6 +20,9 @@ offer until it resolves.
 
 Offer state lives in this process (one uvicorn worker). The `deliveries` row carries the
 durable part, and open orders are reloaded as `unassigned` on startup.
+
+Offer payload includes traffic-aware ETA for the winning candidate (computed only once per offer,
+not during candidate ranking to avoid excessive API calls).
 """
 import asyncio
 import logging
@@ -271,10 +274,13 @@ class OrderDispatcher:
 
     # ------------------------------------------------------------------ offers
 
-    def offer_payload(self, open_order: OpenOrder) -> Dict[str, Any]:
-        """What a driver's session needs to show and speak the offer."""
+    async def offer_payload(self, open_order: OpenOrder) -> Dict[str, Any]:
+        """
+        What a driver's session needs to show and speak the offer.
+        Now includes traffic-aware ETA for the winning candidate.
+        """
         order, candidate = open_order.order, open_order.offered_to
-        return {
+        payload = {
             "order_id": open_order.delivery_id,
             "external_id": order.external_id,
             "area": order.area,
@@ -286,6 +292,45 @@ class OrderDispatcher:
             "expires_at": open_order.expires_at,
             "window_seconds": max(0, round((open_order.expires_at or 0) - time.time())),
         }
+        
+        # Add traffic-aware ETA for the winning candidate only (not in ranking loop)
+        if candidate:
+            try:
+                from app.services.eta_service import eta_service
+                
+                # Get driver's current location
+                driver_origin = self.fallback_origin  # Default fallback
+                
+                # Try to get actual driver location from database
+                try:
+                    positions = await _try_db(get_active_driver_positions)
+                    if positions:
+                        for p in positions:
+                            if str(p["driver_id"]) == candidate.driver_id:
+                                if p.get("latitude") is not None and p.get("longitude") is not None:
+                                    driver_origin = (float(p["latitude"]), float(p["longitude"]))
+                                    break
+                except Exception as e:
+                    logger.warning(f"[Dispatch] Could not fetch driver location for traffic ETA: {e}")
+                
+                # Calculate traffic-aware ETA
+                destination = (order.latitude, order.longitude)
+                eta_result = await eta_service.compute_eta_minutes_traffic_aware(
+                    driver_origin,
+                    destination,
+                    delivery_id=open_order.delivery_id,
+                )
+                
+                if eta_result:
+                    payload["eta_minutes"] = eta_result["eta_minutes"]
+                    payload["traffic_delay_minutes"] = eta_result.get("traffic_delay_minutes", 0)
+                    
+                    logger.info(f"[Dispatch] Added traffic ETA to offer: {eta_result['eta_minutes']} mins "
+                               f"(delay: {eta_result.get('traffic_delay_minutes', 0)} mins)")
+            except Exception as e:
+                logger.warning(f"[Dispatch] Failed to add traffic ETA to offer: {e}")
+        
+        return payload
 
     async def _set_status(self, open_order: OpenOrder, status: str) -> None:
         if open_order.status != status:
@@ -299,7 +344,7 @@ class OrderDispatcher:
             self._expire_after(open_order.delivery_id, candidate.driver_id, self.offer_window))
         await self._set_status(open_order, OFFERED)
         try:
-            reached = await self.hub.present_offer(candidate.shift_id, self.offer_payload(open_order))
+            reached = await self.hub.present_offer(candidate.shift_id, await self.offer_payload(open_order))
         except Exception:
             logger.exception("[Dispatch] Presenting an offer failed")
             reached = 0
@@ -364,7 +409,7 @@ class OrderDispatcher:
                 holder = open_order.offered_to
                 if holder and holder.driver_id == driver_id:
                     holder.shift_id = shift_id
-                    await self.hub.present_offer(shift_id, self.offer_payload(open_order))
+                    await self.hub.present_offer(shift_id, await self.offer_payload(open_order))
         await self.redispatch()
 
     def driver_left(self, driver_id: str) -> None:

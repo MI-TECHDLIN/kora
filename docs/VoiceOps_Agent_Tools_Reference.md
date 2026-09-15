@@ -1,5 +1,6 @@
 # VoiceOps: Agent Tools Reference
 
+> **v2.5, 2026-09-14.** v2.5 adds traffic-aware routing and proactive reroute suggestion: new tool `accept_reroute` (§5.5) for accepting traffic-based reroute suggestions, and traffic-aware ETA integration throughout the system.
 > **v2.4, 2026-09-13.** v2.4 records that the app's offer card can invoke `accept_order` (§12)
 > and `decline_order` (§13) directly through additive client WebSocket events. The tool argument
 > and result shapes are unchanged.
@@ -7,14 +8,14 @@
 > order queue (§8), and two tools answer an offer, `accept_order` (§12) and `decline_order`
 > (§13). The agent also announces offers unprompted (see Proactive Behaviours).
 > **v2.2, 2026-09-13.** v2.0 was generated from code on 2026-09-11. Every argument shape, enum,
-> and result field below was read from `app/agents/tool_registry.py` and
+> and route field below was read from `app/agents/tool_registry.py` and
 > `app/agents/tools/{delivery,navigation,communication}.py`. v2.1 adds the WebSocket relay's
 > wiring and context, the in-app `start_navigation` result (§5), and position-aware routing
 > (§4), and adds an 11th tool, `show_screen` (§11). v2.2 moves routing (§4, §5) from Google Directions
 > to OSRM and leaves every shape unchanged. This edition supersedes the earlier "reconstructed edition". The code's own header cites
 > "Agent Tools Reference v1.0", and that original was never recovered.
 
-This document is the **contract** for the 13 agent tools, together with
+This document is the **contract** for the 14 agent tools, together with
 `docs/contracts/interface.md`. The AssemblyAI Voice Agent calls these tools by name with these
 exact argument shapes. A drifted shape gives you an agent that works in testing and misfires in
 the demo.
@@ -342,6 +343,50 @@ minutes. `route` is `null` when OSRM returns nothing, and then the message is
 the Flutter map draws the route. There is no deep link. Before 2026-09-12 the handler returned
 `action: "open_navigation"` and a Google Maps `navigation_url`. Both are gone, because leaving
 the app breaks "drivers never touch their phone" (PRD §1).
+
+---
+
+### 5.5. `accept_reroute`
+
+Accept a suggested reroute and set it as the active navigation route. *Triggers: "yes take that route", "accept reroute", "use the alternate route".*
+**Platform:** internal. Uses traffic-aware routing API to set the alternate route.
+
+**Arguments:**
+```json
+{
+  "eta_minutes": 12,
+  "geometry": "route_geometry_string",
+  "delivery_id": "uuid"
+}
+```
+
+| Arg | Type | Required | Notes |
+|---|---|---|---|
+| `eta_minutes` | number | no | ETA of the suggested route in minutes |
+| `geometry` | string | no | Route geometry/polyline from the suggestion |
+| `delivery_id` | string | no | Delivery ID for the route |
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "action": "reroute_accepted",
+  "route": {
+    "summary": "Suggested Reroute",
+    "distance_km": 4.5,
+    "duration_mins": 12,
+    "duration_text": "12 mins",
+    "provider": "traffic_reroute",
+    "geometry": "route_geometry_string"
+  },
+  "message": "Rerouting to 22 Victoria Island Drive. Estimated time: 12 mins.",
+  "destination_address": "22 Victoria Island Drive"
+}
+```
+
+The tool accepts a traffic-aware reroute suggestion from the proactive alert system and sets it as the active navigation route. If geometry is provided from the alert, it uses that directly; otherwise it falls back to calculating a fresh route via the routing service. The route information is returned for the agent to communicate to the driver.
+
+**Contract:** The relay pushes `screen_navigate` (`map`) and a `map_route` event built from the result's `route` field, and the Flutter map displays the new route. This tool is called when the driver accepts a ROUTE_DEVIATION proactive alert that includes route suggestion data.
 
 ---
 

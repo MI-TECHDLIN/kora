@@ -17,3 +17,6 @@ class PushToTalkNotifier extends StateNotifier<PushToTalkState> {
 
   void set(PushToTalkState next) => state = next;
 }
+
+/// True while the mic streams during a continuous conversation.
+final micLiveProvider = StateProvider<bool>((ref) => false);

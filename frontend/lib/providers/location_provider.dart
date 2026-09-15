@@ -8,7 +8,8 @@ final locationSourceProvider = Provider<LocationSource>(
 );
 
 /// The driver's live position, started by the app's map warmup and shared with
-/// the Map tab. Errors with [LocationUnavailable]; invalidate it to ask again.
+/// the Map tab. Errors with [LocationUnavailable] (never asks for permission
+/// itself); invalidate it to try again, as once permission is granted.
 final locationProvider = StreamProvider<LocationFix>(
   (ref) => ref.watch(locationSourceProvider).watch(),
 );
