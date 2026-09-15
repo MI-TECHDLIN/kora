@@ -2,19 +2,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../legal_document.dart';
+import 'legal_document_viewer.dart';
 
-/// The policies a driver agrees to at sign-up.
-///
-/// TODO(Ez): link the published policies once they exist. Until then a tap
-/// says the document isn't out yet, inline under the sentence; no legal text
-/// is made up here.
-enum LegalDocument {
-  terms('Terms of Service'),
-  privacy('Privacy Policy');
-
-  const LegalDocument(this.title);
-  final String title;
-}
+export '../legal_document.dart';
 
 /// Sign-up's agreement gate: a checkbox plus the policy links. The account
 /// can't be created until [value] is true; [showError] flags a submit
@@ -45,9 +36,6 @@ class _TermsAgreementState extends State<TermsAgreement> {
       doc: TapGestureRecognizer()..onTap = () => _open(doc),
   };
 
-  /// The policy whose link was tapped last, while it's still unpublished.
-  LegalDocument? _unpublished;
-
   @override
   void dispose() {
     for (final link in _links.values) {
@@ -56,10 +44,19 @@ class _TermsAgreementState extends State<TermsAgreement> {
     super.dispose();
   }
 
-  // Said inline, not in a snackbar: the notice bar lands at the bottom of the
-  // visible screen, which with the keyboard up is right over this checkbox,
-  // and it swallowed every tap on the box while it showed.
-  void _open(LegalDocument doc) => setState(() => _unpublished = doc);
+  void _open(LegalDocument doc) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: VoiceOpsColors.canvas,
+      builder: (context) => SizedBox(
+        height: MediaQuery.sizeOf(context).height,
+        child: LegalDocumentViewer(document: doc),
+      ),
+    );
+  }
 
   void _toggle() {
     if (widget.enabled) widget.onChanged(!widget.value);
@@ -126,11 +123,6 @@ class _TermsAgreementState extends State<TermsAgreement> {
         ),
         if (widget.showError)
           _Note(TermsAgreement.errorText, color: VoiceOpsColors.danger),
-        if (_unpublished case final doc?)
-          _Note(
-            "The ${doc.title} isn't published yet.",
-            color: VoiceOpsColors.textMuted,
-          ),
       ],
     );
   }
