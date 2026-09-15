@@ -14,18 +14,23 @@ from app.api.routes import (
     pod,
     fleet,
     routes,
+    logistics,
 )
 from app.api.websocket.driver_ws import router as driver_ws_router
 from app.api.websocket.voice import router as voice_router
+from app.dispatch.order_dispatch import get_order_dispatcher
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print(f"VoiceOps backend starting in {settings.environment} mode")
+    dispatcher = get_order_dispatcher()
+    await dispatcher.start()
     yield
     # Shutdown
     print("VoiceOps backend shutting down")
+    await dispatcher.stop()
 
 
 app = FastAPI(
@@ -57,6 +62,7 @@ app.include_router(driver.router, prefix="/v1/driver", tags=["driver"])
 app.include_router(deliveries.router, prefix="/v1/deliveries", tags=["deliveries"])
 app.include_router(shift.router, prefix="/v1/shift", tags=["shift"])
 app.include_router(tools.router, prefix="/v1/tools", tags=["tools"])
+app.include_router(logistics.router, prefix="/v1/logistics", tags=["logistics"])
 app.include_router(voice_agent.router, prefix="/v1", tags=["voice-agent"])
 app.include_router(locations.router, prefix="/v1", tags=["locations"])
 app.include_router(pod.router, prefix="/v1", tags=["pod"])

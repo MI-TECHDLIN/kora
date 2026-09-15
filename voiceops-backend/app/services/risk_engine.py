@@ -138,7 +138,7 @@ class RiskEngine:
             eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                 (float(origin_lat), float(origin_lng)),
                 (float(dest_lat), float(dest_lng)),
-                delivery_id=delivery_id,
+                delivery_id=delivery["id"],
                 current_speed_kmh=speed
             )
             eta = eta_result["eta_minutes"]

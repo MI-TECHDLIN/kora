@@ -125,7 +125,7 @@ async def receive_location_ping(
                     eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                         (ping.latitude, ping.longitude),
                         (float(dest_lat), float(dest_lng)),
-                        delivery_id=delivery_id,
+                        delivery_id=delivery["id"],
                         current_speed_kmh=ping.speed
                     )
                     eta = eta_result["eta_minutes"]
