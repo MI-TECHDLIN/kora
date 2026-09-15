@@ -171,6 +171,7 @@ class VoiceSession:
         self.voice_session_id: Optional[str] = None
 
         self.pending_tools: List[Tuple[str, str, asyncio.Task]] = []  # (call_id, name, task)
+        self._deferred_upstream: List[dict] = []
         self.active_calls: Dict[str, Optional[asyncio.Task]] = {}  # call_id → status watcher
 
         self.driver_turns: List[str] = []
@@ -315,6 +316,8 @@ class VoiceSession:
 
     async def recv_upstream(self) -> Optional[dict]:
         """Next JSON event from AssemblyAI, or None once the upstream socket is closed."""
+        if self._deferred_upstream:
+            return self._deferred_upstream.pop(0)
         while True:
             try:
                 raw = await self.upstream.recv()
@@ -620,6 +623,7 @@ class VoiceSession:
                 self._start_tool(data)
             elif msg_type == "reply.done":
                 self._reply_active = False
+                await self._drain_tool_call_burst()
                 await self._finish_reply(interrupted=data.get("status") == "interrupted")
                 self._announce_wake.set()
             elif msg_type == "session.ended":
@@ -643,6 +647,21 @@ class VoiceSession:
             arguments = {}
         task = asyncio.create_task(self._run_tool(name, call_id, arguments))
         self.pending_tools.append((call_id, name, task))
+
+    async def _drain_tool_call_burst(self) -> None:
+        """Collect tool.call frames that arrive in the same upstream turn as reply.done."""
+        while True:
+            try:
+                data = await asyncio.wait_for(self.recv_upstream(), 0.01)
+            except asyncio.TimeoutError:
+                return
+            if data is None:
+                self._deferred_upstream.append({"type": "session.ended"})
+                return
+            if data.get("type") != "tool.call":
+                self._deferred_upstream.append(data)
+                return
+            self._start_tool(data)
 
     async def _finish_reply(self, interrupted: bool = False) -> None:
         """
@@ -752,7 +771,7 @@ class VoiceSession:
             await self.emit(events.call_started(call_id, delivery_id, result.get("customer_name"), sequence))
 
         elif name == "update_delivery_status":
-            if result.get("status") == "delivered":
+            if (result.get("status") or result.get("new_status")) == "delivered":
                 await self.emit(events.agent_state("celebrating"))
 
         elif name == "get_shift_summary":

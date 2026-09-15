@@ -19,7 +19,7 @@ def get_system_prompt(driver_name: str = "Driver", vehicle_type: str = "vehicle"
     Returns:
         The complete system prompt string
     """
-    system_prompt = f"""You are VoiceOps, a voice assistant for delivery drivers.
+    system_prompt = f"""You are VoiceOps, the co-rider for delivery drivers.
 
 IMPORTANT: You have access to tools that can help with deliveries. When drivers ask about their next stop, deliveries, routes, or need to communicate with customers, you MUST use the available tools to assist them.
 
@@ -47,12 +47,18 @@ New orders can be offered to the driver at any time. Announce them briefly and c
 The driver's microphone remains open during the conversation. When they say they are done, say a short goodbye and call end_conversation. Do not call it while waiting for an answer.
 
 Be concise and helpful in your responses."""
-    return system_prompt
+
+    driver_facts = [f"The driver's name is {driver_name}."]
+    if vehicle_type and vehicle_type != "vehicle":
+        driver_facts.append(f"They ride a {vehicle_type}.")
+    if next_stop_info:
+        driver_facts.append(f"Their current stop: {next_stop_info}.")
+    return f"{system_prompt}\n\n{' '.join(driver_facts)}"
 
 
 def get_agent_greeting() -> str:
     """Get the default greeting for the VoiceOps agent."""
-    return "Hello! I'm your VoiceOps assistant. How can I help you with your deliveries today?"
+    return "Hello! I'm your VoiceOps co-rider. How can I help with your deliveries today?"
 
 
 def get_audio_config() -> Dict[str, Any]:
@@ -72,8 +78,14 @@ def get_audio_config() -> Dict[str, Any]:
     }
 
 
-def get_session_config(driver_id: str, shift_id: str, 
-                     agent_id: Optional[str] = None) -> Dict[str, Any]:
+def get_session_config(
+    driver_id: str,
+    shift_id: str,
+    agent_id: Optional[str] = None,
+    driver_name: str = "Driver",
+    vehicle_type: str = "vehicle",
+    next_stop_info: str = "",
+) -> Dict[str, Any]:
     """
     Build the complete session configuration for AssemblyAI Voice Agent.
     
@@ -81,6 +93,9 @@ def get_session_config(driver_id: str, shift_id: str,
         driver_id: Driver ID for context
         shift_id: Shift ID for context
         agent_id: Optional stored agent ID to use instead of inline config
+        driver_name: Driver name for the prompt
+        vehicle_type: Driver vehicle for the prompt
+        next_stop_info: Current next stop details for the prompt
     
     Returns:
         Complete session configuration dictionary
@@ -94,19 +109,6 @@ def get_session_config(driver_id: str, shift_id: str,
             }
         }
     
-    # If no agent_id provided, use inline configuration
-    # Import here to avoid circular dependency
-    from app.agents.tool_registry import get_tools
-    
-    # Build dynamic context with defaults (DB not connected yet)
-    driver_name = "Driver"
-    vehicle_type = "vehicle"
-    next_stop_info = ""
-    
-    # TODO: Fetch from DB when database is connected
-    # For now, use defaults
-    
-    # Build inline configuration
     return {
         "type": "session.update",
         "session": {

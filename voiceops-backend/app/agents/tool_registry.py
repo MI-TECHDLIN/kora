@@ -1,6 +1,6 @@
 """
 VoiceOps Tool Registry
-Contains all 13 tools as specified in docs/VoiceOps_Agent_Tools_Reference.md
+Contains the tools specified in docs/VoiceOps_Agent_Tools_Reference.md
 """
 from typing import Dict, Any, List
 from app.agents.tools.delivery import (
@@ -261,7 +261,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "end_conversation",
-            "description": "Close the driver's voice conversation when they say they are done.",
+            "description": "Close the driver's voice conversation when they say they are done. Say a short goodbye first, then call this tool.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     ]

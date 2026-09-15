@@ -1,16 +1,82 @@
 """
 OSRM (Open Source Routing Machine) Integration
 Provides turn-by-turn driving directions, route geometry, distance, and duration.
+
+`get_directions` backs the voice navigation tools with route alternatives in
+raw metres/seconds plus encoded polylines for the in-app map. `osrm_client`
+backs the broader routing service.
 """
 import logging
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional
 import httpx
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=8.0)
+    return _http_client
+
+
+async def get_directions(
+    origin_lat: float,
+    origin_lng: float,
+    dest_lat: float,
+    dest_lng: float,
+) -> List[Dict[str, Any]]:
+    """
+    Fetch driving route alternatives from OSRM.
+
+    Returns fastest-first route dicts: `summary`, `distance` in metres,
+    `duration` in seconds, and `polyline` with Google precision 5 encoding.
+    Empty means OSRM could not produce a route.
+    """
+    coordinates = f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
+    url = f"{settings.osrm_base_url.rstrip('/')}/route/v1/driving/{coordinates}"
+    params = {
+        "alternatives": "true",
+        "overview": "full",
+        "geometries": "polyline",
+        "steps": "true",
+    }
+
+    try:
+        response = await _get_client().get(url, params=params)
+        data = response.json()
+        if data.get("code") != "Ok":
+            if data.get("code") != "NoRoute":
+                logger.warning(
+                    "[OSRM] Routing error: %s %s",
+                    data.get("code"),
+                    data.get("message", ""),
+                )
+            return []
+
+        routes = []
+        for route in data.get("routes", []):
+            leg = (route.get("legs") or [{}])[0]
+            routes.append(
+                {
+                    "summary": leg.get("summary") or "Route",
+                    "distance": round(route.get("distance", 0)),
+                    "duration": round(route.get("duration", 0)),
+                    "polyline": route.get("geometry", ""),
+                }
+            )
+        return sorted(routes, key=lambda route: route["duration"])
+    except Exception as e:
+        logger.warning("[OSRM] Request failed: %s", e)
+        return []
+
 
 class OSRMClient:
-    BASE_URL = "http://router.project-osrm.org"
+    BASE_URL = "https://router.project-osrm.org"
 
     async def get_route(
         self,

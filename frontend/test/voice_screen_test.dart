@@ -85,6 +85,14 @@ void main() {
       await tester.pump();
       expect(container.read(pushToTalkProvider), PushToTalkState.recording);
 
+      final firstAction = find.text('Find my next stop');
+      expect(find.text('Quick actions').hitTestable(), findsOneWidget);
+      expect(firstAction.hitTestable(), findsOneWidget);
+      expect(
+        tester.getBottomRight(firstAction).dy,
+        lessThan(tester.getTopLeft(ptt).dy),
+      );
+
       for (final text in ['1400 Lavaca Street', 'Where am I heading next?']) {
         await tester.ensureVisible(find.text(text));
         await tester.pump();
@@ -96,8 +104,16 @@ void main() {
         'Call the customer': AgentState.calling,
         'Give me my summary': AgentState.summarizing,
       };
+      final actionsRail = find.descendant(
+        of: find.byKey(const Key('quick-actions-rail')),
+        matching: find.byType(Scrollable),
+      );
       for (final action in actions.entries) {
-        await tester.ensureVisible(find.text(action.key));
+        await tester.scrollUntilVisible(
+          find.text(action.key),
+          200,
+          scrollable: actionsRail,
+        );
         await tester.pump();
         await tester.tap(find.text(action.key));
         expect(container.read(agentStateProvider), AgentState.thinking);
