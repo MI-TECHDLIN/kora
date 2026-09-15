@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
@@ -82,11 +83,22 @@ class Settings(BaseSettings):
     jwt_secret: Optional[str] = None
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
-    environment: str = "development"
+    environment: str = os.getenv("ENVIRONMENT", "development")  # Can be "development", "staging", or "production"
     
     # Security & Optimization
-    allowed_origins: str = "*"
+    allowed_origins: str = "*"  # Comma-separated list for production, "*" for development
     timefold_url: str = "http://localhost:8080/route-plans"
+    
+    # Production URL (for frontend configuration reference)
+    production_url: str = "https://voiceops-ll41.onrender.com"
+    
+    @property
+    def backend_url(self) -> str:
+        """Get the appropriate backend URL based on environment."""
+        if self.environment == "production":
+            return self.production_url
+        else:
+            return "http://localhost:8000"
 
     class Config:
         env_file = ".env"
