@@ -23,11 +23,11 @@ Direction board (for reference, CSS mockups only): https://fdc16235.ht-ml.app/
    into 3 sizes (150/60/40dp) with `BoxFit.contain`, so the orb's visual
    center must be the artboard's geometric center.
 3. Add **one State Machine per artboard**, any name (default: `CoRider`),
-   with exactly the 7 trigger inputs listed below — spelling and case must
+   with exactly the 8 trigger inputs listed below — spelling and case must
    match exactly. See "State machine wiring" for how they connect.
-4. For each of the 7 triggers, keyframe a distinct silhouette for the core
+4. For each of the 8 triggers, keyframe a distinct silhouette for the core
    shape (see "Shape per mood"), blending smoothly (~600ms, cubic ease-in-out)
-   rather than hard-cutting. Keep the particle layer constant across all 7 —
+   rather than hard-cutting. Keep the particle layer constant across all 8 —
    only the core shape and its mood tint change.
 5. Preview at **40px, 60px, and 150px** against a dark background (`#0F0E1A`)
    — check silhouette recognition and particle contrast at each. Simplify any
@@ -62,7 +62,7 @@ Not tutorial — these are the specific techniques to use.
   always playing), separate from the mood layer, so motes keep drifting
   regardless of which mood is active. See "Particle layer specs" for concrete
   numbers.
-- **The 7 inputs:** **Trigger** type specifically — not Boolean, not Number.
+- **The 8 inputs:** **Trigger** type specifically — not Boolean, not Number.
   The Flutter app fires them via
   `controller.findSMI<SMITrigger>(name)?.fire()` once per mood change.
 - **Transitions:** ~600ms duration, **Cubic ease-in-out** curve (not Quad,
@@ -75,13 +75,17 @@ Not tutorial — these are the specific techniques to use.
 ## State machine wiring
 
 - **Entry state:** `idle` — the state machine starts here on first render.
-- **Transitions:** all 7 mood states reachable from **Any State** — a trigger
+- **Transitions:** all 8 mood states reachable from **Any State** — a trigger
   fired mid-animation jumps directly to its target, doesn't queue behind a
   return-to-idle.
 - **Trigger re-fire behavior:** if a trigger fires while its own state is
   already active, the animation replays from start. Set each non-idle state's
-  animation to **One Shot**; `idle` is **Loop** (see "Idle breathing loop").
-- **Return to idle:** each of the 6 non-idle states transitions back to
+  animation to **One Shot**, except `speaking`; `idle` and `speaking` are
+  **Loop** (see "Idle breathing loop").
+- **`speaking` holds:** it lasts as long as the co-rider's reply plays, so it
+  loops until the next trigger (usually `idle` when the reply ends) and has no
+  exit-time return to idle.
+- **Return to idle:** each of the 6 one-shot states transitions back to
   `idle` on completion — add a transition from the state to `idle` with
   "Exit Time" set to 1.0 (animation end). This way a `celebrating` fire plays
   the bloom, then settles back to idle automatically without the app needing
@@ -100,7 +104,7 @@ concretely.
 
 ## Particle layer specs
 
-Load-bearing — this is the connective thread that keeps all 7 moods reading
+Load-bearing — this is the connective thread that keeps all 8 moods reading
 as "the same character."
 
 - **Count:** 3–5 motes, fixed across all moods
@@ -139,13 +143,14 @@ point — override freely as long as lime stays out.
 - **2 artboards** — one per orb material:
   - Holographic bubble (used in onboarding)
   - Chrome / mercury (used in the main app)
-- **1 state machine per artboard**, any name you like, with exactly **7
+- **1 state machine per artboard**, any name you like, with exactly **8
   trigger inputs**, spelled exactly as below (case-sensitive — sourced from
   `AgentState.riveKey` in `lib/mascot/mascot_state.dart`):
 
 ```
 idle
 thinking
+speaking
 calling
 mapping
 task
@@ -155,10 +160,10 @@ celebrating
 
 ## Shape per mood
 
-Each of the 7 moods gets its own recognizable silhouette, not a shared circle
+Each of the 8 moods gets its own recognizable silhouette, not a shared circle
 with only color/glow changing. Built as one mesh (per-vertex keyframing or a
-bone rig if needed) and 7 keyframed shape states on the state machine,
-blended between rather than 7 separate static artboards. ~600ms cubic
+bone rig if needed) and 8 keyframed shape states on the state machine,
+blended between rather than 8 separate static artboards. ~600ms cubic
 ease-in-out per transition — matches `VoiceOpsMotion.orbMorph` in
 `core/theme/tokens.dart`.
 
@@ -168,6 +173,7 @@ Starting silhouettes — your artistic call, these are the jumping-off point:
 |---------------|--------------------------------------------------------------|
 | idle          | Soft, near-perfect sphere — calm resting state                |
 | thinking      | Slight elongation into a teardrop, slowly rotating            |
+| speaking      | Sphere with a quick, rhythmic swell — like a voice's cadence  |
 | calling       | Sphere with gentle outward pulse rings (like a connection)    |
 | mapping       | Sphere with a subtle directional lean/point (route-seeking)   |
 | task          | Slightly faceted edges — precise, working                     |
@@ -192,6 +198,7 @@ Both preserve the "burst" semantics with fewer high-frequency edges.
 |---------------|----------------------------|----------------------------------------|
 | idle          | none (untinted)            | Resting — slowest pulse, least glow    |
 | thinking      | `#C4B5FD` (violet)         | Processing — brisk spin                |
+| speaking      | `#FFFFFF` (bright white)   | Talking — quick deep pulse, bright glow, slow spin |
 | calling       | `#A7F3D0` (emerald)        | Active call — steady pulse             |
 | mapping       | `#7DD3FC` (blue)           | Routing — moderate spin                |
 | task          | `#F59E0B` (amber)          | Working — brisk pulse                  |

@@ -4,6 +4,7 @@
 // ignore_for_file: experimental_member_use
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -33,62 +34,41 @@ final voicePlaybackProvider = Provider<VoicePlayback>((ref) {
   return playback;
 });
 
-/// Plays the reply as it streams in: chunks are grouped into short WAV
-/// segments appended to a just_audio playlist, so playback starts after the
-/// first segment instead of after the whole reply.
+/// Plays the reply as it streams in through a small jitter buffer, so network
+/// bursts do not turn into audible gaps between short WAV segments.
 class JustAudioPlayback implements VoicePlayback {
   // Created on first use, like the recorder: most sessions never play.
   AudioPlayer? _player;
-  final _pending = BytesBuilder(copy: false);
+  late final _segmenter = ReplySegmenter(_enqueue);
   Future<void> _queue = Future.value();
 
   /// Bumped by [stop] so segments already queued are dropped, not played.
   int _generation = 0;
 
-  /// Plays a partial segment once the stream pauses. A tool turn's first
-  /// reply gets no `reply_done` (the agent speaks again after the tools),
-  /// so without this its last words would wait for the next reply.
-  Timer? _quiet;
-
-  /// ~300 ms per segment: short enough to start quickly, long enough that
-  /// segment joins stay rare.
-  static const _segmentBytes = voiceSampleRate * 2 * 3 ~/ 10;
-  static const _quietGap = Duration(milliseconds: 250);
-
   @override
-  void add(Uint8List pcm) {
-    _pending.add(pcm);
-    if (_pending.length >= _segmentBytes) _enqueue();
-    _quiet?.cancel();
-    _quiet = Timer(_quietGap, () {
-      if (_pending.isNotEmpty) _enqueue();
-    });
-  }
+  void add(Uint8List pcm) => _segmenter.add(pcm);
 
   @override
   Future<void> flush() {
-    _quiet?.cancel();
-    if (_pending.isNotEmpty) _enqueue();
+    _segmenter.flush();
     return _queue;
   }
 
   @override
   Future<void> stop() async {
-    _quiet?.cancel();
-    _pending.clear();
+    _segmenter.reset();
     _generation++;
     await _player?.stop();
   }
 
   @override
   Future<void> dispose() async {
-    _quiet?.cancel();
-    _pending.clear();
+    _segmenter.reset();
     await _player?.dispose();
   }
 
-  void _enqueue() {
-    final segment = _WavSegment(pcm16Wav(_pending.takeBytes()));
+  void _enqueue(Uint8List pcm) {
+    final segment = _WavSegment(pcm16Wav(pcm));
     final generation = _generation;
     _queue = _queue
         .then((_) => generation == _generation ? _append(segment) : null)
@@ -106,6 +86,133 @@ class JustAudioPlayback implements VoicePlayback {
     } else {
       await player.addAudioSource(segment);
     }
+  }
+}
+
+/// Buffers streamed PCM before handing it to the audio player. It starts
+/// after a short pre-roll, then extends the queued audio only as playback
+/// approaches its end. Samples are kept aligned to 16-bit boundaries.
+@visibleForTesting
+class ReplySegmenter {
+  ReplySegmenter(this._emit, {Duration Function()? clock})
+    : _now = clock ?? _stopwatch();
+
+  final void Function(Uint8List pcm) _emit;
+  final Duration Function() _now;
+  final _pending = BytesBuilder(copy: false);
+  Timer? _timer;
+  Duration? _drainsAt;
+  bool _stalled = false;
+  bool _flushed = false;
+  Duration _preroll = minPreroll;
+
+  static const minPreroll = Duration(milliseconds: 300);
+  static const maxPreroll = Duration(seconds: 1);
+  static const segment = Duration(milliseconds: 800);
+  static const handoverLead = Duration(milliseconds: 150);
+  static const quietStart = Duration(milliseconds: 250);
+  static const stallWindow = Duration(seconds: 1);
+  static const _fadeIn = Duration(milliseconds: 5);
+
+  Duration get preroll => _preroll;
+
+  bool get _playing => _drainsAt != null && _now() < _drainsAt!;
+
+  void add(Uint8List pcm) {
+    if (pcm.isEmpty) return;
+    final drainsAt = _drainsAt;
+    if (drainsAt != null && !_playing) {
+      if (!_flushed && !_stalled && _now() - drainsAt < stallWindow) {
+        _stalled = true;
+        _preroll = _clamp(_preroll + const Duration(milliseconds: 200));
+      }
+      _drainsAt = null;
+    }
+    _flushed = false;
+    _pending.add(pcm);
+    _schedule();
+  }
+
+  void flush() {
+    _timer?.cancel();
+    _emitPending();
+    if (!_stalled) {
+      _preroll = _clamp(_preroll - const Duration(milliseconds: 100));
+    }
+    _stalled = false;
+    _flushed = true;
+  }
+
+  void reset() {
+    _timer?.cancel();
+    _pending.clear();
+    _drainsAt = null;
+    _stalled = false;
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (!_playing) {
+      if (_pending.length >= _bytes(_preroll)) {
+        _emitPending();
+      } else {
+        _timer = Timer(quietStart, _emitPending);
+        return;
+      }
+    }
+    if (_pending.length >= _bytes(segment)) _emitPending();
+    _armHandover();
+  }
+
+  void _armHandover() {
+    final drainsAt = _drainsAt;
+    if (drainsAt == null || _pending.isEmpty) return;
+    final due = drainsAt - handoverLead - _now();
+    if (due > Duration.zero) {
+      _timer = Timer(due, _armHandover);
+    } else {
+      _emitPending();
+    }
+  }
+
+  void _emitPending() {
+    final bytes = _pending.takeBytes();
+    final whole = bytes.length & ~1;
+    if (whole < bytes.length) _pending.addByte(bytes.last);
+    if (whole == 0) return;
+    final pcm = Uint8List.sublistView(bytes, 0, whole);
+    final length = Duration(microseconds: whole * 1000000 ~/ _bytesPerSecond);
+    if (_playing) {
+      _drainsAt = _drainsAt! + length;
+    } else {
+      _fade(pcm);
+      _drainsAt = _now() + length;
+    }
+    _emit(pcm);
+  }
+
+  static void _fade(Uint8List pcm) {
+    final data = ByteData.sublistView(pcm);
+    final samples = math.min(pcm.length ~/ 2, _bytes(_fadeIn) ~/ 2);
+    for (var i = 0; i < samples; i++) {
+      final sample = data.getInt16(i * 2, Endian.little);
+      data.setInt16(i * 2, sample * i ~/ samples, Endian.little);
+    }
+  }
+
+  static const _bytesPerSecond = voiceSampleRate * 2;
+  static int _bytes(Duration duration) =>
+      (duration.inMicroseconds * _bytesPerSecond ~/ 1000000) & ~1;
+
+  static Duration _clamp(Duration duration) => duration < minPreroll
+      ? minPreroll
+      : duration > maxPreroll
+      ? maxPreroll
+      : duration;
+
+  static Duration Function() _stopwatch() {
+    final watch = Stopwatch()..start();
+    return () => watch.elapsed;
   }
 }
 

@@ -15,8 +15,10 @@ import 'package:voiceops/features/onboarding/screens/onboarding_screen_2.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
+import 'package:voiceops/providers/onboarding_provider.dart';
 
 import 'fake_auth.dart';
+import 'fake_voice.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -31,20 +33,57 @@ void main() {
 
   /// Boots the real app (router redirect included) on a phone-sized view,
   /// as on a first launch: signed out, so onboarding comes before the auth
-  /// gate. No backend, no platform permissions: everything here is local
-  /// (test/auth_test.dart covers the gate itself).
-  Future<void> pumpApp(WidgetTester tester, {Size logical = phone}) async {
+  /// gate. No backend and no OS prompts: the mic, location and saved
+  /// onboarding flag are fakes the test can script (test/auth_test.dart
+  /// covers the gate itself).
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    Size logical = phone,
+    FakeRecorder? recorder,
+    FakeLocationSource? location,
+    FakeOnboardingStore? store,
+  }) async {
     tester.view.physicalSize = logical * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
+    final saved = store ?? FakeOnboardingStore();
     await tester.pumpWidget(
       ProviderScope(
+        // A new scope per launch, as on a real restart.
+        key: UniqueKey(),
         overrides: [
+          ...offlineOverrides(
+            recorder: recorder,
+            location: location,
+            onboardingStore: saved,
+          ),
+          // What main.dart reads before the first frame.
+          onboardingCompletedAtLaunchProvider.overrideWithValue(
+            await loadOnboardingCompleted(saved),
+          ),
           authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         ],
         child: const VoiceOpsApp(),
       ),
     );
+    await settle(tester);
+  }
+
+  /// From the splash to Power, the last screen.
+  Future<void> toPower(WidgetTester tester) async {
+    await tester.tap(find.text('Get started'));
+    await settle(tester);
+    await tester.tap(find.bySemanticsLabel('Next'));
+    await settle(tester);
+    expect(find.byType(OnboardingPower), findsOneWidget);
+  }
+
+  // The square-glyph test font makes text far wider than Plus Jakarta
+  // Sans, so taller pages scroll; bring each CTA into view first.
+  Future<void> tapInView(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pump();
+    await tester.tap(finder);
     await settle(tester);
   }
 
@@ -74,7 +113,10 @@ void main() {
   testWidgets('walks all three screens verbatim and hands off to welcome', (
     tester,
   ) async {
-    await pumpApp(tester);
+    final recorder = FakeRecorder();
+    final location = FakeLocationSource();
+    final store = FakeOnboardingStore();
+    await pumpApp(tester, recorder: recorder, location: location, store: store);
 
     // 0 — Splash.
     expect(find.bySemanticsLabel(OnboardingSplash.headline), findsOneWidget);
@@ -121,31 +163,39 @@ void main() {
     );
     expect(find.text('NEXT STOP'), findsOneWidget);
     expect(find.text('Mic access'), findsOneWidget);
-    expect(find.text('ACTION REQUIRED'), findsOneWidget);
     expect(
       find.textContaining('so it can hear you over road noise'),
       findsOneWidget,
     );
+    expect(find.text('Location'), findsOneWidget);
+    expect(find.text('It routes you stop to stop.'), findsOneWidget);
+    expect(find.text('ACTION REQUIRED'), findsNWidgets(2));
     expect(find.text('Live route'), findsOneWidget);
     expect(
       find.text('Three things happen at once. You do nothing.'),
       findsOneWidget,
     );
 
-    // The mic card is a visual mock: allowing it needs no real permission.
-    // The square-glyph test font makes text far wider than Plus Jakarta
-    // Sans, so taller pages scroll; bring each CTA into view first.
-    await tester.ensureVisible(find.text('Allow mic'));
-    await tester.tap(find.text('Allow mic'));
-    await settle(tester);
+    // Nothing has asked the OS yet; each card asks when tapped and shows
+    // the real answer.
+    expect(recorder.permissionRequests, 0);
+    expect(location.permissionRequests, 0);
+    await tapInView(tester, find.text('Allow mic'));
+    expect(recorder.permissionRequests, 1);
     expect(find.text('Mic allowed'), findsOneWidget);
+    expect(find.text('ACTION REQUIRED'), findsOneWidget);
+    await tapInView(tester, find.text('Allow location'));
+    expect(location.permissionRequests, 1);
+    expect(find.text('Location allowed'), findsOneWidget);
     expect(find.text('ACTION REQUIRED'), findsNothing);
+    expect(find.text('ALL SET'), findsNWidgets(2));
 
     // Power is the last screen: all dots filled, and Next finishes.
     expect(find.bySemanticsLabel('Step 3 of 3'), findsOneWidget);
     expect(liveNext(), findsOneWidget);
     await tester.tap(next());
     await settle(tester);
+    expect(store.completed, isTrue); // it won't show on the next launch
 
     // The router redirect hands the signed-out driver to welcome's
     // "Get started", which leads into sign-up.
@@ -156,6 +206,74 @@ void main() {
     await tester.tap(find.text('Get started'));
     await settle(tester);
     expect(find.byType(SignUpScreen), findsOneWidget);
+  });
+
+  testWidgets('a refused permission keeps its card asking', (tester) async {
+    final recorder = FakeRecorder()..permitted = false;
+    final location = FakeLocationSource()..permitted = false;
+    await pumpApp(tester, recorder: recorder, location: location);
+    await toPower(tester);
+
+    await tapInView(tester, find.text('Allow mic'));
+    await tapInView(tester, find.text('Allow location'));
+    expect(recorder.permissionRequests, 1);
+    expect(location.permissionRequests, 1);
+    expect(find.text('ACTION REQUIRED'), findsNWidgets(2));
+    expect(find.text('ALL SET'), findsNothing);
+
+    // Asking again goes back to the OS.
+    recorder.permitted = true;
+    await tapInView(tester, find.text('Allow mic'));
+    expect(recorder.permissionRequests, 2);
+    expect(find.text('Mic allowed'), findsOneWidget);
+    expect(find.text('Allow location'), findsOneWidget);
+  });
+
+  testWidgets('permissions granted before show as allowed, without asking', (
+    tester,
+  ) async {
+    final recorder = FakeRecorder()..granted = true;
+    final location = FakeLocationSource()..granted = true;
+    await pumpApp(tester, recorder: recorder, location: location);
+    await toPower(tester);
+
+    expect(find.text('ALL SET'), findsNWidgets(2));
+    expect(find.text('Mic allowed'), findsOneWidget);
+    expect(find.text('Location allowed'), findsOneWidget);
+    expect(find.text('Allow mic'), findsNothing);
+    expect(find.text('Allow location'), findsNothing);
+    expect(recorder.permissionRequests, 0);
+    expect(location.permissionRequests, 0);
+  });
+
+  testWidgets('allowing location starts the position stream again', (
+    tester,
+  ) async {
+    // The app starts the stream at launch, before permission exists.
+    final location = FakeLocationSource();
+    await pumpApp(tester, location: location);
+    await toPower(tester);
+    final watches = location.watches;
+    expect(watches, greaterThan(0));
+
+    await tapInView(tester, find.text('Allow location'));
+    expect(location.watches, watches + 1);
+  });
+
+  testWidgets('finished onboarding stays finished after a restart', (
+    tester,
+  ) async {
+    final store = FakeOnboardingStore();
+    await pumpApp(tester, store: store);
+    await toPower(tester);
+    await tester.tap(next());
+    await settle(tester);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
+
+    // Relaunch: a fresh app reading the saved flag goes straight to welcome.
+    await pumpApp(tester, store: store);
+    expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
   testWidgets('swipes both ways and system back steps back a screen', (

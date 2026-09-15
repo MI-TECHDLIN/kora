@@ -5,7 +5,7 @@ Enforces alert cooldowns to avoid repetitive driver interruption.
 """
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from app.db.queries import get_supabase
 
 logger = logging.getLogger(__name__)

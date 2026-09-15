@@ -299,7 +299,7 @@ class OrderDispatcher:
                 from app.services.eta_service import eta_service
                 
                 # Get driver's current location
-                driver_origin = (self.fallback_origin, self.fallback_origin)  # Default fallback
+                driver_origin = self.fallback_origin  # Default fallback
                 
                 # Try to get actual driver location from database
                 try:

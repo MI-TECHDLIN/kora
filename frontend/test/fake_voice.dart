@@ -13,6 +13,7 @@ import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
+import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
@@ -90,7 +91,12 @@ class FakeVoiceConnector {
 }
 
 class FakeRecorder implements VoiceRecorder {
+  /// Whether the mic was already allowed before anything asked.
+  bool granted = false;
+
+  /// The driver's answer when asked.
   bool permitted = true;
+  int permissionRequests = 0;
   StreamController<Uint8List>? _mic;
   int starts = 0;
 
@@ -100,7 +106,13 @@ class FakeRecorder implements VoiceRecorder {
   void speak(Uint8List bytes) => _mic!.add(bytes);
 
   @override
-  Future<bool> ensurePermission() async => permitted;
+  Future<bool> hasPermission() async => granted;
+
+  @override
+  Future<bool> ensurePermission() async {
+    permissionRequests++;
+    return granted = permitted;
+  }
 
   @override
   Future<Stream<Uint8List>> start() async {
@@ -160,14 +172,30 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
   }
 }
 
-/// Streams fixes the test pushes; [fail] scripts a location problem.
+/// Streams fixes the test pushes; [problem] scripts a location problem.
 class FakeLocationSource implements LocationSource {
   final _fixes = StreamController<LocationFix>.broadcast();
   LocationProblem? problem;
   final opened = <LocationProblem>[];
   int watches = 0;
 
+  /// Whether location was already allowed before anything asked.
+  bool granted = false;
+
+  /// The driver's answer when asked.
+  bool permitted = true;
+  int permissionRequests = 0;
+
   void emit(LocationFix fix) => _fixes.add(fix);
+
+  @override
+  Future<bool> hasPermission() async => granted;
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequests++;
+    return granted = permitted;
+  }
 
   @override
   Stream<LocationFix> watch() {
@@ -220,6 +248,19 @@ class FakeMapStyleStore implements MapStyleStore {
   Future<void> save(MapStyle style) async => value = style;
 }
 
+class FakeOnboardingStore implements OnboardingStore {
+  FakeOnboardingStore({this.completed = false});
+
+  bool completed;
+
+  @override
+  Future<bool> load() async => completed;
+
+  @override
+  Future<void> save({required bool completed}) async =>
+      this.completed = completed;
+}
+
 /// Everything a pumped app or screen needs to stay offline. Pass the fakes
 /// a test wants to script; the rest are fresh defaults.
 List<Override> offlineOverrides({
@@ -231,6 +272,7 @@ List<Override> offlineOverrides({
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
   FakeMapStyleStore? mapStyleStore,
+  FakeOnboardingStore? onboardingStore,
   bool backendConfigured = true,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
@@ -251,5 +293,8 @@ List<Override> offlineOverrides({
       mapStyleStore ?? FakeMapStyleStore(),
     ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
+    onboardingStoreProvider.overrideWithValue(
+      onboardingStore ?? FakeOnboardingStore(),
+    ),
   ];
 }

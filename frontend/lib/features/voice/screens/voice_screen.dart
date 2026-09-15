@@ -10,7 +10,7 @@ import '../../../mascot/mascot_state.dart';
 import '../../../providers/agent_state_provider.dart';
 import '../../../providers/push_to_talk_provider.dart';
 import '../../../providers/transcript_provider.dart';
-import '../widgets/action_chips_grid.dart';
+import '../widgets/action_chips_rail.dart';
 
 class VoiceScreen extends ConsumerStatefulWidget {
   const VoiceScreen({super.key});
@@ -83,10 +83,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                         const _NextStopCard(),
                         const SizedBox(height: VoiceOpsSpacing.lg),
                         const _TranscriptCard(),
-                        const SizedBox(height: VoiceOpsSpacing.lg),
-                        Text('Quick actions', style: VoiceOpsText.title),
-                        const SizedBox(height: VoiceOpsSpacing.sm),
-                        ActionChipsGrid(chips: _chips, onSelect: _onChipTap),
                       ],
                     ),
                   ),
@@ -94,7 +90,21 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
               ),
             ),
           ),
-          // Keep the primary control reachable while the operations scroll.
+          // Keep common commands beside the primary control while the
+          // operational detail above scrolls independently.
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: VoiceOpsSpacing.gutter,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Quick actions', style: VoiceOpsText.title),
+                const SizedBox(height: VoiceOpsSpacing.sm),
+                ActionChipsRail(chips: _chips, onSelect: _onChipTap),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.md),
             child: Column(
@@ -104,9 +114,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 Text(
                   switch (ref.watch(pushToTalkProvider)) {
                     PushToTalkState.idle => 'Tap to talk to your co-rider',
-                    PushToTalkState.recording => 'Listening · tap to send',
+                    PushToTalkState.recording => 'Listening · tap to end',
                     PushToTalkState.processing => 'Working on it…',
-                    PushToTalkState.speaking => 'Tap to interrupt',
+                    PushToTalkState.speaking =>
+                      ref.watch(micLiveProvider)
+                          ? 'Talk or tap to interrupt'
+                          : 'Tap to interrupt',
                   },
                   key: const Key('ptt-hint'),
                   style: VoiceOpsText.caption,

@@ -112,8 +112,12 @@ def transcript(role: str, text: str) -> Dict[str, Any]:
     return {"event": "transcript", "role": role, "text": text}
 
 
-def reply_done() -> Dict[str, Any]:
-    return {"event": "reply_done"}
+def reply_done(interrupted: bool = False) -> Dict[str, Any]:
+    return {"event": "reply_done", "interrupted": True} if interrupted else {"event": "reply_done"}
+
+
+def conversation_end() -> Dict[str, Any]:
+    return {"event": "conversation_end"}
 
 
 def order_offer(offer: Dict[str, Any]) -> Dict[str, Any]:

@@ -140,6 +140,32 @@ def backend(monkeypatch):
     async def get_latest_location(shift_id):
         return dict(LAST_PING)
 
+    async def get_tool_next_delivery(shift_id, driver_id):
+        return {
+            "id": "mock-delivery-123",
+            "shift_id": shift_id,
+            "recipient_name": "Amara Johnson",
+            "address": "14 Broad Street, Lagos Island",
+            "phone": "+2348012345678",
+            "status": "pending",
+            "notes": "Ring bell twice. 3rd floor.",
+            "time_window": "2:00 PM - 4:00 PM",
+            "latitude": 6.4541,
+            "longitude": 3.3947,
+            "sequence_order": 4,
+        }
+
+    async def get_shift_stats(shift_id):
+        return {
+            "total": 22,
+            "delivered": 14,
+            "failed": 2,
+            "remaining": 6,
+            "pending": 6,
+            "en_route": 0,
+            "success_rate": 87.5,
+        }
+
     async def create_voice_session(shift_id, driver_id, delivery_id=None):
         return "voice-session-1"
 
@@ -154,6 +180,8 @@ def backend(monkeypatch):
     for fn in (get_shift_by_id, get_driver_by_id, get_next_pending_delivery, get_latest_location,
                create_voice_session, update_voice_session, log_tool_execution):
         monkeypatch.setattr(voice, fn.__name__, fn)
+    monkeypatch.setattr("app.db.queries.get_next_pending_delivery", get_tool_next_delivery)
+    monkeypatch.setattr("app.db.queries.get_shift_stats", get_shift_stats)
 
     async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng):
         record["directions"].append(((origin_lat, origin_lng), (dest_lat, dest_lng)))
@@ -309,7 +337,10 @@ def test_session_update_carries_driver_context(upstream):
         assert "Emeka Okafor" in session["system_prompt"]
         assert "motorcycle" in session["system_prompt"]
         assert "3 Marina Road, Lagos" in session["system_prompt"]
-        assert {t["name"] for t in session["tools"]} >= {"get_next_delivery", "start_navigation"}
+        tool_names = {t["name"] for t in session["tools"]}
+        assert tool_names == set(tool_registry.TOOL_EXECUTORS)
+        assert {"get_next_delivery", "start_navigation", "accept_order", "decline_order"} <= tool_names
+        assert all(name in session["system_prompt"] for name in ("accept_order", "decline_order"))
 
 
 def test_greeting_relays_audio_transcript_and_reply_done(upstream):

@@ -67,7 +67,7 @@ void main() {
       // The hint under the button tells the driver what a tap does now.
       const hints = {
         PushToTalkState.idle: 'Tap to talk to your co-rider',
-        PushToTalkState.recording: 'Listening · tap to send',
+        PushToTalkState.recording: 'Listening · tap to end',
         PushToTalkState.processing: 'Working on it…',
         PushToTalkState.speaking: 'Tap to interrupt',
       };
@@ -85,6 +85,14 @@ void main() {
       await tester.pump();
       expect(container.read(pushToTalkProvider), PushToTalkState.recording);
 
+      final firstAction = find.text('Find my next stop');
+      expect(find.text('Quick actions').hitTestable(), findsOneWidget);
+      expect(firstAction.hitTestable(), findsOneWidget);
+      expect(
+        tester.getBottomRight(firstAction).dy,
+        lessThan(tester.getTopLeft(ptt).dy),
+      );
+
       for (final text in ['1400 Lavaca Street', 'Where am I heading next?']) {
         await tester.ensureVisible(find.text(text));
         await tester.pump();
@@ -96,8 +104,16 @@ void main() {
         'Call the customer': AgentState.calling,
         'Give me my summary': AgentState.summarizing,
       };
+      final actionsRail = find.descendant(
+        of: find.byKey(const Key('quick-actions-rail')),
+        matching: find.byType(Scrollable),
+      );
       for (final action in actions.entries) {
-        await tester.ensureVisible(find.text(action.key));
+        await tester.scrollUntilVisible(
+          find.text(action.key),
+          200,
+          scrollable: actionsRail,
+        );
         await tester.pump();
         await tester.tap(find.text(action.key));
         expect(container.read(agentStateProvider), AgentState.thinking);
@@ -114,4 +130,45 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  testWidgets('the co-rider renders every mood with its caption', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final container = ProviderContainer(
+      overrides: [
+        ...offlineOverrides(),
+        authRepositoryProvider.overrideWithValue(
+          FakeAuthRepository(signedIn: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildVoiceOpsTheme(),
+          home: const Scaffold(body: VoiceScreen()),
+        ),
+      ),
+    );
+
+    for (final mood in AgentState.values) {
+      container.read(agentStateProvider.notifier).setState(mood);
+      // Through the orb's morph, so the new mood is fully blended in.
+      await tester.pump();
+      await tester.pump(VoiceOpsMotion.orbMorph);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.widget<MascotDisplay>(find.byType(MascotDisplay)).state,
+        mood,
+      );
+      expect(find.text(mood.label ?? 'Your co-rider is ready'), findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
