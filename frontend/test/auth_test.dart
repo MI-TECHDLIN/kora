@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/app/router.dart';
+import 'package:voiceops/core/audio/voice_recorder.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/core/widgets/primary_button.dart';
 import 'package:voiceops/features/auth/data/auth_repository.dart';
@@ -22,9 +23,11 @@ import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
+import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 
 import 'fake_auth.dart';
+import 'fake_voice.dart';
 import 'test_fonts.dart';
 
 void main() {
@@ -54,10 +57,13 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
-          if (onboarded)
-            onboardingProvider.overrideWith(
-              (ref) => OnboardingNotifier()..complete(),
-            ),
+          onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
+          onboardingStoreProvider.overrideWithValue(
+            FakeOnboardingStore(completed: onboarded),
+          ),
+          // Onboarding's Power screen checks the mic and location.
+          voiceRecorderProvider.overrideWithValue(FakeRecorder()),
+          locationSourceProvider.overrideWithValue(FakeLocationSource()),
         ],
         child: const VoiceOpsApp(),
       ),

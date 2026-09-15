@@ -7,6 +7,7 @@ import 'core/config/supabase_config.dart';
 import 'core/theme/tokens.dart';
 import 'features/auth/widgets/driver_profile_notice.dart';
 import 'features/map/widgets/map_warmup.dart';
+import 'providers/onboarding_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +19,17 @@ Future<void> main() async {
     // The anon key is Supabase's publishable key; never the service role.
     publishableKey: SupabaseConfig.anonKey,
   );
-  runApp(const ProviderScope(child: VoiceOpsApp()));
+  final onboarded = await loadOnboardingCompleted(
+    const SharedPreferencesOnboardingStore(),
+  );
+  runApp(
+    ProviderScope(
+      overrides: [
+        onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
+      ],
+      child: const VoiceOpsApp(),
+    ),
+  );
 }
 
 class VoiceOpsApp extends ConsumerWidget {
