@@ -310,6 +310,12 @@ def get_tools() -> List[Dict[str, Any]]:
                 },
                 "required": ["screen"]
             }
+        },
+        {
+            "type": "function",
+            "name": "end_conversation",
+            "description": "Close the driver's voice conversation when they say they are done. Say a short goodbye first, then call this tool.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
         }
     ]
 
@@ -327,7 +333,8 @@ TOOL_EXECUTORS = {
     "get_next_order": get_next_order,
     "get_shift_summary": get_shift_summary,
     "alert_dispatcher": alert_dispatcher,
-    "show_screen": show_screen
+    "show_screen": show_screen,
+    "end_conversation": end_conversation
 }
 
 

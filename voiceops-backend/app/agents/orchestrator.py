@@ -45,12 +45,12 @@ class ToolOrchestrator:
 
         duration_ms = (time.perf_counter() - t0) * 1000.0
 
-        # Log audit trail to DB
+        # Log audit trail to DB without letting Supabase latency block the real-time voice path.
         try:
             from app.db.queries import get_supabase, is_valid_uuid
             driver_id = context.get("driver_id")
             session_id = context.get("session_id")
-            get_supabase().table("agent_audit_trail").insert({
+            audit_row = {
                 "trace_id": trace_id,
                 "session_id": str(session_id) if session_id else None,
                 "driver_id": driver_id if is_valid_uuid(driver_id) else None,
@@ -61,7 +61,11 @@ class ToolOrchestrator:
                 "execution_ms": int(duration_ms),
                 "success": not is_error,
                 "error_message": str(result.get("error")) if is_error and isinstance(result, dict) else None,
-            }).execute()
+            }
+            await asyncio.wait_for(
+                asyncio.to_thread(lambda: get_supabase().table("agent_audit_trail").insert(audit_row).execute()),
+                0.5,
+            )
         except Exception as ae:
             logger.debug(f"[Orchestrator] Audit write skipped: {ae}")
 

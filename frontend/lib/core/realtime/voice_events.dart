@@ -42,7 +42,8 @@ sealed class VoiceEvent {
         role: json['role'] == 'driver' ? SpeakerRole.driver : SpeakerRole.agent,
         text: field('text'),
       ),
-      'reply_done' => const ReplyDoneEvent(),
+      'reply_done' => ReplyDoneEvent(interrupted: json['interrupted'] == true),
+      'conversation_end' => const ConversationEndEvent(),
       'order_offer' => OrderOfferEvent(
         orderId: field('order_id'),
         area: field('area'),
@@ -128,7 +129,13 @@ class TranscriptEvent extends VoiceEvent {
 }
 
 class ReplyDoneEvent extends VoiceEvent {
-  const ReplyDoneEvent();
+  const ReplyDoneEvent({this.interrupted = false});
+
+  final bool interrupted;
+}
+
+class ConversationEndEvent extends VoiceEvent {
+  const ConversationEndEvent();
 }
 
 /// A time-boxed delivery offered to this driver. Privacy is deliberate:

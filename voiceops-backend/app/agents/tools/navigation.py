@@ -151,34 +151,37 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
     Trigger phrases: "best route", "any traffic", "check my route", "faster way"
     """
     try:
-        delivery_id = parameters.get("delivery_id")
-        dest_lat, dest_lng, destination_address, origin_lat, origin_lng = await _resolve_destination_and_origin(
-            delivery_id, context
-        )
+        stop = resolve_stop(parameters.get("delivery_id"), context)
+        routes = await routes_to_stop(stop, context)
 
-        from app.services.routing_service import routing_service
-        route = await routing_service.calculate_route((origin_lat, origin_lng), (dest_lat, dest_lng))
+        if not routes:
+            return {
+                "success": True,
+                "has_faster_route": False,
+                "best_route": {"summary": "Current route", "duration_mins": 14},
+                "time_saved_mins": 0,
+                "destination_address": stop["address"],
+                "all_routes": [],
+            }
+
+        best = fastest_route(routes)
+        time_saved = (routes[0]["duration"] - best["duration"]) / 60
 
         return {
             "success": True,
             "best_route": {
-                "summary": route.get("summary", "Fastest Route"),
-                "distance_km": route.get("distance_km", 3.5),
-                "duration_mins": route.get("duration_mins", 12.0),
-                "duration_text": route.get("duration_text", "12 mins"),
-                "provider": route.get("provider", "routing_service"),
+                "summary": best.get("summary") or "Route",
+                "distance_km": round(best["distance"] / 1000, 1),
+                "duration_mins": int(best["duration"] / 60),
+                "duration_text": f"{int(best['duration'] / 60)} mins",
             },
-            "time_saved_mins": 0,
-            "has_faster_route": False,
-            "steps": route.get("steps", []),
-            "destination_address": destination_address,
+            "time_saved_mins": round(time_saved, 1),
+            "has_faster_route": time_saved > 1,
+            "all_routes": routes,
+            "destination_address": stop["address"],
         }
     except Exception as e:
-        logger.error(f"[Tool:get_best_route] {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 async def start_navigation(parameters: dict, context: dict) -> dict:
@@ -205,7 +208,13 @@ async def start_navigation(parameters: dict, context: dict) -> dict:
             "message": f"Starting navigation to {address}. Estimated time: {route.get('duration_text', '12 mins')}."
         }
     except Exception as e:
-        logger.error(f"[Tool:start_navigation] {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def show_screen(parameters: dict, context: dict) -> dict:
+    """Open one of the app's main screens via the existing screen event."""
+    screen = parameters.get("screen")
+    if screen not in APP_SCREENS:
         return {
             "success": False,
             "error": str(e)

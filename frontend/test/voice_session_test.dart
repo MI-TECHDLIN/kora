@@ -95,14 +95,14 @@ void main() {
       expect(socket.headers, {'Authorization': 'Bearer test-access-token'});
       expect(voice().connection, VoiceConnection.connected);
 
-      // 5000 bytes of speech → two 50 ms frames now, the rest on release.
+      // 5000 bytes of speech -> two 50 ms frames now, the rest on release.
       recorder.speak(Uint8List(5000));
       flush();
       expect(socket.sentAudio.map((f) => f.length), [2400, 2400]);
 
       session().onPushToTalk();
       flush();
-      expect(ptt(), PushToTalkState.processing);
+      expect(ptt(), PushToTalkState.idle);
       expect(recorder.isRecording, isFalse);
       expect(socket.sentAudio[2].length, 200);
       // Trailing silence so the backend's turn detection hears the end.
@@ -110,11 +110,6 @@ void main() {
       expect(silence, hasLength(16));
       expect(silence.every((f) => f.length == voiceFrameBytes), isTrue);
       expect(silence.every((f) => f.every((b) => b == 0)), isTrue);
-
-      // Tapping while the co-rider works does nothing.
-      session().onPushToTalk();
-      flush();
-      expect(ptt(), PushToTalkState.processing);
 
       socket.emitAudio(Uint8List(960));
       flush();
@@ -473,11 +468,15 @@ void main() {
     onFakeTime((async, flush) {
       session().onPushToTalk();
       flush();
-      session().onPushToTalk();
+      connector.last.emit({
+        'event': 'transcript',
+        'role': 'driver',
+        'text': 'What is my next stop?',
+      });
       flush();
       expect(ptt(), PushToTalkState.processing);
       async.elapse(const Duration(seconds: 21));
-      expect(ptt(), PushToTalkState.idle);
+      expect(ptt(), PushToTalkState.recording);
       expect(voice().issue, contains("didn't answer"));
     });
   });
