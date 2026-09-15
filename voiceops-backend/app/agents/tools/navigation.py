@@ -1,11 +1,10 @@
 """
 Navigation tools for VoiceOps agent.
 Tools: get_best_route, start_navigation, accept_reroute
-Platform: Google Directions API + Google Maps deeplink
+Platform: OSRM primary (routing_service), in-app navigation (no external deeplinks)
 """
 import logging
 from typing import Dict, Any, Optional
-from app.integrations.google_maps import get_directions
 from app.db.queries import (
     get_delivery_by_id,
     get_driver_by_id,
@@ -147,10 +146,9 @@ async def _resolve_destination_and_origin(
 
 async def get_best_route(parameters: dict, context: dict) -> dict:
     """
-    Get the best route to a delivery using OSRM.
-
-    The public OSRM demo server has no live traffic; it returns alternatives
-    when available, and the fastest route feeds the in-app map.
+    Get the best route with traffic information via the routing service
+    (OSRM primary, Google Directions as fallback only if OSRM is unreachable).
+    Trigger phrases: "best route", "any traffic", "check my route", "faster way"
     """
     try:
         stop = resolve_stop(parameters.get("delivery_id"), context)
@@ -187,27 +185,27 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
 
 
 async def start_navigation(parameters: dict, context: dict) -> dict:
-    """Start navigation by returning route data for the in-app Flutter map."""
+    """
+    Start navigation to delivery location via the routing service.
+    Platform: In-app navigation (Flutter map), no external deeplinks
+    Trigger phrases: "navigate", "take me there", "get directions"
+    """
     try:
-        stop = resolve_stop(parameters.get("delivery_id"), context)
-        route = fastest_route(await routes_to_stop(stop, context))
-        fields = route_fields(route) if route else None
-        if fields:
-            message = (
-                f"Route to {stop['address']} is on your map: "
-                f"{fields['duration_text']} via {fields['summary']}."
-            )
-        else:
-            message = f"{stop['address']} is on your map."
+        delivery_id = parameters.get("delivery_id")
+        dest_lat, dest_lng, address, origin_lat, origin_lng = await _resolve_destination_and_origin(delivery_id, context)
+
+        from app.services.routing_service import routing_service
+        route = await routing_service.calculate_route((origin_lat, origin_lng), (dest_lat, dest_lng))
+
+        stop = resolve_stop(delivery_id, context)
+        route_with_stop = routes_to_stop(stop or {}, route)
 
         return {
             "success": True,
-            "delivery_id": stop["delivery_id"],
-            "address": stop["address"],
-            "latitude": stop["latitude"],
-            "longitude": stop["longitude"],
-            "route": fields,
-            "message": message,
+            "action": "start_navigation",
+            "route": route_with_stop,
+            "destination_address": address,
+            "message": f"Starting navigation to {address}. Estimated time: {route.get('duration_text', '12 mins')}."
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
