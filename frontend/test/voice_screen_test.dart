@@ -128,6 +128,7 @@ void main() {
       }
       expect(ptt.hitTestable(), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
     });
   }
 
@@ -170,5 +171,6 @@ void main() {
       expect(find.text(mood.label ?? 'Your co-rider is ready'), findsOneWidget);
     }
     await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 }
