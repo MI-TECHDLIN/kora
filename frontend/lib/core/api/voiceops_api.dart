@@ -26,6 +26,57 @@ class DriverProfile {
   final String? vehicleType;
 }
 
+/// One GPS ping for `POST /v1/locations/ping`, in the units the backend's
+/// `LocationPingRequest` validates: km/h, degrees, metres. Out-of-range
+/// values are clamped here rather than rejected by the server as a 422.
+class LocationPing {
+  factory LocationPing({
+    required double latitude,
+    required double longitude,
+    double speedKmh = 0,
+    double heading = 0,
+    double accuracyMetres = 0,
+    String? shiftId,
+  }) => LocationPing._(
+    latitude: latitude.clamp(-90, 90).toDouble(),
+    longitude: longitude.clamp(-180, 180).toDouble(),
+    speedKmh: speedKmh.isFinite ? speedKmh.clamp(0, 300).toDouble() : 0,
+    heading: heading.isFinite ? heading.clamp(0, 360).toDouble() : 0,
+    accuracyMetres: accuracyMetres.isFinite && accuracyMetres > 0
+        ? accuracyMetres
+        : 0,
+    shiftId: shiftId,
+  );
+
+  const LocationPing._({
+    required this.latitude,
+    required this.longitude,
+    required this.speedKmh,
+    required this.heading,
+    required this.accuracyMetres,
+    required this.shiftId,
+  });
+
+  final double latitude;
+  final double longitude;
+  final double speedKmh;
+  final double heading;
+  final double accuracyMetres;
+
+  /// The shift the ping belongs to; the backend falls back to the driver's
+  /// current shift when it is absent.
+  final String? shiftId;
+
+  Map<String, Object?> toJson() => {
+    'latitude': latitude,
+    'longitude': longitude,
+    'speed': speedKmh,
+    'heading': heading,
+    'accuracy': accuracyMetres,
+    if (shiftId != null) 'shift_id': shiftId,
+  };
+}
+
 String? _blankToNull(Object? value) =>
     value is String && value.trim().isNotEmpty ? value.trim() : null;
 
@@ -46,6 +97,11 @@ abstract interface class VoiceOpsApi {
 
   /// `POST /v1/shift/start`; returns the new shift's id.
   Future<String> startShift();
+
+  /// `POST /v1/locations/ping`. This is what feeds the backend's proactive
+  /// risk engine, which runs on every ping and is the only thing that can
+  /// raise a `PROACTIVE_ALERT`.
+  Future<void> sendLocationPing(LocationPing ping);
 }
 
 /// The backend base URL ([BackendConfig.baseUri]); null when unset.
@@ -88,7 +144,15 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
     return shiftId;
   }
 
-  Future<Map<String, dynamic>> _send(String method, String path) async {
+  @override
+  Future<void> sendLocationPing(LocationPing ping) async =>
+      _send('POST', 'v1/locations/ping', body: ping.toJson());
+
+  Future<Map<String, dynamic>> _send(
+    String method,
+    String path, {
+    Map<String, Object?>? body,
+  }) async {
     final base = baseUri;
     if (base == null) {
       throw const ApiException(BackendConfig.notConfiguredMessage);
@@ -101,6 +165,10 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
     try {
       final request = http.Request(method, restUri(base, path))
         ..headers['Authorization'] = 'Bearer $token';
+      if (body != null) {
+        request.headers['Content-Type'] = 'application/json';
+        request.body = jsonEncode(body);
+      }
       response = await http.Response.fromStream(
         await _client.send(request).timeout(_timeout),
       );

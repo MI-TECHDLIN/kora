@@ -7,6 +7,7 @@ import 'core/config/supabase_config.dart';
 import 'core/theme/tokens.dart';
 import 'features/auth/widgets/driver_profile_notice.dart';
 import 'features/map/widgets/map_warmup.dart';
+import 'providers/location_ping_provider.dart';
 import 'providers/onboarding_provider.dart';
 
 Future<void> main() async {
@@ -43,7 +44,9 @@ class VoiceOpsApp extends ConsumerWidget {
       theme: buildVoiceOpsTheme(), // dark-mode-first: the only theme
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) => RootStack(
-        child: MapWarmup(child: DriverProfileNotice(child: child!)),
+        child: MapWarmup(
+          child: LocationPingLoop(child: DriverProfileNotice(child: child!)),
+        ),
       ),
     );
   }
