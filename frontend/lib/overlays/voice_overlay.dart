@@ -7,14 +7,16 @@ import '../core/widgets/glass_card.dart';
 import '../providers/call_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/order_offer_provider.dart';
+import '../providers/proactive_alert_provider.dart';
 import '../providers/voice_session_provider.dart';
 import 'order_offer_card.dart';
+import 'proactive_alert_card.dart';
 
 /// Voice-session layer above every main tab: the degraded-state banner when
 /// voice drops or errors (frontend rules: never fail silently), the call
-/// card while the co-rider has a customer on the line, and a new-order
-/// offer. They stack, so a failed offer answer shows its banner over the
-/// still-open offer.
+/// card while the co-rider has a customer on the line, a proactive risk
+/// alert, and a new-order offer. They stack, so a failed offer answer shows
+/// its banner over the still-open offer.
 class VoiceOverlay extends ConsumerWidget {
   const VoiceOverlay({super.key});
 
@@ -26,7 +28,8 @@ class VoiceOverlay extends ConsumerWidget {
     final offer = ref.watch(orderOfferProvider);
     final issue = session.issue;
     final hasOffer = offer.offer != null || offer.notice != null;
-    if (issue == null && call == null && !hasOffer) {
+    final hasAlert = ref.watch(proactiveAlertProvider) != null;
+    if (issue == null && call == null && !hasOffer && !hasAlert) {
       return const SizedBox.shrink();
     }
 
@@ -79,7 +82,10 @@ class VoiceOverlay extends ConsumerWidget {
                 }
               },
             ),
-          if ((issue != null || call != null) && hasOffer)
+          if ((issue != null || call != null) && hasAlert)
+            const SizedBox(height: VoiceOpsSpacing.sm),
+          if (hasAlert) const ProactiveAlertCard(),
+          if ((issue != null || call != null || hasAlert) && hasOffer)
             const SizedBox(height: VoiceOpsSpacing.sm),
           if (hasOffer) const OrderOfferPanel(),
         ],

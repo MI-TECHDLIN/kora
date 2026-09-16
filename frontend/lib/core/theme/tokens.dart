@@ -297,6 +297,11 @@ class VoiceOpsMotion {
   /// Entrance of the onboarding Power screen's card stack.
   static const stagger = Duration(milliseconds: 900);
 
+  /// How long a proactive risk alert stays up. Longer than [notice]: the
+  /// driver is meant to glance at it, weigh a reroute and answer by voice,
+  /// all without taking their hands off the bars.
+  static const proactiveAlert = Duration(seconds: 20);
+
   /// How long a snackbar notice stays up: long enough to read two lines.
   static const notice = Duration(seconds: 8);
 
