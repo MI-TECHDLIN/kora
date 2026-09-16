@@ -155,7 +155,7 @@ class _Greeting extends StatelessWidget {
 }
 
 /// "Next stop" behind, the holographic "Live route" teaser peeking in from
-/// the right edge, and the action-required "Mic access" and "Location"
+/// the top-left corner, and the action-required "Mic access" and "Location"
 /// cards in front. The cards arrive almost together, staggered just enough
 /// to read as parallel work.
 class _CardStack extends StatefulWidget {
@@ -196,7 +196,12 @@ class _CardStackState extends State<_CardStack>
   static const _underNextStop = VoiceOpsSpacing.md;
   static const _underMic = VoiceOpsSpacing.sm;
 
-  static const _teaserAt = Alignment(1, -0.3);
+  // The front cards claim the right edge at the top (next stop) and the
+  // bottom (location), and the left edge in the middle (mic), leaving the
+  // top-left corner — above the mic card, left of the next-stop card —
+  // uncovered, and (unlike the other free corner, bottom-left) still inside
+  // a short phone's unscrolled viewport.
+  static const _teaserAt = Alignment(-1, -1);
 
   static const _cardCount = 4;
 
@@ -264,10 +269,12 @@ class _CardStackState extends State<_CardStack>
             child: _deal(
               1,
               alignment: _teaserAt,
-              widthFactor: 0.56,
-              // Slides past the page edge so it peeks in from the side.
+              widthFactor: 0.44,
+              // Slides past the top-left corner so it reads as sliding in
+              // from off-screen, narrow enough that its label wraps clear
+              // of the next-stop and mic cards instead of under them.
               card: const FractionalTranslation(
-                translation: Offset(0.45, 0),
+                translation: Offset(-0.3, -0.55),
                 child: _Tilted(angle: _tiltTeaser, child: _LiveRouteTeaser()),
               ),
             ),
