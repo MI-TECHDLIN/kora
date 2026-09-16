@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 /// One position fix for the driver's marker.
 class LocationFix {
-  const LocationFix(this.point, {this.heading, this.speed});
+  const LocationFix(this.point, {this.heading, this.speed, this.accuracy});
 
   final LatLng point;
 
@@ -14,6 +14,10 @@ class LocationFix {
 
   /// Metres per second, or null when unknown.
   final double? speed;
+
+  /// Radius of 68% confidence in metres, or null when unknown. The marker
+  /// ignores it; it rides along for the backend's GPS ping.
+  final double? accuracy;
 }
 
 enum LocationProblem { serviceOff, denied, deniedForever, unavailable }
@@ -104,6 +108,7 @@ class GeolocatorLocationSource implements LocationSource {
           // Heading is noise while stopped.
           heading: p.speed > 1 && p.heading >= 0 ? p.heading : null,
           speed: p.speed >= 0 ? p.speed : null,
+          accuracy: p.accuracy >= 0 ? p.accuracy : null,
         ),
       );
     } on LocationServiceDisabledException {

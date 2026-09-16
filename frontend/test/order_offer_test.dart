@@ -118,6 +118,8 @@ void main() {
         'event': 'decline_order',
         'order_id': 'order-18',
       });
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
     },
   );
 
@@ -149,6 +151,8 @@ void main() {
       socket.sentText.where((m) => m['event'] == 'accept_order'),
       hasLength(2),
     );
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 
   testWidgets('order_offer_closed removes an expired or withdrawn offer', (
@@ -186,5 +190,7 @@ void main() {
     );
     await tester.pump(VoiceOpsMotion.notice);
     expect(find.byKey(const Key('order-offer-closed-notice')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 }

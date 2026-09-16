@@ -144,5 +144,7 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.byKey(const Key('vehicle-card')), findsOneWidget);
     await tester.pump(const Duration(seconds: 1)); // the map-focus grace
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 }

@@ -18,6 +18,7 @@ import 'call_provider.dart';
 import 'map_route_provider.dart';
 import 'navigation_provider.dart';
 import 'order_offer_provider.dart';
+import 'proactive_alert_provider.dart';
 import 'push_to_talk_provider.dart';
 import 'shift_provider.dart';
 import 'summary_stream_provider.dart';
@@ -251,6 +252,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     await _playback.stop();
     if (!mounted) return;
     _ref.read(orderOfferProvider.notifier).clear();
+    _ref.read(proactiveAlertProvider.notifier).dismiss();
     _ptt.set(PushToTalkState.idle);
     state = const VoiceSessionState();
   }
@@ -501,9 +503,27 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         _ref.read(orderOfferProvider.notifier).show(event);
       case OrderOfferClosedEvent(:final orderId, :final outcome):
         _ref.read(orderOfferProvider.notifier).close(orderId, outcome);
+      case ProactiveAlertEvent():
+        _onProactiveAlert(event);
       case ErrorEvent():
         _onError(event);
     }
+  }
+
+  /// The risk engine flagged something. Show the sentence (the co-rider
+  /// says it too, but audio can be missed), and when it comes with a faster
+  /// way round, draw that on the map so "want me to reroute?" has something
+  /// to point at.
+  void _onProactiveAlert(ProactiveAlertEvent alert) {
+    _ref.read(proactiveAlertProvider.notifier).show(alert);
+    final route = alert.routeSuggestion?.route;
+    // An undrawable geometry leaves the map on the current route rather
+    // than blanking it.
+    if (route == null || route.line.isEmpty) return;
+    _mapFocusTimer?.cancel();
+    _mapFocusTimer = null;
+    _ref.read(mapRouteProvider.notifier).show(route);
+    _ref.read(mapFocusProvider.notifier).frameRoute();
   }
 
   void _onAudio(Uint8List pcm) {
