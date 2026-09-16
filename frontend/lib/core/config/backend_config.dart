@@ -28,10 +28,13 @@ abstract final class BackendConfig {
 Uri restUri(Uri base, String path) =>
     base.replace(path: '${_trimSlash(base.path)}/$path');
 
-/// The voice socket for [shiftId]: same host, `ws`/`wss` scheme.
-Uri voiceSocketUri(Uri base, String shiftId) => base.replace(
+/// The voice socket for [shiftId]: same host, `ws`/`wss` scheme. [voice] is
+/// the co-rider's stock voice, sent as `?voice=<id>`; the backend applies it
+/// at session start and falls back to Anna when it's missing or unknown.
+Uri voiceSocketUri(Uri base, String shiftId, {String? voice}) => base.replace(
   scheme: base.scheme == 'https' ? 'wss' : 'ws',
   path: '${_trimSlash(base.path)}/ws/voice/${Uri.encodeComponent(shiftId)}',
+  queryParameters: voice == null ? null : {'voice': voice},
 );
 
 String _trimSlash(String path) =>

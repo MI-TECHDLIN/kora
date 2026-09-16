@@ -254,6 +254,10 @@ void main() {
       'ws://10.0.2.2:8000/ws/voice/s',
     );
     expect(
+      voiceSocketUri(base, 's', voice: 'vera').toString(),
+      'wss://api.voiceops.test/ws/voice/s?voice=vera',
+    );
+    expect(
       restUri(base, 'v1/driver/profile').toString(),
       'https://api.voiceops.test/v1/driver/profile',
     );

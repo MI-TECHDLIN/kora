@@ -11,8 +11,11 @@ import 'package:voiceops/core/realtime/voice_socket.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
+import 'package:voiceops/features/summary/data/shift_report.dart';
+import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
+import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
@@ -182,6 +185,22 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     pings.add(ping);
     if (pingFailure case final f?) throw f;
   }
+
+  /// Returned by [fetchShiftReport]; null means "still processing".
+  ShiftReport? report;
+
+  /// Thrown by the next [fetchShiftReport] instead of returning [report].
+  ApiException? reportFailure;
+
+  /// Shift ids the app asked for a report on, in order.
+  final reportRequests = <String>[];
+
+  @override
+  Future<ShiftReport?> fetchShiftReport(String shiftId) async {
+    reportRequests.add(shiftId);
+    if (reportFailure case final f?) throw f;
+    return report;
+  }
 }
 
 /// Streams fixes the test pushes; [problem] scripts a location problem.
@@ -260,6 +279,43 @@ class FakeMapStyleStore implements MapStyleStore {
   Future<void> save(MapStyle style) async => value = style;
 }
 
+class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
+  FakeNotificationPreferencesStore({
+    bool proactiveAlertsEnabled = true,
+    bool shiftSummaryReadyEnabled = true,
+  }) : value = NotificationPreferences(
+         proactiveAlertsEnabled: proactiveAlertsEnabled,
+         shiftSummaryReadyEnabled: shiftSummaryReadyEnabled,
+       );
+
+  NotificationPreferences value;
+
+  @override
+  Future<NotificationPreferences> load() async => value;
+
+  @override
+  Future<void> saveProactiveAlerts({required bool enabled}) async {
+    value = value.copyWith(proactiveAlertsEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveShiftSummaryReady({required bool enabled}) async {
+    value = value.copyWith(shiftSummaryReadyEnabled: enabled);
+  }
+}
+
+class FakeCoRiderVoiceStore implements CoRiderVoiceStore {
+  FakeCoRiderVoiceStore([this.value]);
+
+  CoRiderVoice? value;
+
+  @override
+  Future<CoRiderVoice?> load() async => value;
+
+  @override
+  Future<void> save(CoRiderVoice voice) async => value = voice;
+}
+
 class FakeOnboardingStore implements OnboardingStore {
   FakeOnboardingStore({this.completed = false});
 
@@ -284,6 +340,8 @@ List<Override> offlineOverrides({
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
   FakeMapStyleStore? mapStyleStore,
+  FakeNotificationPreferencesStore? notificationPreferencesStore,
+  FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeOnboardingStore? onboardingStore,
   bool backendConfigured = true,
 }) {
@@ -303,6 +361,12 @@ List<Override> offlineOverrides({
     ),
     mapStyleStoreProvider.overrideWithValue(
       mapStyleStore ?? FakeMapStyleStore(),
+    ),
+    notificationPreferencesStoreProvider.overrideWithValue(
+      notificationPreferencesStore ?? FakeNotificationPreferencesStore(),
+    ),
+    coRiderVoiceStoreProvider.overrideWithValue(
+      coRiderVoiceStore ?? FakeCoRiderVoiceStore(),
     ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
     onboardingStoreProvider.overrideWithValue(

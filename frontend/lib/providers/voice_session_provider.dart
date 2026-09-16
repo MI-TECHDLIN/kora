@@ -15,8 +15,10 @@ import '../core/realtime/voice_socket.dart';
 import 'agent_state_provider.dart';
 import 'auth_provider.dart';
 import 'call_provider.dart';
+import 'co_rider_voice_provider.dart';
 import 'map_route_provider.dart';
 import 'navigation_provider.dart';
+import 'notification_preferences_provider.dart';
 import 'order_offer_provider.dart';
 import 'proactive_alert_provider.dart';
 import 'push_to_talk_provider.dart';
@@ -358,9 +360,17 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     }
     if (!mounted) return false;
 
+    final voices = _ref.read(coRiderVoiceProvider.notifier);
+    await voices.loaded;
+    if (!mounted) return false;
+
     _rejected = false;
     final socket = _ref.read(voiceSocketConnectorProvider)(
-      voiceSocketUri(base, shiftId),
+      voiceSocketUri(
+        base,
+        shiftId,
+        voice: _ref.read(coRiderVoiceProvider).name,
+      ),
       {'Authorization': 'Bearer $token'},
     );
     _socket = socket;
@@ -474,8 +484,13 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       case AgentStateEvent(:final state):
         _ref.read(agentStateProvider.notifier).setFromKey(state);
       case ScreenNavigateEvent(:final screen):
-        _ref.read(navigationProvider).navigateForAgent(screen);
-        if (screen == 'map') _mapFocusTimer = Timer(_routeGrace, _followDriver);
+        final notifications = _ref.read(notificationPreferencesProvider);
+        if (screen != 'summary' || notifications.shiftSummaryReadyEnabled) {
+          _ref.read(navigationProvider).navigateForAgent(screen);
+          if (screen == 'map') {
+            _mapFocusTimer = Timer(_routeGrace, _followDriver);
+          }
+        }
       case TaskStepEvent(:final step, :final status):
         _ref.read(taskProgressProvider.notifier).applyStep(step, status);
       case MapRouteEvent(:final route):
@@ -515,6 +530,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   /// way round, draw that on the map so "want me to reroute?" has something
   /// to point at.
   void _onProactiveAlert(ProactiveAlertEvent alert) {
+    if (!_ref.read(notificationPreferencesProvider).proactiveAlertsEnabled) {
+      return;
+    }
     _ref.read(proactiveAlertProvider.notifier).show(alert);
     final route = alert.routeSuggestion?.route;
     // An undrawable geometry leaves the map on the current route rather

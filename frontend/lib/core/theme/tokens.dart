@@ -237,6 +237,15 @@ class VoiceOpsSize {
   /// Onboarding progress dots; the current step stretches to a pill.
   static const progressDot = 8.0;
   static const progressDotActive = 24.0;
+
+  /// Summary tab: the success-rate ring, its stroke, and the height of a
+  /// horizontal meter (the sentiment bar).
+  static const successRing = 96.0;
+  static const successRingStroke = 9.0;
+  static const meter = 8.0;
+
+  /// Bullet dot in a report list (incidents, route notes).
+  static const listDot = 6.0;
 }
 
 /// The Map tab: route line, pins, the driver's position dot and camera.
@@ -400,6 +409,9 @@ class VoiceOpsText {
     color: VoiceOpsColors.textPrimary,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
+
+  /// [numeric] for tiles in a two-column grid.
+  static final numericCompact = numeric.copyWith(fontSize: 22);
 }
 
 ThemeData buildVoiceOpsTheme() {
