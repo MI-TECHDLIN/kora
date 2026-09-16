@@ -1,38 +1,30 @@
-/// Where the VoiceOps FastAPI backend lives, read at compile time:
+/// Where the VoiceOps FastAPI backend lives.
 ///
-/// ```sh
-/// # Local development
-/// flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000
+/// Builds use the production Render deployment by default. Override it at
+/// compile time for local development with:
+/// `flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000`.
 ///
-/// # Production
-/// flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
-/// ```
-///
-/// REST calls go to `<url>/v1/…` and the voice socket to
-/// `<ws-url>/ws/voice/{shift_id}` (docs/contracts/interface.md §1–2). Unset,
-/// the app still builds and boots; voice and profile calls then fail with
-/// [notConfiguredMessage] instead of hitting the network.
+/// REST calls go to `<url>/v1/...` and the voice socket to
+/// `<ws-url>/ws/voice/{shift_id}` (docs/contracts/interface.md sections 1-2).
 abstract final class BackendConfig {
-  static const url = String.fromEnvironment('VOICEOPS_API_URL');
+  /// Production backend URL (Render deployment).
+  static const productionUrl = 'https://voiceops-ll41.onrender.com';
+
+  static const url = String.fromEnvironment(
+    'VOICEOPS_API_URL',
+    defaultValue: productionUrl,
+  );
 
   static bool get isConfigured => url.isNotEmpty;
 
-  /// The backend base URL, or null when [isConfigured] is false.
+  /// The backend base URL, or null if an explicitly empty override is passed.
   static Uri? get baseUri => isConfigured ? Uri.parse(url) : null;
-
-  /// Production backend URL (Render deployment)
-  static const productionUrl = 'https://voiceops-ll41.onrender.com';
-
-  /// Local development backend URL
-  static const localUrl = 'http://localhost:8000';
-
-  /// Get the appropriate URL based on environment variable or default to local
-  static String get effectiveUrl => isConfigured ? url : localUrl;
 
   static const notConfiguredMessage =
       "Voice isn't set up in this build yet. Build with VOICEOPS_API_URL.";
+}
 
-/// `https://host/base` → `https://host/base/<path>`.
+/// `https://host/base` -> `https://host/base/<path>`.
 Uri restUri(Uri base, String path) =>
     base.replace(path: '${_trimSlash(base.path)}/$path');
 
@@ -41,12 +33,6 @@ Uri voiceSocketUri(Uri base, String shiftId) => base.replace(
   scheme: base.scheme == 'https' ? 'wss' : 'ws',
   path: '${_trimSlash(base.path)}/ws/voice/${Uri.encodeComponent(shiftId)}',
 );
-
-/// Get the appropriate base URI for current environment
-Uri? getEffectiveBaseUri() {
-  final urlString = effectiveUrl;
-  return urlString.isNotEmpty ? Uri.parse(urlString) : null;
-}
 
 String _trimSlash(String path) =>
     path.endsWith('/') ? path.substring(0, path.length - 1) : path;

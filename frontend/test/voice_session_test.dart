@@ -542,7 +542,7 @@ void main() {
     });
   });
 
-  test('a build without VOICEOPS_API_URL says so', () {
+  test('a missing backend URI says what blocks voice', () {
     onFakeTime(configured: false, (async, flush) {
       session().onPushToTalk();
       flush();

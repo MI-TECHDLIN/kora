@@ -104,7 +104,7 @@ abstract interface class VoiceOpsApi {
   Future<void> sendLocationPing(LocationPing ping);
 }
 
-/// The backend base URL ([BackendConfig.baseUri]); null when unset.
+/// The backend base URL ([BackendConfig.baseUri]); production by default.
 final backendUriProvider = Provider<Uri?>((ref) => BackendConfig.baseUri);
 
 final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
