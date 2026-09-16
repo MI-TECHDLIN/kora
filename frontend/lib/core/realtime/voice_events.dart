@@ -64,6 +64,16 @@ sealed class VoiceEvent {
           ),
         ),
       ),
+      'PROACTIVE_ALERT' => ProactiveAlertEvent(
+        message: field('message'),
+        severity: RiskSeverity.parse(json['severity']),
+        riskType: RiskType.parse(json['risk_type']),
+        deliveryId: json['delivery_id'] as String?,
+        routeSuggestion: RouteSuggestion.parse(
+          json['route_suggestion'],
+          deliveryId: json['delivery_id'] as String?,
+        ),
+      ),
       'error' => ErrorEvent(
         code: field('code'),
         message: json['message'] as String? ?? '',
@@ -170,6 +180,119 @@ class OrderOfferClosedEvent extends VoiceEvent {
 
   final String orderId;
   final OrderOfferOutcome outcome;
+}
+
+/// What the risk engine flagged (`risk_type` on `PROACTIVE_ALERT`), mirroring
+/// the backend's `RiskType`. An unrecognised value parses to [unknown] rather
+/// than dropping the alert: the message still matters to the driver.
+enum RiskType {
+  lateDelivery('LATE_DELIVERY'),
+  customerUnavailable('CUSTOMER_UNAVAILABLE'),
+  excessiveIdle('EXCESSIVE_IDLE'),
+  driverNoResponse('DRIVER_NO_RESPONSE'),
+  timeWindowRisk('TIME_WINDOW_RISK'),
+  routeDeviation('ROUTE_DEVIATION'),
+  unknown('');
+
+  const RiskType(this.wire);
+
+  /// The value the backend sends.
+  final String wire;
+
+  static RiskType parse(Object? value) =>
+      values.firstWhere((type) => type.wire == value, orElse: () => unknown);
+}
+
+/// How hard the risk engine is pushing (`severity` on `PROACTIVE_ALERT`).
+enum RiskSeverity {
+  low('LOW'),
+  medium('MEDIUM'),
+  high('HIGH'),
+  critical('CRITICAL');
+
+  const RiskSeverity(this.wire);
+  final String wire;
+
+  /// Unknown severities read as [medium] so an alert is never silently
+  /// promoted to a red one or demoted out of sight.
+  static RiskSeverity parse(Object? value) =>
+      values.firstWhere((s) => s.wire == value, orElse: () => medium);
+}
+
+/// The alternate route on a `ROUTE_DEVIATION` alert: the same drawable shape
+/// as a `map_route`, plus the ETA it is being compared against.
+class RouteSuggestion {
+  const RouteSuggestion({
+    required this.route,
+    this.etaMinutes,
+    this.currentEtaMinutes,
+  });
+
+  /// Reads `route_suggestion`. Null when the field is absent or null (every
+  /// risk type but `ROUTE_DEVIATION`), or when it carries nothing usable.
+  /// The geometry goes through [MapRoute.fromJson], so a geometry this build
+  /// can't decode yields a route with no line instead of throwing.
+  static RouteSuggestion? parse(Object? json, {String? deliveryId}) {
+    if (json is! Map) return null;
+    final eta = (json['eta_minutes'] as num?)?.toInt();
+    final current = (json['current_eta_minutes'] as num?)?.toInt();
+    final geometry = json['geometry'];
+    final encoded = geometry is String ? geometry : '';
+    if (eta == null && current == null && encoded.isEmpty) return null;
+    return RouteSuggestion(
+      route: MapRoute.fromJson({
+        'delivery_id': deliveryId ?? '',
+        'polyline': encoded,
+        'summary': 'Suggested reroute',
+        'duration_mins': ?eta,
+        if (eta != null) 'duration_text': '$eta min',
+      }),
+      etaMinutes: eta,
+      currentEtaMinutes: current,
+    );
+  }
+
+  final MapRoute route;
+
+  /// Drive time on the alternate route, in minutes.
+  final int? etaMinutes;
+
+  /// Drive time the driver is on course for now, in minutes.
+  final int? currentEtaMinutes;
+
+  /// Minutes the alternate saves, or null when the two ETAs don't say.
+  int? get savingsMinutes {
+    final alternate = etaMinutes;
+    final current = currentEtaMinutes;
+    if (alternate == null || current == null || current <= alternate) {
+      return null;
+    }
+    return current - alternate;
+  }
+}
+
+/// The risk engine speaking up unprompted: traffic on the route, a delivery
+/// window about to slip, or the van standing still too long
+/// (docs/contracts/interface.md §1). [message] is the sentence the co-rider
+/// says, and is shown as well — audio alone can be missed.
+class ProactiveAlertEvent extends VoiceEvent {
+  const ProactiveAlertEvent({
+    required this.message,
+    required this.severity,
+    required this.riskType,
+    this.deliveryId,
+    this.routeSuggestion,
+  });
+
+  final String message;
+  final RiskSeverity severity;
+  final RiskType riskType;
+
+  /// The stop at risk, or null for a driver-level risk like idle time.
+  final String? deliveryId;
+
+  /// The faster way round, on `ROUTE_DEVIATION` only.
+  final RouteSuggestion? routeSuggestion;
 }
 
 /// `code` ∈ `auth_failed | session_expired | upstream_unavailable |

@@ -157,6 +157,12 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
   int profileCalls = 0;
   int shiftCalls = 0;
 
+  /// Every GPS ping the app has posted, in order.
+  final pings = <LocationPing>[];
+
+  /// Thrown by the next [sendLocationPing]; telemetry must shrug it off.
+  ApiException? pingFailure;
+
   @override
   Future<DriverProfile> fetchDriverProfile() async {
     profileCalls++;
@@ -169,6 +175,12 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     shiftCalls++;
     if (shiftFailure case final f?) throw f;
     return 'shift-1';
+  }
+
+  @override
+  Future<void> sendLocationPing(LocationPing ping) async {
+    pings.add(ping);
+    if (pingFailure case final f?) throw f;
   }
 }
 
