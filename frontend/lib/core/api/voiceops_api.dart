@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../features/auth/data/auth_repository.dart';
+import '../../features/summary/data/shift_report.dart';
 import '../../providers/auth_provider.dart';
 import '../config/backend_config.dart';
 
@@ -102,6 +103,10 @@ abstract interface class VoiceOpsApi {
   /// risk engine, which runs on every ping and is the only thing that can
   /// raise a `PROACTIVE_ALERT`.
   Future<void> sendLocationPing(LocationPing ping);
+
+  /// `GET /v1/shift/{shift_id}/report`; null while the report is still
+  /// being generated (`{"status": "processing"}`).
+  Future<ShiftReport?> fetchShiftReport(String shiftId);
 }
 
 /// The backend base URL ([BackendConfig.baseUri]); production by default.
@@ -147,6 +152,16 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   @override
   Future<void> sendLocationPing(LocationPing ping) async =>
       _send('POST', 'v1/locations/ping', body: ping.toJson());
+
+  @override
+  Future<ShiftReport?> fetchShiftReport(String shiftId) async {
+    final body = await _send(
+      'GET',
+      'v1/shift/${Uri.encodeComponent(shiftId)}/report',
+    );
+    if (body['status'] == 'processing') return null;
+    return ShiftReport.fromJson(body);
+  }
 
   Future<Map<String, dynamic>> _send(
     String method,

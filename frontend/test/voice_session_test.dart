@@ -12,8 +12,10 @@ import 'package:voiceops/mascot/mascot_state.dart';
 import 'package:voiceops/providers/agent_state_provider.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/call_provider.dart';
+import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
 import 'package:voiceops/providers/navigation_provider.dart';
+import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/push_to_talk_provider.dart';
 import 'package:voiceops/providers/summary_stream_provider.dart';
 import 'package:voiceops/providers/task_progress_provider.dart';
@@ -42,6 +44,7 @@ void main() {
   late FakeVoiceOpsApi api;
   late FakeAuthRepository auth;
   late _FakeNavigation navigation;
+  late FakeCoRiderVoiceStore voices;
   late ProviderContainer container;
 
   setUp(() {
@@ -51,6 +54,7 @@ void main() {
     api = FakeVoiceOpsApi();
     auth = FakeAuthRepository(signedIn: true);
     navigation = _FakeNavigation();
+    voices = FakeCoRiderVoiceStore();
   });
 
   /// Runs [body] on fake time, so the reconnect and answer timers are
@@ -68,12 +72,15 @@ void main() {
             recorder: recorder,
             playback: playback,
             api: api,
+            coRiderVoiceStore: voices,
             backendConfigured: configured,
           ),
           authRepositoryProvider.overrideWithValue(auth),
           navigationProvider.overrideWithValue(navigation),
         ],
       );
+      container.read(notificationPreferencesProvider);
+      async.flushMicrotasks();
       body(async, async.flushMicrotasks);
       container.dispose();
       async.flushMicrotasks();
@@ -91,7 +98,11 @@ void main() {
       expect(ptt(), PushToTalkState.recording);
       expect(api.shiftCalls, 1);
       final socket = connector.last;
-      expect(socket.uri.toString(), 'wss://api.voiceops.test/ws/voice/shift-1');
+      // No saved voice: Anna, the backend's default.
+      expect(
+        socket.uri.toString(),
+        'wss://api.voiceops.test/ws/voice/shift-1?voice=anna',
+      );
       expect(socket.headers, {'Authorization': 'Bearer test-access-token'});
       expect(voice().connection, VoiceConnection.connected);
 
@@ -127,6 +138,15 @@ void main() {
       expect(ptt(), PushToTalkState.recording);
       expect(connector.sockets, hasLength(1));
       expect(api.shiftCalls, 1);
+    });
+  });
+
+  test('the saved co-rider voice rides on the voice socket', () {
+    voices.value = CoRiderVoice.michael;
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      expect(connector.last.uri.queryParameters, {'voice': 'michael'});
     });
   });
 
@@ -209,6 +229,55 @@ void main() {
       expect(voice().connection, VoiceConnection.connected);
     });
   });
+
+  test('a completed shift summary opens by default', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+
+      connector.last
+        ..emit({'event': 'screen_navigate', 'screen': 'summary'})
+        ..emit({
+          'event': 'summary_chunk',
+          'text': 'You completed 12 stops.',
+          'final': true,
+        })
+        ..emit({'event': 'reply_done'});
+      flush();
+
+      expect(navigation.screens, ['summary']);
+      expect(container.read(summaryStreamProvider)?.isComplete, isTrue);
+    });
+  });
+
+  test(
+    'a disabled shift-summary notification keeps the report without opening it',
+    () {
+      onFakeTime((async, flush) {
+        container
+            .read(notificationPreferencesProvider.notifier)
+            .setShiftSummaryReady(enabled: false);
+        flush();
+        session().onPushToTalk();
+        flush();
+
+        connector.last
+          ..emit({'event': 'screen_navigate', 'screen': 'summary'})
+          ..emit({
+            'event': 'summary_chunk',
+            'text': 'You completed 12 stops.',
+            'final': true,
+          })
+          ..emit({'event': 'reply_done'});
+        flush();
+
+        expect(navigation.screens, isEmpty);
+        final summary = container.read(summaryStreamProvider)!;
+        expect(summary.text, 'You completed 12 stops.');
+        expect(summary.isComplete, isTrue);
+      });
+    },
+  );
 
   test('a route frames the map; a bare map screen follows the driver', () {
     onFakeTime((async, flush) {

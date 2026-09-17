@@ -13,6 +13,7 @@ import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/location_ping_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
 import 'package:voiceops/providers/navigation_provider.dart';
+import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/proactive_alert_provider.dart';
 import 'package:voiceops/providers/voice_session_provider.dart';
 
@@ -211,6 +212,8 @@ void main() {
             navigationProvider.overrideWithValue(_FakeNavigation()),
           ],
         );
+        container.read(notificationPreferencesProvider);
+        async.flushMicrotasks();
         body(async, async.flushMicrotasks);
         container.dispose();
         async.flushMicrotasks();
@@ -307,6 +310,23 @@ void main() {
         session().disconnect();
         flush();
         expect(container.read(proactiveAlertProvider), isNull);
+      });
+    });
+
+    test('a disabled proactive alert does not show or replace the route', () {
+      onFakeTime((async, flush) {
+        container
+            .read(notificationPreferencesProvider.notifier)
+            .setProactiveAlerts(enabled: false);
+        flush();
+        session().onPushToTalk();
+        flush();
+
+        connector.last.emit(sampleRerouteAlert());
+        flush();
+
+        expect(container.read(proactiveAlertProvider), isNull);
+        expect(container.read(mapRouteProvider), isNull);
       });
     });
   });

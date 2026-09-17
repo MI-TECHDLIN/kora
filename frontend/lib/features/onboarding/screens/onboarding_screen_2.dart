@@ -188,13 +188,15 @@ class _CardStackState extends State<_CardStack>
   static const _tiltFront = -0.03;
   static const _tiltLocation = 0.03;
 
-  // How far a card slides under the one after it. [_Overlapped] caps both
-  // at [_cardPadding], and [_Tilted] puts each tilt into the card's laid-out
-  // height, so what the column stacks is what the screen paints: the mic
-  // card can't cover the stop's two rows and the location card can't cover
-  // the mic button, at any text size.
-  static const _underNextStop = VoiceOpsSpacing.md;
-  static const _underMic = VoiceOpsSpacing.sm;
+  // How far a card slides under (positive) or apart from (negative) the one
+  // after it. [_Overlapped] caps the overlap at [_cardPadding], and
+  // [_Tilted] puts each tilt into the card's laid-out height, so what the
+  // column stacks is what the screen paints: the mic card can't cover the
+  // stop's two rows and the location card can't cover the mic button, at
+  // any text size. A small negative value here reads as a gap between
+  // cards rather than a full overlap, while keeping the staggered tilt.
+  static const _underNextStop = -VoiceOpsSpacing.xs;
+  static const _underMic = -VoiceOpsSpacing.xs;
 
   // The front cards claim the right edge at the top (next stop) and the
   // bottom (location), and the left edge in the middle (mic), leaving the
@@ -270,11 +272,12 @@ class _CardStackState extends State<_CardStack>
               1,
               alignment: _teaserAt,
               widthFactor: 0.44,
-              // Slides past the top-left corner so it reads as sliding in
+              // Peeks past the top-left corner so it reads as sliding in
               // from off-screen, narrow enough that its label wraps clear
-              // of the next-stop and mic cards instead of under them.
+              // of the next-stop and mic cards instead of under them, but
+              // not so far off that its icon and label get cropped away.
               card: const FractionalTranslation(
-                translation: Offset(-0.3, -0.55),
+                translation: Offset(-0.15, -0.3),
                 child: _Tilted(angle: _tiltTeaser, child: _LiveRouteTeaser()),
               ),
             ),

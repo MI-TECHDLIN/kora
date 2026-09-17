@@ -166,7 +166,9 @@ List<_DocumentBlock> _parseBlocks(String content) {
     paragraph.clear();
   }
 
-  for (final line in content.split('\n')) {
+  // Strip a trailing \r so a CRLF-checked-out asset (e.g. Windows with
+  // core.autocrlf=true) parses the same as the LF the repo stores.
+  for (final line in content.replaceAll('\r\n', '\n').split('\n')) {
     if (line.trim().isEmpty) {
       flush();
     } else if (line.startsWith('# ')) {
