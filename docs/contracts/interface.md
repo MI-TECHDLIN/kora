@@ -1,5 +1,6 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.5 (draft), 2026-09-16. 1.5 adds co-rider voice selection via optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback (§1).
 **Version:** 1.4 (draft), 2026-09-14. 1.4 adds traffic-aware routing and proactive reroute suggestions: new `PROACTIVE_ALERT` event with `route_suggestion` field for ROUTE_DEVIATION alerts, and traffic-aware ETA integration in order offers.
 **Version:** 1.3 (draft), 2026-09-13. 1.3 lets the offer card answer an order offer over the
 voice WebSocket (§1). See "Changes in 1.3". 1.2 added new-order dispatch: the `order_offer` and
@@ -27,7 +28,8 @@ This file covers four things: (1) the WebSocket message catalogue, (2) the REST 
 
 | | |
 |---|---|
-| Path | `WS /ws/voice/{shift_id}` |
+| Path | `WS /ws/voice/{shift_id}[?voice=<voice_id>]` |
+| Query params | optional `voice`: co-rider voice choice (allowlist: `alba`, `eve`, `george`, `jane`, `jean`, `mary`, `michael`, `anna`, `charles`, `paul`, `vera`). Case-insensitive. Defaults to `anna` if missing, empty, or unrecognised. |
 | Auth | `Authorization: Bearer <access_token>` on the upgrade request (see §4) |
 | Text frames | JSON objects, each with an `"event"` key (the SDD §7 convention) |
 | Binary frames | audio only: PCM16 little-endian, mono, **24 kHz** |
@@ -480,6 +482,19 @@ Additive: traffic-aware routing and proactive reroute suggestions.
 | Traffic-aware ETA integration in risk detection and order dispatch | Backend services |
 
 **Frontend:** The order offer card should display traffic-aware ETA and delay information when available. The `PROACTIVE_ALERT` event should be handled to display traffic alerts, and when `route_suggestion` is present, the alternate route should be drawn on the map with time savings comparison. The new `accept_reroute` tool allows drivers to accept suggested reroutes via voice.
+
+---
+
+## Changes in 1.5
+
+Additive: co-rider voice selection and report timings.
+
+| Addition | Where |
+|---|---|
+| Optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback | §1 |
+| Shift report response optional fields (`status: "ready"`, `shift_started_at`, `shift_ended_at`) | §2 |
+
+**Frontend:** Settings co-rider voice picker passes `?voice=<voice_id>` on the voice WebSocket URI. Unrecognized or missing voices fall back to Anna on the server.
 
 ---
 

@@ -162,12 +162,13 @@ async def stream_summary(shift_id: str, text: str) -> int:
 class VoiceSession:
     """One app ⇄ AssemblyAI relay for one authenticated driver on one shift."""
 
-    def __init__(self, client: WebSocket, user: dict, shift_id: str, token_exp: Optional[float]):
+    def __init__(self, client: WebSocket, user: dict, shift_id: str, token_exp: Optional[float], voice: Optional[str] = None):
         self.client = client
         self.user = user
         self.driver_id = str(user["id"])
         self.shift_id = shift_id
         self.token_exp = token_exp
+        self.voice = voice
 
         self.upstream = None
         self.context: Dict[str, Any] = {}
@@ -427,6 +428,7 @@ class VoiceSession:
             driver_name=self.context["driver_name"],
             vehicle_type=self.context.get("vehicle_type") or "vehicle",
             next_stop_info=next_stop,
+            voice=self.voice,
         ))
 
         try:
@@ -866,4 +868,5 @@ async def voice_socket(websocket: WebSocket, shift_id: str):
         await reject("auth_failed", "This shift is not available to you.")
         return
 
-    await VoiceSession(websocket, user, shift_id, _token_expiry(authorization)).run()
+    voice_param = websocket.query_params.get("voice")
+    await VoiceSession(websocket, user, shift_id, _token_expiry(authorization), voice=voice_param).run()
