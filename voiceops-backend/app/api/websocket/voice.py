@@ -197,6 +197,7 @@ class VoiceSession:
         self.offers: Dict[str, dict] = {}   # order_id → offer shown to this driver
         self._spoken_offers: Set[str] = set()
         self._background: Set[asyncio.Task] = set()
+        self._in_audio_burst = False  # Track if we're in an audio burst for speaking state
 
     # ------------------------------------------------------------------ app side
 
@@ -603,6 +604,10 @@ class VoiceSession:
             if msg_type == "reply.audio":
                 raw = data.get("data")
                 if raw:
+                    # Emit speaking state on first frame of each audio burst
+                    if not self._in_audio_burst:
+                        self._in_audio_burst = True
+                        await self.emit(events.agent_state("speaking"))
                     await self.emit_audio(base64.b64decode(raw))
             elif msg_type == "input.speech.started":
                 self._driver_speaking = True
@@ -626,6 +631,7 @@ class VoiceSession:
                 self._start_tool(data)
             elif msg_type == "reply.done":
                 self._reply_active = False
+                self._in_audio_burst = False  # Reset audio burst flag
                 await self._drain_tool_call_burst()
                 await self._finish_reply(interrupted=data.get("status") == "interrupted")
                 self._announce_wake.set()
@@ -648,6 +654,8 @@ class VoiceSession:
                 arguments = {}
         if not isinstance(arguments, dict):
             arguments = {}
+        # Reset audio burst flag when tool call starts, so next audio burst emits speaking again
+        self._in_audio_burst = False
         task = asyncio.create_task(self._run_tool(name, call_id, arguments))
         self.pending_tools.append((call_id, name, task))
 

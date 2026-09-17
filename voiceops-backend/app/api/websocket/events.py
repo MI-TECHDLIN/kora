@@ -8,7 +8,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 # Contract vocabularies (interface.md §1 "Field vocabularies")
-AGENT_STATES = frozenset({"idle", "thinking", "calling", "mapping", "task", "summarizing", "celebrating"})
+AGENT_STATES = frozenset({"idle", "thinking", "calling", "mapping", "task", "summarizing", "celebrating", "speaking"})
 SCREENS = frozenset({"voice", "map", "summary", "settings"})
 TASK_STEP_STATUSES = frozenset({"pending", "active", "done"})
 TRANSCRIPT_ROLES = frozenset({"driver", "agent"})

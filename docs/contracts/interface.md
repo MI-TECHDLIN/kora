@@ -77,7 +77,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 
 **Field vocabularies**
 
-- `agent_state.state` ∈ `idle | thinking | calling | mapping | task | summarizing | celebrating`.
+- `agent_state.state` ∈ `idle | thinking | calling | mapping | task | summarizing | celebrating | speaking`.
   These are exactly the `AgentState.riveKey` values in `frontend/lib/mascot/mascot_state.dart`,
   and the same strings feed the Rive state machine later.
 - `screen_navigate.screen` ∈ `voice | map | summary | settings` (`MainTab` names in
@@ -214,7 +214,8 @@ after that.
 
 | Source | Events sent to the app, in order |
 |---|---|
-| `reply.audio` | binary audio frame |
+| `reply.audio` (first frame of a burst) | `agent_state: speaking`, then binary audio frame |
+| `reply.audio` (subsequent frames) | binary audio frame |
 | `transcript.user` | `transcript` (`driver`), then `agent_state: thinking` |
 | `transcript.agent` | `transcript` (`agent`) |
 | any `tool.call` | `agent_state` (mood below), `task_step` `active` … `task_step` `done` |
@@ -344,7 +345,7 @@ match the backend README:
 | POST | `/v1/deliveries/location?shift_id=…` | `{"latitude", "longitude"}` | stored ping row |
 | POST | `/v1/shift/start` | none | `{"shift_id", "status": "active", "message"}` |
 | POST | `/v1/shift/{shift_id}/end` | none | `{"shift_id", "status": "completed", "message"}` |
-| GET | `/v1/shift/{shift_id}/report` | none | intelligence report row, or `{"status": "processing", "message"}` |
+| GET | `/v1/shift/{shift_id}/report` | none | intelligence report row (with optional `"status": "ready"`, `shift_started_at`, `shift_ended_at`), or `{"status": "processing", "message"}` |
 | GET | `/v1/shift/{shift_id}/stats` | none | `{"total", "delivered", "failed", "success_rate"}` |
 
 A delivery row has these fields (`supabase_schema.sql`): `id, shift_id, recipient_name,

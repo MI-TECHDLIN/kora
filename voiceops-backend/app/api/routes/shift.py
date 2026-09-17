@@ -7,7 +7,8 @@ from app.db.queries import (
     update_shift_status,
     get_shift_stats,
     get_shift_voice_sessions,
-    get_intelligence_report_by_shift
+    get_intelligence_report_by_shift,
+    get_shift_by_id
 )
 from app.integrations.n8n_client import trigger_post_shift_report_background
 from app.intelligence.lemur_pipeline import run_shift_intelligence
@@ -107,10 +108,20 @@ async def get_shift_report(
     current_user: dict = Depends(get_current_driver)
 ):
     """Get intelligence report for shift."""
+    shift = await get_shift_by_id(shift_id)
+    if not shift or shift.get("driver_id") != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Shift not found")
+
     report = await get_intelligence_report_by_shift(shift_id)
 
     if not report:
         return {"status": "processing", "message": "Report is being generated"}
+
+    report["status"] = "ready"
+    if shift.get("started_at"):
+        report["shift_started_at"] = shift["started_at"]
+    if shift.get("ended_at"):
+        report["shift_ended_at"] = shift["ended_at"]
 
     return report
 
