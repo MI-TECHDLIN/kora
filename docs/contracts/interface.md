@@ -51,6 +51,7 @@ still exists as a test harness and emits none of these events.
 | `end_call` | `{"event": "end_call", "call_id": "…"}` | Driver taps "end call" on the call overlay (TechFeasibility §6) |
 | `accept_order` | `{"event": "accept_order", "order_id": "…"}` | Driver accepts the visible offer card. The backend calls the existing `accept_order` tool handler directly; no LLM round-trip |
 | `decline_order` | `{"event": "decline_order", "order_id": "…"}` | Driver declines the visible offer card. The backend calls the existing `decline_order` tool handler directly; no LLM round-trip |
+| `change_voice` | `{"event": "change_voice", "voice": "michael"}` | Driver changes co-rider voice in settings. The backend reconnects the session with the new voice. Voice must be in the allowlist (see WebSocket path parameters). Invalid voices fall back to the current voice. |
 
 Closing the socket ends the session. The backend then sends `session.end` upstream to AssemblyAI.
 For either order response, `order_id` is required and must name the offer currently visible on
@@ -75,6 +76,8 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `order_offer` | see below | new-order card with a countdown; the co-rider reads it out unprompted |
 | `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
+| `voice_change_accepted` | `{"event": "voice_change_accepted", "voice": "michael", "message": "Voice will change to michael. Reconnecting..."}` | Voice change accepted, client should reconnect with new voice parameter |
+| `voice_unchanged` | `{"event": "voice_unchanged", "voice": "anna", "message": "Voice is already set to anna"}` | Voice already set to requested value, no reconnection needed |
 | audio | binary PCM16 / 24 kHz / mono | the co-rider's voice. Push-to-talk shows `speaking` while it plays |
 
 **Field vocabularies**
@@ -236,6 +239,7 @@ after that.
 | shift end (`POST /v1/shift/{id}/end`) | the same summary sequence, carrying the LeMUR `executive_summary`, then `agent_state: idle`. It goes to every socket open on that shift |
 | `reply.done` (no tool calls that turn) | `reply_done`, then `agent_state: idle` |
 | `reply.done` (tool calls that turn) | nothing. The agent speaks again once it has the results, and that reply ends with `reply_done` |
+| app sends `change_voice` | `voice_change_accepted` (if voice changed) or `voice_unchanged` (if same voice), then socket closes to force reconnection with new voice parameter |
 | `session.error`, upstream drop, `session.ended` | `error` (`upstream_timeout` for AssemblyAI's `agent_timeout`, otherwise `upstream_unavailable`), then close |
 
 **`reply.create`** is the Voice Agent API's documented client message for an agent reply with

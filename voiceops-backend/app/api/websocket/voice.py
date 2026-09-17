@@ -548,6 +548,10 @@ class VoiceSession:
             await self._handle_tapped_order(data)
             return
 
+        if data.get("event") == "change_voice":
+            await self._handle_voice_change(data)
+            return
+
         await self.emit(events.error("invalid_message", "Unsupported message."))
 
     async def _handle_tapped_order(self, data: dict) -> None:
@@ -571,21 +575,32 @@ class VoiceSession:
         outcome = await self._run_tool(action, f"tap-{action}-{order_id}", {"order_id": order_id})
         result = outcome.get("parsed_result")
         if isinstance(result, dict) and result.get("success"):
+            await self.close_offer(order_id, action)
             if spoken:
-                # The co-rider asked about this offer, so it must hear the answer was settled
-                answer = "accepted" if action == "accept_order" else "declined"
-                self._announce(f"tapped:{order_id}", (
-                    f"The driver just {answer} the order offer by tapping the screen, so do not "
-                    f"ask about it again or call {action}. Tell them in one short sentence: "
-                    f"{result.get('message') or answer.capitalize() + '.'}"))
-        elif order_id in self.offers:
-            # A closed offer's order_offer_closed already told the driver why; an open one can be retried
-            message = result.get("error") if isinstance(result, dict) else None
-            await self.emit(events.error(
-                "internal", message or "The order could not be answered. Please try again."))
-        if self._upstream_idle():
-            # No reply is due to end with `agent_state: idle`, so restore the resting mood here
-            await self.emit(events.agent_state("idle"))
+                # If the offer was already spoken, the co-rider confirms the answer
+                self._announce("order-response", f"The driver {'accepted' if action == 'accept_order' else 'declined'} the order.")
+
+    async def _handle_voice_change(self, data: dict) -> None:
+        """Handle voice change request from client."""
+        from app.agents.agent_config import resolve_voice
+        
+        new_voice = data.get("voice", "").strip()
+        resolved_voice = resolve_voice(new_voice)
+        
+        # Only process if voice actually changed
+        if resolved_voice == self.voice:
+            logger.info(f"[VoiceWS] Voice unchanged: {resolved_voice}")
+            await self.emit(events.voice_unchanged(resolved_voice))
+            return
+        
+        logger.info(f"[VoiceWS] Voice change requested: {self.voice} -> {resolved_voice}")
+        
+        # Send confirmation to client with instruction to reconnect
+        await self.emit(events.voice_change_accepted(resolved_voice))
+        
+        # Close the current session to force client reconnection with new voice
+        # The client will automatically reconnect with the new voice parameter
+        await self.close()
 
     # ------------------------------------------------------------------ upstream → app
 
