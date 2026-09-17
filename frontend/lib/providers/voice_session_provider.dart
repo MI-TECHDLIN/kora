@@ -119,6 +119,18 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   bool get _micOpen => _mic != null;
 
+  /// Moves push-to-talk, and mirrors its `speaking` onto the co-rider's
+  /// mood. The backend has no `speaking` agent_state yet (see
+  /// docs/backend-handoff/agent-state-speaking.md), so the orb takes it
+  /// from the reply audio that is actually playing. Every other mood
+  /// still comes from the backend, and returns once the reply ends.
+  void _setPtt(PushToTalkState next) {
+    _ptt.set(next);
+    _ref
+        .read(agentStateProvider.notifier)
+        .setSpeaking(next == PushToTalkState.speaking);
+  }
+
   /// The push-to-talk button's tap, per its state.
   Future<void> onPushToTalk() async {
     switch (_pttState) {
@@ -133,10 +145,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         _muted = true;
         await _playback.stop();
         if (_micOpen) {
-          _ptt.set(PushToTalkState.recording);
+          _setPtt(PushToTalkState.recording);
           _armIdle();
         } else {
-          _ptt.set(PushToTalkState.idle);
+          _setPtt(PushToTalkState.idle);
           await startConversation();
         }
     }
@@ -153,9 +165,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         );
         return;
       }
-      _ptt.set(PushToTalkState.processing); // while the socket opens
+      _setPtt(PushToTalkState.processing); // while the socket opens
       if (!await _ensureConnected() || !mounted) {
-        if (mounted) _ptt.set(PushToTalkState.idle);
+        if (mounted) _setPtt(PushToTalkState.idle);
         return;
       }
       final audio = await _recorder.start();
@@ -171,14 +183,14 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       _ref.read(micLiveProvider.notifier).state = true;
       if (_pttState != PushToTalkState.speaking) {
         _answerWatchdog?.cancel();
-        _ptt.set(PushToTalkState.recording);
+        _setPtt(PushToTalkState.recording);
         _armIdle();
       }
     } catch (e) {
       debugPrint('Could not start the mic: $e');
       if (mounted) {
         _setIssue("Couldn't start the microphone. Try again.");
-        _ptt.set(PushToTalkState.idle);
+        _setPtt(PushToTalkState.idle);
       }
     } finally {
       _starting = false;
@@ -194,11 +206,11 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     final mic = _mic;
     if (mic == null) return;
     _idleTimer?.cancel();
-    if (_pttState == PushToTalkState.recording) _ptt.set(PushToTalkState.idle);
+    if (_pttState == PushToTalkState.recording) _setPtt(PushToTalkState.idle);
     await _stopMic();
     final socket = _socket;
     if (socket == null) {
-      _ptt.set(PushToTalkState.idle);
+      _setPtt(PushToTalkState.idle);
       return;
     }
     final silence = Uint8List(voiceFrameBytes);
@@ -255,7 +267,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (!mounted) return;
     _ref.read(orderOfferProvider.notifier).clear();
     _ref.read(proactiveAlertProvider.notifier).dismiss();
-    _ptt.set(PushToTalkState.idle);
+    _setPtt(PushToTalkState.idle);
     state = const VoiceSessionState();
   }
 
@@ -412,7 +424,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _ref.read(orderOfferProvider.notifier).clear();
     // No reply_done can arrive on a closed socket, so nothing else would
     // free push-to-talk.
-    _ptt.set(PushToTalkState.idle);
+    _setPtt(PushToTalkState.idle);
 
     if (_rejected) {
       state = VoiceSessionState(
@@ -513,7 +525,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         _onReplyDone(interrupted: interrupted);
       case ConversationEndEvent():
         unawaited(endConversation());
-        _ptt.set(PushToTalkState.idle);
+        _setPtt(PushToTalkState.idle);
       case OrderOfferEvent():
         _ref.read(orderOfferProvider.notifier).show(event);
       case OrderOfferClosedEvent(:final orderId, :final outcome):
@@ -549,7 +561,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _playback.add(pcm);
     if (_pttState != PushToTalkState.speaking) {
       _idleTimer?.cancel();
-      _ptt.set(PushToTalkState.speaking);
+      _setPtt(PushToTalkState.speaking);
     }
   }
 
@@ -557,7 +569,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _muted = false;
     if (_micOpen && _pttState == PushToTalkState.recording) {
       _idleTimer?.cancel();
-      _ptt.set(PushToTalkState.processing);
+      _setPtt(PushToTalkState.processing);
       _armWatchdog();
     }
   }
@@ -582,10 +594,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     }
     if (_pttState case PushToTalkState.processing || PushToTalkState.speaking) {
       if (_micOpen) {
-        _ptt.set(PushToTalkState.recording);
+        _setPtt(PushToTalkState.recording);
         _armIdle();
       } else {
-        _ptt.set(PushToTalkState.idle);
+        _setPtt(PushToTalkState.idle);
       }
     }
   }
@@ -601,10 +613,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (_pttState == PushToTalkState.processing) {
       _answerWatchdog?.cancel();
       if (_micOpen) {
-        _ptt.set(PushToTalkState.recording);
+        _setPtt(PushToTalkState.recording);
         _armIdle();
       } else {
-        _ptt.set(PushToTalkState.idle);
+        _setPtt(PushToTalkState.idle);
       }
     }
   }
@@ -617,19 +629,19 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       switch (_pttState) {
         case PushToTalkState.processing:
           if (_micOpen) {
-            _ptt.set(PushToTalkState.recording);
+            _setPtt(PushToTalkState.recording);
             _armIdle();
           } else {
-            _ptt.set(PushToTalkState.idle);
+            _setPtt(PushToTalkState.idle);
           }
           _setIssue("Your co-rider didn't answer. Try again.");
         case PushToTalkState.speaking:
           // It answered but never closed the turn: just free the button.
           if (_micOpen) {
-            _ptt.set(PushToTalkState.recording);
+            _setPtt(PushToTalkState.recording);
             _armIdle();
           } else {
-            _ptt.set(PushToTalkState.idle);
+            _setPtt(PushToTalkState.idle);
           }
         case PushToTalkState.idle || PushToTalkState.recording:
           break;

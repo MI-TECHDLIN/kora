@@ -112,6 +112,10 @@ class _MascotDisplayState extends State<MascotDisplay> {
   Widget build(BuildContext context) {
     final material = widget.material ?? OrbMaterialScope.of(context);
     final rig = _rigFor(material);
+    // A mood with no authored trigger is a silent no-op on the rig (it just
+    // holds its last pose), so fall back to the placeholder rather than
+    // looking frozen. See AGENTS.md "Co-rider orb" on adding a trigger.
+    final useRig = rig != null && rig.supportsMood(widget.state);
 
     return Semantics(
       image: true,
@@ -119,13 +123,13 @@ class _MascotDisplayState extends State<MascotDisplay> {
       value: widget.state.label,
       child: SizedBox.square(
         dimension: widget.size,
-        child: rig == null
-            ? _PlaceholderOrb(state: widget.state, material: material)
-            : rive.RiveWidget(
+        child: useRig
+            ? rive.RiveWidget(
                 key: ValueKey(material),
                 controller: rig.controller,
                 fit: rive.Fit.contain,
-              ),
+              )
+            : _PlaceholderOrb(state: widget.state, material: material),
       ),
     );
   }
@@ -214,6 +218,12 @@ class _CoRiderRig {
     _viewModel.trigger(state.riveKey)?.trigger();
     if (_still) _settle();
   }
+
+  /// Whether the .riv has a trigger authored for [state]. One without a
+  /// trigger fires nothing, so [MascotDisplay] shows the placeholder
+  /// instead of leaving the rig frozen on its last mood.
+  bool supportsMood(AgentState state) =>
+      _viewModel.trigger(state.riveKey) != null;
 
   /// With reduced motion the co-rider holds still: no breathing, no drifting
   /// motes, and mood changes jump straight to the settled pose.
