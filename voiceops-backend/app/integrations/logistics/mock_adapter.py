@@ -15,7 +15,7 @@ import random
 import string
 from collections import deque
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Awaitable, Callable, Deque, Optional, Tuple
+from typing import Awaitable, Callable, Deque, Dict, Optional, Tuple
 
 import httpx
 
@@ -90,8 +90,16 @@ def generate_nearby_coordinate(
     return round(center_lat + delta_lat, 6), round(center_lng + delta_lng, 6)
 
 
+_GEOCODE_CACHE: Dict[Tuple[float, float], str] = {}
+
+
 async def reverse_geocode_async(lat: float, lng: float) -> Optional[str]:
     """Reverse geocode (lat, lng) to a real street/area address via TomTom or Nominatim."""
+    cache_key = (round(lat, 3), round(lng, 3))
+    if cache_key in _GEOCODE_CACHE:
+        return _GEOCODE_CACHE[cache_key]
+
+    tomtom_fallback: Optional[str] = None
     if settings.tomtom_api_key:
         url = f"https://api.tomtom.com/search/2/reverseGeocode/{lat},{lng}.json"
         params = {"key": settings.tomtom_api_key}
@@ -103,35 +111,60 @@ async def reverse_geocode_async(lat: float, lng: float) -> Optional[str]:
                     addresses = data.get("addresses", [])
                     if addresses:
                         addr = addresses[0].get("address", {})
-                        freeform = addr.get("freeformAddress")
-                        if freeform:
-                            return freeform
                         street = addr.get("streetName") or addr.get("street")
                         muni = addr.get("municipality") or addr.get("countrySubdivision")
+                        freeform = addr.get("freeformAddress")
                         if street and muni:
-                            return f"{street}, {muni}"
-                        return street or muni or freeform
+                            result = f"{street}, {muni}"
+                            _GEOCODE_CACHE[cache_key] = result
+                            return result
+                        if street:
+                            _GEOCODE_CACHE[cache_key] = street
+                            return street
+                        tomtom_fallback = freeform or muni
         except Exception as e:
             logger.debug(f"[MockAdapter] TomTom reverse geocode failed for ({lat}, {lng}): {e}")
 
     try:
         url = "https://nominatim.openstreetmap.org/reverse"
         headers = {"User-Agent": "VoiceOps-Logistics/1.0"}
-        params = {"format": "json", "lat": lat, "lon": lng, "zoom": 18, "addressdetails": 1}
+        params = {"format": "json", "lat": lat, "lon": lng, "zoom": 18, "addressdetails": 1, "accept-language": "en"}
         async with httpx.AsyncClient(timeout=4.0) as client:
             resp = await client.get(url, params=params, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
                 addr = data.get("address", {})
-                road = addr.get("road") or addr.get("street") or addr.get("pedestrian") or addr.get("suburb")
-                city = addr.get("city") or addr.get("town") or addr.get("state") or addr.get("county")
+                road = (
+                    addr.get("road")
+                    or addr.get("suburb")
+                    or addr.get("neighbourhood")
+                    or addr.get("village")
+                    or addr.get("pedestrian")
+                )
+                city = (
+                    addr.get("city")
+                    or addr.get("town")
+                    or addr.get("district")
+                    or addr.get("state")
+                )
                 if road and city:
-                    return f"{road}, {city}"
+                    result = f"{road}, {city}"
+                    _GEOCODE_CACHE[cache_key] = result
+                    return result
+                if road:
+                    _GEOCODE_CACHE[cache_key] = road
+                    return road
                 if data.get("display_name"):
-                    parts = data["display_name"].split(",")
-                    return f"{parts[0].strip()}, {parts[1].strip()}" if len(parts) > 1 else parts[0].strip()
+                    parts = [p.strip() for p in data["display_name"].split(",") if p.strip()]
+                    result = ", ".join(parts[:2]) if len(parts) >= 2 else parts[0]
+                    _GEOCODE_CACHE[cache_key] = result
+                    return result
     except Exception as e:
         logger.debug(f"[MockAdapter] Nominatim reverse geocode failed for ({lat}, {lng}): {e}")
+
+    if tomtom_fallback:
+        _GEOCODE_CACHE[cache_key] = tomtom_fallback
+        return tomtom_fallback
 
     return None
 
