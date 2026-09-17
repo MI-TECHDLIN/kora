@@ -1,5 +1,6 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.5 (draft), 2026-09-16. 1.5 adds co-rider voice selection via optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback (§1).
 **Version:** 1.4 (draft), 2026-09-14. 1.4 adds traffic-aware routing and proactive reroute suggestions: new `PROACTIVE_ALERT` event with `route_suggestion` field for ROUTE_DEVIATION alerts, and traffic-aware ETA integration in order offers.
 **Version:** 1.3 (draft), 2026-09-13. 1.3 lets the offer card answer an order offer over the
 voice WebSocket (§1). See "Changes in 1.3". 1.2 added new-order dispatch: the `order_offer` and
@@ -27,7 +28,8 @@ This file covers four things: (1) the WebSocket message catalogue, (2) the REST 
 
 | | |
 |---|---|
-| Path | `WS /ws/voice/{shift_id}` |
+| Path | `WS /ws/voice/{shift_id}[?voice=<voice_id>]` |
+| Query params | optional `voice`: co-rider voice choice (allowlist: `alba`, `eve`, `george`, `jane`, `jean`, `mary`, `michael`, `anna`, `charles`, `paul`, `vera`). Case-insensitive. Defaults to `anna` if missing, empty, or unrecognised. |
 | Auth | `Authorization: Bearer <access_token>` on the upgrade request (see §4) |
 | Text frames | JSON objects, each with an `"event"` key (the SDD §7 convention) |
 | Binary frames | audio only: PCM16 little-endian, mono, **24 kHz** |
@@ -77,7 +79,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 
 **Field vocabularies**
 
-- `agent_state.state` ∈ `idle | thinking | calling | mapping | task | summarizing | celebrating`.
+- `agent_state.state` ∈ `idle | thinking | calling | mapping | task | summarizing | celebrating | speaking`.
   These are exactly the `AgentState.riveKey` values in `frontend/lib/mascot/mascot_state.dart`,
   and the same strings feed the Rive state machine later.
 - `screen_navigate.screen` ∈ `voice | map | summary | settings` (`MainTab` names in
@@ -214,7 +216,8 @@ after that.
 
 | Source | Events sent to the app, in order |
 |---|---|
-| `reply.audio` | binary audio frame |
+| `reply.audio` (first frame of a burst) | `agent_state: speaking`, then binary audio frame |
+| `reply.audio` (subsequent frames) | binary audio frame |
 | `transcript.user` | `transcript` (`driver`), then `agent_state: thinking` |
 | `transcript.agent` | `transcript` (`agent`) |
 | any `tool.call` | `agent_state` (mood below), `task_step` `active` … `task_step` `done` |
@@ -344,7 +347,7 @@ match the backend README:
 | POST | `/v1/deliveries/location?shift_id=…` | `{"latitude", "longitude"}` | stored ping row |
 | POST | `/v1/shift/start` | none | `{"shift_id", "status": "active", "message"}` |
 | POST | `/v1/shift/{shift_id}/end` | none | `{"shift_id", "status": "completed", "message"}` |
-| GET | `/v1/shift/{shift_id}/report` | none | intelligence report row, or `{"status": "processing", "message"}` |
+| GET | `/v1/shift/{shift_id}/report` | none | intelligence report row (with optional `"status": "ready"`, `shift_started_at`, `shift_ended_at`), or `{"status": "processing", "message"}` |
 | GET | `/v1/shift/{shift_id}/stats` | none | `{"total", "delivered", "failed", "success_rate"}` |
 
 A delivery row has these fields (`supabase_schema.sql`): `id, shift_id, recipient_name,
@@ -479,6 +482,19 @@ Additive: traffic-aware routing and proactive reroute suggestions.
 | Traffic-aware ETA integration in risk detection and order dispatch | Backend services |
 
 **Frontend:** The order offer card should display traffic-aware ETA and delay information when available. The `PROACTIVE_ALERT` event should be handled to display traffic alerts, and when `route_suggestion` is present, the alternate route should be drawn on the map with time savings comparison. The new `accept_reroute` tool allows drivers to accept suggested reroutes via voice.
+
+---
+
+## Changes in 1.5
+
+Additive: co-rider voice selection and report timings.
+
+| Addition | Where |
+|---|---|
+| Optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback | §1 |
+| Shift report response optional fields (`status: "ready"`, `shift_started_at`, `shift_ended_at`) | §2 |
+
+**Frontend:** Settings co-rider voice picker passes `?voice=<voice_id>` on the voice WebSocket URI. Unrecognized or missing voices fall back to Anna on the server.
 
 ---
 

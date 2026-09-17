@@ -392,18 +392,18 @@ async def get_intelligence_report_by_shift(shift_id: str) -> Optional[Dict[str, 
     """Get intelligence report for a shift."""
     if not is_valid_uuid(shift_id):
         return None
-    try:
-        response = (
-            get_supabase().table("intelligence_reports")
-            .select("*")
-            .eq("shift_id", shift_id)
-            .execute()
-        )
-        if response.data:
-            return response.data[0]
-        return None
-    except Exception:
-        return None
+
+    response = (
+        get_supabase().table("intelligence_reports")
+        .select("*")
+        .eq("shift_id", shift_id)
+        .order("generated_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if response.data:
+        return response.data[0]
+    return None
 
 
 async def store_intelligence_report(shift_id: str, report_dict: Dict[str, Any]) -> Dict[str, Any]:
