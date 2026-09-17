@@ -5,6 +5,21 @@ from typing import Dict, Any, Optional, List
 from app.agents.tool_registry import get_tools
 
 
+VOICES = {
+    # American English
+    "alba", "eve", "george", "jane", "jean", "mary", "michael",
+    # British English
+    "anna", "charles", "paul", "vera",
+}
+DEFAULT_VOICE = "anna"
+
+
+def resolve_voice(value: Optional[str] = None) -> str:
+    """Resolve a voice ID against the allowlist, falling back to DEFAULT_VOICE (anna)."""
+    v = (value or "").strip().lower()
+    return v if v in VOICES else DEFAULT_VOICE
+
+
 def get_system_prompt(driver_name: str = "Driver", vehicle_type: str = "vehicle", 
                      shift_id: str = "", next_stop_info: str = "") -> str:
     """
@@ -19,7 +34,7 @@ def get_system_prompt(driver_name: str = "Driver", vehicle_type: str = "vehicle"
     Returns:
         The complete system prompt string
     """
-    system_prompt = f"""You are VoiceOps, the co-rider for delivery drivers.
+    system_prompt = f"""You are Kora, the co-rider for delivery drivers.
 
 IMPORTANT: You have access to tools that can help with deliveries. When drivers ask about their next stop, deliveries, routes, or need to communicate with customers, you MUST use the available tools to assist them.
 
@@ -58,10 +73,10 @@ Be concise and helpful in your responses."""
 
 def get_agent_greeting() -> str:
     """Get the default greeting for the VoiceOps agent."""
-    return "Hello! I'm your VoiceOps co-rider. How can I help with your deliveries today?"
+    return "Hello! I'm Kora, your co-rider. How can I help with your deliveries today?"
 
 
-def get_audio_config() -> Dict[str, Any]:
+def get_audio_config(voice: Optional[str] = None) -> Dict[str, Any]:
     """Get the audio configuration for AssemblyAI Voice Agent."""
     return {
         "input": {
@@ -73,7 +88,7 @@ def get_audio_config() -> Dict[str, Any]:
             "format": {
                 "encoding": "audio/pcm"
             },
-            "voice": "anna"  # Specify voice for TTS
+            "voice": resolve_voice(voice)  # Specify voice for TTS
         }
     }
 
@@ -85,6 +100,7 @@ def get_session_config(
     driver_name: str = "Driver",
     vehicle_type: str = "vehicle",
     next_stop_info: str = "",
+    voice: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Build the complete session configuration for AssemblyAI Voice Agent.
@@ -96,6 +112,7 @@ def get_session_config(
         driver_name: Driver name for the prompt
         vehicle_type: Driver vehicle for the prompt
         next_stop_info: Current next stop details for the prompt
+        voice: Optional voice ID for TTS (validated against allowlist)
     
     Returns:
         Complete session configuration dictionary
@@ -114,7 +131,7 @@ def get_session_config(
         "session": {
             "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
             "greeting": get_agent_greeting(),
-            **get_audio_config(),
+            **get_audio_config(voice),
             "tools": get_tools()
         }
     }

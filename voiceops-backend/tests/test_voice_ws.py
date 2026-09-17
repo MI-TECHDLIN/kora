@@ -194,6 +194,7 @@ def backend(monkeypatch):
     monkeypatch.setattr(voice, "get_call_status", lambda call_sid: "in-progress")
     monkeypatch.setattr(voice, "hang_up_call", lambda call_sid: record["hang_ups"].append(call_sid) or True)
     monkeypatch.setattr(voice, "_sessions", {})
+    monkeypatch.setattr(voice.settings, "assemblyai_agent_id", None)
     return record
 
 
@@ -337,10 +338,47 @@ def test_session_update_carries_driver_context(upstream):
         assert "Emeka Okafor" in session["system_prompt"]
         assert "motorcycle" in session["system_prompt"]
         assert "3 Marina Road, Lagos" in session["system_prompt"]
+        assert "Kora" in session["system_prompt"]
         tool_names = {t["name"] for t in session["tools"]}
         assert tool_names == set(tool_registry.TOOL_EXECUTORS)
         assert {"get_next_delivery", "start_navigation", "accept_order", "decline_order"} <= tool_names
         assert all(name in session["system_prompt"] for name in ("accept_order", "decline_order"))
+
+
+def test_resolve_voice():
+    from app.agents.agent_config import resolve_voice
+    assert resolve_voice("michael") == "michael"
+    assert resolve_voice("MICHAEL") == "michael"
+    assert resolve_voice("  vera  ") == "vera"
+    assert resolve_voice(None) == "anna"
+    assert resolve_voice("") == "anna"
+    assert resolve_voice("ivy") == "anna"
+    assert resolve_voice("unknown_voice") == "anna"
+
+
+def test_get_session_config_voice():
+    from app.agents.agent_config import get_session_config
+    inline_cfg = get_session_config("driver-1", "shift-1", voice="michael")
+    assert inline_cfg["session"]["output"]["voice"] == "michael"
+    assert "Kora" in inline_cfg["session"]["system_prompt"]
+    assert "Kora" in inline_cfg["session"]["greeting"]
+
+    stored_cfg = get_session_config("driver-1", "shift-1", agent_id="agent-xyz", voice="michael")
+    assert stored_cfg["session"] == {"agent_id": "agent-xyz"}
+
+
+def test_voice_query_param_passed_to_upstream(upstream):
+    with client.websocket_connect(f"{WS_PATH}?voice=vera", headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        session = upstream.sent_of("session.update")[0]["session"]
+        assert session["output"]["voice"] == "vera"
+
+
+def test_voice_query_param_invalid_fallback(upstream):
+    with client.websocket_connect(f"{WS_PATH}?voice=invalid_voice", headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        session = upstream.sent_of("session.update")[0]["session"]
+        assert session["output"]["voice"] == "anna"
 
 
 def test_greeting_relays_audio_transcript_and_reply_done(upstream):
