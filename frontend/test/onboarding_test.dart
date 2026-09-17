@@ -451,18 +451,20 @@ void main() {
                   '${size.width}x${size.height} viewport',
             );
 
-            // …while the cards still overlap, so this stays a stack and does
-            // not quietly become a list. Bounded by the card padding.
+            // …while each pair keeps a thin seam: open even at the tilted
+            // corners, so the layering reads as deliberate, but no wider than
+            // a small spacing step, so this stays a stack and does not
+            // quietly become a list.
             for (final (name, over, under) in [
-              ('mic card under the stop card', mic, stop),
-              ('location card under the mic card', location, mic),
+              ('mic card below the stop card', mic, stop),
+              ('location card below the mic card', location, mic),
             ]) {
-              final slid =
-                  painted(tester, under).bottom - painted(tester, over).top;
+              final seam =
+                  painted(tester, over).top - painted(tester, under).bottom;
               expect(
-                slid,
-                inInclusiveRange(1, VoiceOpsSpacing.lg),
-                reason: '$name slid $slid',
+                seam,
+                inInclusiveRange(1, VoiceOpsSpacing.sm),
+                reason: '$name sits $seam apart',
               );
             }
           });
