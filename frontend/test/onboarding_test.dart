@@ -415,6 +415,19 @@ void main() {
                 location,
                 find.text(allowed ? 'Mic allowed' : 'Allow mic'),
               ),
+              // The teaser paints first (furthest back) and peeks from the
+              // top-left corner, the one spot none of the front cards
+              // reach — it must stay readable, not swallowed behind them.
+              (
+                'the stop card over the teaser label',
+                stop,
+                find.text('Live route'),
+              ),
+              (
+                'the mic card over the teaser label',
+                mic,
+                find.text('Live route'),
+              ),
             ]) {
               final covering = painted(tester, over);
               final covered = painted(tester, under);
@@ -425,18 +438,33 @@ void main() {
               );
             }
 
-            // …while the cards still overlap, so this stays a stack and does
-            // not quietly become a list. Bounded by the card padding.
+            // The peek is only worth anything if it actually lands inside
+            // the unscrolled viewport, not just clear of the front cards —
+            // a corner that's technically uncovered but scrolled off is
+            // just as invisible to the driver.
+            final teaserLabel = painted(tester, find.text('Live route'));
+            expect(
+              teaserLabel.top < size.height && teaserLabel.bottom > 0,
+              isTrue,
+              reason:
+                  'teaser label $teaserLabel sits outside the '
+                  '${size.width}x${size.height} viewport',
+            );
+
+            // …while each pair keeps a thin seam: open even at the tilted
+            // corners, so the layering reads as deliberate, but no wider than
+            // a small spacing step, so this stays a stack and does not
+            // quietly become a list.
             for (final (name, over, under) in [
-              ('mic card under the stop card', mic, stop),
-              ('location card under the mic card', location, mic),
+              ('mic card below the stop card', mic, stop),
+              ('location card below the mic card', location, mic),
             ]) {
-              final slid =
-                  painted(tester, under).bottom - painted(tester, over).top;
+              final seam =
+                  painted(tester, over).top - painted(tester, under).bottom;
               expect(
-                slid,
-                inInclusiveRange(1, VoiceOpsSpacing.lg),
-                reason: '$name slid $slid',
+                seam,
+                inInclusiveRange(1, VoiceOpsSpacing.sm),
+                reason: '$name sits $seam apart',
               );
             }
           });

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../providers/co_rider_voice_provider.dart';
 import '../../../providers/map_style_provider.dart';
+import '../../../providers/notification_preferences_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
@@ -17,6 +20,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicleMode = ref.watch(vehicleModeProvider);
     final mapStyle = ref.watch(mapStyleProvider);
+    final voice = ref.watch(coRiderVoiceProvider);
+    final notificationPreferences = ref.watch(notificationPreferencesProvider);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -78,6 +83,76 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: VoiceOpsSpacing.lg),
+            Text('NOTIFICATIONS', style: VoiceOpsText.caption),
+            const SizedBox(height: VoiceOpsSpacing.sm),
+            GlassCard(
+              key: const Key('notification-preferences'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: VoiceOpsSpacing.lg,
+                vertical: VoiceOpsSpacing.sm,
+              ),
+              child: Column(
+                children: [
+                  _NotificationToggle(
+                    key: const Key('proactive-alerts-toggle'),
+                    title: 'Proactive alerts',
+                    description: 'Traffic, reroutes, and delivery check-ins',
+                    enabled: notificationPreferences.proactiveAlertsEnabled,
+                    onChanged: (enabled) => ref
+                        .read(notificationPreferencesProvider.notifier)
+                        .setProactiveAlerts(enabled: enabled),
+                  ),
+                  const Divider(height: VoiceOpsSpacing.sm),
+                  _NotificationToggle(
+                    key: const Key('shift-summary-ready-toggle'),
+                    title: 'Shift summary ready',
+                    description: 'Open your report when it is ready',
+                    enabled: notificationPreferences.shiftSummaryReadyEnabled,
+                    onChanged: (enabled) => ref
+                        .read(notificationPreferencesProvider.notifier)
+                        .setShiftSummaryReady(enabled: enabled),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: VoiceOpsSpacing.lg),
+            Text('CO-RIDER VOICE', style: VoiceOpsText.caption),
+            const SizedBox(height: VoiceOpsSpacing.sm),
+            GlassCard(
+              key: const Key('co-rider-voice-selector'),
+              padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final accent in CoRiderAccent.values) ...[
+                    Text(accent.label, style: VoiceOpsText.bodyMuted),
+                    const SizedBox(height: VoiceOpsSpacing.sm),
+                    Wrap(
+                      spacing: VoiceOpsSpacing.sm,
+                      runSpacing: VoiceOpsSpacing.sm,
+                      children: [
+                        for (final option in CoRiderVoice.values)
+                          if (option.accent == accent)
+                            _Choice(
+                              label: option.label,
+                              icon: TablerIcons.microphone,
+                              selected: option == voice,
+                              onTap: () => ref
+                                  .read(coRiderVoiceProvider.notifier)
+                                  .select(option),
+                            ),
+                      ],
+                    ),
+                    const SizedBox(height: VoiceOpsSpacing.md),
+                  ],
+                  Text(
+                    'Applies to your next conversation.',
+                    style: VoiceOpsText.bodyMuted,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: VoiceOpsSpacing.lg),
             Text('MAP SOURCES', style: VoiceOpsText.caption),
             const SizedBox(height: VoiceOpsSpacing.sm),
             GlassCard(
@@ -100,7 +175,45 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// One pill in a single-choice row (vehicle mode, map style).
+class _NotificationToggle extends StatelessWidget {
+  const _NotificationToggle({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String description;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: VoiceOpsSize.touchTarget),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: VoiceOpsText.label),
+                const SizedBox(height: VoiceOpsSpacing.xs),
+                Text(description, style: VoiceOpsText.bodyMuted),
+              ],
+            ),
+          ),
+          const SizedBox(width: VoiceOpsSpacing.md),
+          Switch(value: enabled, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+/// One pill in a single-choice row (vehicle mode, map style, voice).
 class _Choice extends StatelessWidget {
   const _Choice({
     required this.label,

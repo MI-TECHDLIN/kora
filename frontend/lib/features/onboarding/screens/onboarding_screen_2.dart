@@ -155,7 +155,7 @@ class _Greeting extends StatelessWidget {
 }
 
 /// "Next stop" behind, the holographic "Live route" teaser peeking in from
-/// the right edge, and the action-required "Mic access" and "Location"
+/// the top-left corner, and the action-required "Mic access" and "Location"
 /// cards in front. The cards arrive almost together, staggered just enough
 /// to read as parallel work.
 class _CardStack extends StatefulWidget {
@@ -188,15 +188,23 @@ class _CardStackState extends State<_CardStack>
   static const _tiltFront = -0.03;
   static const _tiltLocation = 0.03;
 
-  // How far a card slides under the one after it. [_Overlapped] caps both
-  // at [_cardPadding], and [_Tilted] puts each tilt into the card's laid-out
-  // height, so what the column stacks is what the screen paints: the mic
-  // card can't cover the stop's two rows and the location card can't cover
-  // the mic button, at any text size.
-  static const _underNextStop = VoiceOpsSpacing.md;
-  static const _underMic = VoiceOpsSpacing.sm;
+  // How far a card slides under (positive) or sits apart from (negative)
+  // the one after it. Negative here: a thin seam between the cards, so the
+  // stagger reads as deliberate layering instead of cards merging into each
+  // other. [_Overlapped] bounds either way by [_cardPadding], and [_Tilted]
+  // puts each tilt into the card's laid-out height, so what the column
+  // stacks is what the screen paints: even at the tilt's lowest and highest
+  // corners the seam stays open, and no card covers another's text or allow
+  // button, at any text size.
+  static const _underNextStop = -VoiceOpsSpacing.xs;
+  static const _underMic = -VoiceOpsSpacing.xs;
 
-  static const _teaserAt = Alignment(1, -0.3);
+  // The front cards claim the right edge at the top (next stop) and the
+  // bottom (location), and the left edge in the middle (mic), leaving the
+  // top-left corner — above the mic card, left of the next-stop card —
+  // uncovered, and (unlike the other free corner, bottom-left) still inside
+  // a short phone's unscrolled viewport.
+  static const _teaserAt = Alignment(-1, -1);
 
   static const _cardCount = 4;
 
@@ -264,10 +272,13 @@ class _CardStackState extends State<_CardStack>
             child: _deal(
               1,
               alignment: _teaserAt,
-              widthFactor: 0.56,
-              // Slides past the page edge so it peeks in from the side.
+              widthFactor: 0.44,
+              // Peeks past the top-left corner so it reads as sliding in
+              // from off-screen, narrow enough that its label wraps clear
+              // of the next-stop and mic cards instead of under them, but
+              // not so far off that its icon and label get cropped away.
               card: const FractionalTranslation(
-                translation: Offset(0.45, 0),
+                translation: Offset(-0.15, -0.45),
                 child: _Tilted(angle: _tiltTeaser, child: _LiveRouteTeaser()),
               ),
             ),
@@ -333,17 +344,21 @@ class _CardStackState extends State<_CardStack>
 
 /// Lays [child] out as usual but takes [overlap] less height in its parent,
 /// so the next card in the column slides over that much of its bottom edge.
-/// Keeps intrinsic sizing, which [FillOrScroll] needs.
+/// A negative [overlap] does the opposite: the child takes that much more
+/// height, leaving a gap before the next card. Keeps intrinsic sizing, which
+/// [FillOrScroll] needs.
 ///
-/// [overlap] may not exceed [_cardPadding]. Every card in the stack pads its
-/// content by that much and reports its tilt as part of its height
-/// ([_Tilted]), so an overlap within the padding lands on blank card, never
-/// on a row of text or an allow button.
+/// [overlap] may not exceed [_cardPadding] either way. Every card in the
+/// stack pads its content by that much and reports its tilt as part of its
+/// height ([_Tilted]), so an overlap within the padding lands on blank card,
+/// never on a row of text or an allow button, and a gap within it keeps the
+/// cards close enough to read as one stack rather than a list.
 class _Overlapped extends SingleChildRenderObjectWidget {
   const _Overlapped({required this.overlap, required super.child})
     : assert(
-        overlap <= _cardPadding,
-        'a card may slide under the next one by at most its own padding',
+        -_cardPadding <= overlap && overlap <= _cardPadding,
+        'a card may slide under, or sit apart from, the next one by at most '
+        'its own padding',
       );
 
   final double overlap;
@@ -369,6 +384,8 @@ class _RenderOverlapped extends RenderProxyBox {
     markNeedsLayout();
   }
 
+  // A positive overlap trims the height the parent stacks; a negative one
+  // (a gap) adds to it.
   double _trim(double height) => math.max(0, height - _overlap);
 
   @override
