@@ -5,18 +5,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../features/auth/data/auth_repository.dart';
+import '../../features/summary/data/shift_report.dart';
 import '../../providers/auth_provider.dart';
 import '../config/backend_config.dart';
 
 /// The signed-in driver's `drivers` row, as `GET /v1/driver/profile` returns
 /// it (docs/contracts/interface.md §2). Only the fields the app shows.
 class DriverProfile {
-  const DriverProfile({required this.id, this.name, this.vehicleType});
+  const DriverProfile({
+    required this.id,
+    this.name,
+    this.vehicleType,
+    this.phone,
+    this.createdAt,
+  });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) => DriverProfile(
     id: json['id'] as String? ?? '',
     name: _blankToNull(json['name']),
     vehicleType: _blankToNull(json['vehicle_type']),
+    phone: _blankToNull(json['phone']),
+    createdAt: switch (json['created_at']) {
+      final String value => DateTime.tryParse(value),
+      _ => null,
+    },
   );
 
   final String id;
@@ -24,6 +36,22 @@ class DriverProfile {
 
   /// Free text on the driver row (e.g. "Motorbike", "Van"); null until set.
   final String? vehicleType;
+
+  /// The sign-up number. Read-only in the app: it identifies the driver.
+  final String? phone;
+
+  /// When the driver row was created, i.e. when they joined VoiceOps.
+  final DateTime? createdAt;
+}
+
+/// The company link `POST /v1/driver/connect` created from a connect code.
+/// The response carries the `platform_connections` row, which names the
+/// platform but not the operator's company.
+class PlatformConnection {
+  const PlatformConnection({required this.platform, this.connectedAt});
+
+  final String platform;
+  final DateTime? connectedAt;
 }
 
 /// One GPS ping for `POST /v1/locations/ping`, in the units the backend's
@@ -95,6 +123,14 @@ class ApiException implements Exception {
 abstract interface class VoiceOpsApi {
   Future<DriverProfile> fetchDriverProfile();
 
+  /// `PUT /v1/driver/profile` with a new name; returns the updated row.
+  Future<DriverProfile> updateDriverName(String name);
+
+  /// `POST /v1/driver/connect` with the connect code an operator gave the
+  /// driver. A code the backend doesn't recognise throws [ApiException]
+  /// with status 400.
+  Future<PlatformConnection> connectWithCode(String code);
+
   /// `POST /v1/shift/start`; returns the new shift's id.
   Future<String> startShift();
 
@@ -102,9 +138,13 @@ abstract interface class VoiceOpsApi {
   /// risk engine, which runs on every ping and is the only thing that can
   /// raise a `PROACTIVE_ALERT`.
   Future<void> sendLocationPing(LocationPing ping);
+
+  /// `GET /v1/shift/{shift_id}/report`; null while the report is still
+  /// being generated (`{"status": "processing"}`).
+  Future<ShiftReport?> fetchShiftReport(String shiftId);
 }
 
-/// The backend base URL ([BackendConfig.baseUri]); null when unset.
+/// The backend base URL ([BackendConfig.baseUri]); production by default.
 final backendUriProvider = Provider<Uri?>((ref) => BackendConfig.baseUri);
 
 final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
@@ -136,6 +176,46 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
       DriverProfile.fromJson(await _send('GET', 'v1/driver/profile'));
 
   @override
+  Future<DriverProfile> updateDriverName(String name) async =>
+      DriverProfile.fromJson(
+        await _send('PUT', 'v1/driver/profile', body: {'name': name}),
+      );
+
+  @override
+  Future<PlatformConnection> connectWithCode(String code) async {
+    final Map<String, dynamic> response;
+    try {
+      response = await _send(
+        'POST',
+        'v1/driver/connect',
+        // `platform` is required by the request model, but the backend
+        // replaces it with the platform the code resolves to.
+        body: {'platform': 'connect_code', 'connect_code': code},
+      );
+    } on ApiException catch (e) {
+      if (e.statusCode != 400) rethrow;
+      throw const ApiException(
+        "That code didn't work. Check it with your dispatcher and try again.",
+        statusCode: 400,
+      );
+    }
+    final connection = response['connection'];
+    final platform = connection is Map<String, dynamic>
+        ? _blankToNull(connection['platform'])
+        : null;
+    if (connection is! Map<String, dynamic> || platform == null) {
+      throw const ApiException(_serverMessage);
+    }
+    return PlatformConnection(
+      platform: platform,
+      connectedAt: switch (connection['connected_at']) {
+        final String value => DateTime.tryParse(value),
+        _ => null,
+      },
+    );
+  }
+
+  @override
   Future<String> startShift() async {
     final shiftId = (await _send('POST', 'v1/shift/start'))['shift_id'];
     if (shiftId is! String || shiftId.isEmpty) {
@@ -147,6 +227,16 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   @override
   Future<void> sendLocationPing(LocationPing ping) async =>
       _send('POST', 'v1/locations/ping', body: ping.toJson());
+
+  @override
+  Future<ShiftReport?> fetchShiftReport(String shiftId) async {
+    final body = await _send(
+      'GET',
+      'v1/shift/${Uri.encodeComponent(shiftId)}/report',
+    );
+    if (body['status'] == 'processing') return null;
+    return ShiftReport.fromJson(body);
+  }
 
   Future<Map<String, dynamic>> _send(
     String method,

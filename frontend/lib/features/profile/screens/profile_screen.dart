@@ -1,0 +1,560 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
+
+import '../../../app/router.dart';
+import '../../../core/api/voiceops_api.dart';
+import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/primary_button.dart';
+import '../../../providers/company_connection_provider.dart';
+import '../../../providers/driver_details_provider.dart';
+import '../../../providers/vehicle_mode_provider.dart';
+import '../../auth/widgets/auth_text_field.dart';
+
+/// The driver's own details (`GET`/`PUT /v1/driver/profile`) and their
+/// company link (`POST /v1/driver/connect`). Opened from the voice screen's
+/// top-right icon; the vehicle itself is chosen in Settings.
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(driverDetailsProvider);
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          VoiceOpsSpacing.gutter,
+          VoiceOpsSpacing.sm,
+          VoiceOpsSpacing.gutter,
+          VoiceOpsSpacing.xl,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  key: const Key('profile-back'),
+                  tooltip: 'Back',
+                  onPressed: () => context.canPop()
+                      ? context.pop()
+                      : context.go(AppRoutes.voice),
+                  icon: const Icon(
+                    TablerIcons.arrowLeft,
+                    size: VoiceOpsSize.iconLg,
+                    color: VoiceOpsColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: VoiceOpsSpacing.xs),
+                Text('Profile', style: VoiceOpsText.headline),
+              ],
+            ),
+            const SizedBox(height: VoiceOpsSpacing.lg),
+            ...profile.when(
+              loading: () => [
+                const _StatusCard(
+                  key: Key('profile-loading'),
+                  icon: TablerIcons.userCircle,
+                  title: 'Your profile',
+                  message: 'Loading your details…',
+                ),
+              ],
+              error: (error, _) => [
+                _StatusCard(
+                  key: const Key('profile-error'),
+                  icon: TablerIcons.alertCircle,
+                  title: "Couldn't load your profile",
+                  message: error is ApiException
+                      ? error.message
+                      : 'Something went wrong. Try again.',
+                  actionLabel: 'Retry',
+                  onAction: () => ref.invalidate(driverDetailsProvider),
+                ),
+              ],
+              data: (driver) => [
+                _Identity(driver: driver),
+                const SizedBox(height: VoiceOpsSpacing.xl),
+                Text('YOUR DETAILS', style: VoiceOpsText.caption),
+                const SizedBox(height: VoiceOpsSpacing.sm),
+                _DetailsCard(driver: driver),
+                const SizedBox(height: VoiceOpsSpacing.xl),
+                Text('YOUR COMPANY', style: VoiceOpsText.caption),
+                const SizedBox(height: VoiceOpsSpacing.sm),
+                _CompanyCard(driverId: driver.id),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Avatar, name and how long the driver has ridden with VoiceOps.
+class _Identity extends StatelessWidget {
+  const _Identity({required this.driver});
+
+  final DriverProfile driver;
+
+  @override
+  Widget build(BuildContext context) {
+    final since = driver.createdAt;
+    return Row(
+      children: [
+        Container(
+          width: VoiceOpsSize.avatar,
+          height: VoiceOpsSize.avatar,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: VoiceOpsColors.primaryTint,
+          ),
+          child: const Icon(
+            TablerIcons.user,
+            size: VoiceOpsSize.iconLg,
+            color: VoiceOpsColors.primaryLight,
+          ),
+        ),
+        const SizedBox(width: VoiceOpsSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                driver.name ?? 'Add your name',
+                style: VoiceOpsText.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                since == null
+                    ? 'Your co-rider for every route'
+                    : 'Driving with VoiceOps since ${monthYear(since)}',
+                key: const Key('profile-since'),
+                style: VoiceOpsText.bodyMuted,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "September 2026", in the device's local time.
+@visibleForTesting
+String monthYear(DateTime date) {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  final local = date.toLocal();
+  return '${months[local.month - 1]} ${local.year}';
+}
+
+/// Editable name; the phone and vehicle are shown but changed elsewhere.
+class _DetailsCard extends ConsumerStatefulWidget {
+  const _DetailsCard({required this.driver});
+
+  final DriverProfile driver;
+
+  @override
+  ConsumerState<_DetailsCard> createState() => _DetailsCardState();
+}
+
+class _DetailsCardState extends ConsumerState<_DetailsCard> {
+  final _form = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.driver.name ?? '')
+    ..addListener(_onNameChanged);
+  _Outcome? _outcome;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  // Re-evaluates the save button; the last save's result no longer
+  // describes what's in the field.
+  void _onNameChanged() => setState(() => _outcome = null);
+
+  bool get _changed => _name.text.trim() != (widget.driver.name ?? '');
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _saving = true;
+      _outcome = null;
+    });
+    _Outcome outcome;
+    try {
+      await ref.read(voiceOpsApiProvider).updateDriverName(_name.text.trim());
+      outcome = const _Outcome.success('Name saved.');
+    } on ApiException catch (e) {
+      outcome = _Outcome.failure(e.message);
+    }
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _outcome = outcome;
+    });
+    // Everything showing the name (Settings, the map card) picks it up.
+    if (outcome.succeeded) ref.invalidate(driverDetailsProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = ref.watch(vehicleModeProvider);
+    return GlassCard(
+      key: const Key('profile-details'),
+      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthTextField(
+              key: const Key('profile-name'),
+              label: 'Name',
+              hint: 'Your full name',
+              icon: TablerIcons.user,
+              controller: _name,
+              enabled: !_saving,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.name],
+              validator: (value) => (value ?? '').trim().isEmpty
+                  ? 'Enter the name your customers will hear.'
+                  : null,
+              onSubmitted: (_) => _changed && !_saving ? _save() : null,
+            ),
+            const SizedBox(height: VoiceOpsSpacing.md),
+            PrimaryButton(
+              key: const Key('profile-save'),
+              label: _saving ? 'Saving…' : 'Save name',
+              icon: TablerIcons.deviceFloppy,
+              expand: true,
+              onPressed: _changed && !_saving ? _save : null,
+            ),
+            if (_outcome case final outcome?) ...[
+              const SizedBox(height: VoiceOpsSpacing.sm),
+              _OutcomeLine(outcome, key: const Key('profile-save-result')),
+            ],
+            const SizedBox(height: VoiceOpsSpacing.lg),
+            _ReadOnlyRow(
+              key: const Key('profile-phone'),
+              icon: TablerIcons.phone,
+              label: 'Phone',
+              value: widget.driver.phone ?? 'No phone on file',
+              note: 'Your sign-in number. It can’t be changed here.',
+              trailing: const Icon(
+                TablerIcons.lock,
+                size: VoiceOpsSize.iconSm,
+                color: VoiceOpsColors.textFaint,
+              ),
+            ),
+            const SizedBox(height: VoiceOpsSpacing.md),
+            _ReadOnlyRow(
+              key: const Key('profile-vehicle'),
+              icon: vehicle.icon,
+              label: 'Vehicle',
+              value: vehicle.label,
+              trailing: TextButton(
+                key: const Key('profile-vehicle-settings'),
+                onPressed: () => context.go(AppRoutes.settings),
+                style: TextButton.styleFrom(
+                  foregroundColor: VoiceOpsColors.primaryLight,
+                  minimumSize: const Size(
+                    VoiceOpsSize.touchTarget,
+                    VoiceOpsSize.touchTarget,
+                  ),
+                ),
+                child: Text(
+                  'Change',
+                  style: VoiceOpsText.label.copyWith(
+                    color: VoiceOpsColors.primaryLight,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The company the driver's connect code linked them to, and the code form.
+class _CompanyCard extends ConsumerStatefulWidget {
+  const _CompanyCard({required this.driverId});
+
+  final String driverId;
+
+  @override
+  ConsumerState<_CompanyCard> createState() => _CompanyCardState();
+}
+
+class _CompanyCardState extends ConsumerState<_CompanyCard> {
+  final _form = GlobalKey<FormState>();
+  final _code = TextEditingController();
+  _Outcome? _outcome;
+  bool _connecting = false;
+
+  static final _codePattern = RegExp(r'^\d{6}$');
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _connect() async {
+    if (_connecting || !_form.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _connecting = true;
+      _outcome = null;
+    });
+    _Outcome outcome;
+    try {
+      final connection = await ref
+          .read(voiceOpsApiProvider)
+          .connectWithCode(_code.text.trim());
+      await ref
+          .read(companyConnectionStoreProvider)
+          .save(widget.driverId, connection);
+      outcome = _Outcome.success(
+        'Connected to ${platformLabel(connection.platform)}.',
+      );
+    } on ApiException catch (e) {
+      outcome = _Outcome.failure(e.message);
+    }
+    if (!mounted) return;
+    setState(() {
+      _connecting = false;
+      _outcome = outcome;
+    });
+    if (outcome.succeeded) {
+      _code.clear();
+      ref.invalidate(companyConnectionProvider(widget.driverId));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stored = ref.watch(companyConnectionProvider(widget.driverId));
+    final connection = stored.valueOrNull;
+    return GlassCard(
+      key: const Key('profile-company'),
+      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ReadOnlyRow(
+              key: const Key('profile-company-status'),
+              icon: TablerIcons.buildingWarehouse,
+              label: 'Company',
+              value: switch (stored) {
+                AsyncData(value: final c?) =>
+                  'Connected to ${platformLabel(c.platform)}',
+                AsyncLoading() => 'Checking your company link…',
+                _ => 'Not linked to a company yet',
+              },
+              note: connection == null
+                  ? 'Ask your dispatcher for your 6-digit connect code.'
+                  : connection.connectedAt == null
+                  ? null
+                  : 'Linked ${_date(connection.connectedAt!)}',
+            ),
+            const SizedBox(height: VoiceOpsSpacing.lg),
+            AuthTextField(
+              key: const Key('profile-connect-code'),
+              label: connection == null ? 'Connect code' : 'New connect code',
+              hint: '6-digit code',
+              icon: TablerIcons.key,
+              controller: _code,
+              enabled: !_connecting,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              validator: (value) => _codePattern.hasMatch((value ?? '').trim())
+                  ? null
+                  : 'Enter the 6 digits from your dispatcher.',
+              onSubmitted: (_) => _connect(),
+            ),
+            const SizedBox(height: VoiceOpsSpacing.md),
+            PrimaryButton(
+              key: const Key('profile-connect'),
+              label: _connecting ? 'Connecting…' : 'Connect company',
+              icon: TablerIcons.link,
+              expand: true,
+              onPressed: _connecting ? null : _connect,
+            ),
+            if (_outcome case final outcome?) ...[
+              const SizedBox(height: VoiceOpsSpacing.sm),
+              _OutcomeLine(outcome, key: const Key('profile-connect-result')),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _date(DateTime date) {
+    final local = date.toLocal();
+    return '${local.day} ${monthYear(local)}';
+  }
+}
+
+/// "onfleet" → "Onfleet", "my_platform" → "My platform".
+@visibleForTesting
+String platformLabel(String platform) {
+  final words = platform.replaceAll('_', ' ').trim();
+  if (words.isEmpty) return platform;
+  return words[0].toUpperCase() + words.substring(1);
+}
+
+/// The result of a save or connect, shown under its button.
+class _Outcome {
+  const _Outcome.success(this.message) : succeeded = true;
+  const _Outcome.failure(this.message) : succeeded = false;
+
+  final String message;
+  final bool succeeded;
+}
+
+class _OutcomeLine extends StatelessWidget {
+  const _OutcomeLine(this.outcome, {super.key});
+
+  final _Outcome outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = outcome.succeeded
+        ? VoiceOpsColors.success
+        : VoiceOpsColors.danger;
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            outcome.succeeded
+                ? TablerIcons.circleCheck
+                : TablerIcons.alertCircle,
+            size: VoiceOpsSize.iconSm,
+            color: color,
+          ),
+          const SizedBox(width: VoiceOpsSpacing.sm),
+          Expanded(
+            child: Text(
+              outcome.message,
+              style: VoiceOpsText.label.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A labelled value the driver reads but doesn't type into.
+class _ReadOnlyRow extends StatelessWidget {
+  const _ReadOnlyRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.note,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? note;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: VoiceOpsSize.iconMd, color: VoiceOpsColors.textFaint),
+        const SizedBox(width: VoiceOpsSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: VoiceOpsText.label.copyWith(
+                  color: VoiceOpsColors.textMuted,
+                ),
+              ),
+              Text(value, style: VoiceOpsText.body),
+              if (note != null) Text(note!, style: VoiceOpsText.caption),
+            ],
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: VoiceOpsSpacing.sm),
+          trailing!,
+        ],
+      ],
+    );
+  }
+}
+
+/// Loading and error states: the header stays, the card explains.
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ReadOnlyRow(icon: icon, label: title, value: message),
+          if (actionLabel != null) ...[
+            const SizedBox(height: VoiceOpsSpacing.md),
+            PrimaryButton(
+              label: actionLabel!,
+              icon: TablerIcons.refresh,
+              expand: true,
+              onPressed: onAction,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

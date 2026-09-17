@@ -8,6 +8,7 @@ import '../features/auth/screens/sign_up_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
 import '../features/map/screens/map_screen.dart';
 import '../features/onboarding/screens/onboarding_flow.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/summary/screens/summary_screen.dart';
 import '../features/voice/screens/voice_screen.dart';
@@ -27,6 +28,12 @@ abstract final class AppRoutes {
 
   static const onboarding = '/onboarding';
   static const voice = '/voice';
+
+  /// Opened from the voice screen's top-right icon, not a bottom-nav tab.
+  /// It stacks on the Voice branch so the shell and its overlays stay up.
+  static const _profile = 'profile';
+  static const profile = '$voice/$_profile';
+
   static const map = '/map';
   static const summary = '/summary';
   static const settings = '/settings';
@@ -122,7 +129,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
         branches: [
-          _branch(AppRoutes.voice, const VoiceScreen()),
+          _branch(
+            AppRoutes.voice,
+            const VoiceScreen(),
+            routes: [
+              GoRoute(
+                path: AppRoutes._profile,
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
           _branch(AppRoutes.map, const MapScreen()),
           _branch(AppRoutes.summary, const SummaryScreen()),
           _branch(AppRoutes.settings, const SettingsScreen()),
@@ -140,8 +156,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   return router;
 });
 
-StatefulShellBranch _branch(String path, Widget screen) => StatefulShellBranch(
-  routes: [GoRoute(path: path, builder: (context, state) => screen)],
+StatefulShellBranch _branch(
+  String path,
+  Widget screen, {
+  List<RouteBase> routes = const [],
+}) => StatefulShellBranch(
+  routes: [
+    GoRoute(path: path, builder: (context, state) => screen, routes: routes),
+  ],
 );
 
 /// The signed-out screens follow straight on from onboarding, so they share

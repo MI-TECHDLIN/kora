@@ -19,8 +19,10 @@ import 'package:voiceops/features/map/widgets/map_warmup.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/settings/screens/settings_screen.dart';
 import 'package:voiceops/providers/auth_provider.dart';
+import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
+import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
 import 'fake_auth.dart';
@@ -39,6 +41,8 @@ void main() {
   late FakeHeadingSource heading;
   late FakeVehicleModeStore vehicleModeStore;
   late FakeMapStyleStore mapStyleStore;
+  late FakeCoRiderVoiceStore voiceStore;
+  late FakeNotificationPreferencesStore notificationPreferencesStore;
   late FakeVoiceOpsApi api;
   late ProviderContainer container;
 
@@ -47,6 +51,8 @@ void main() {
     heading = FakeHeadingSource();
     vehicleModeStore = FakeVehicleModeStore();
     mapStyleStore = FakeMapStyleStore();
+    voiceStore = FakeCoRiderVoiceStore();
+    notificationPreferencesStore = FakeNotificationPreferencesStore();
     api = FakeVoiceOpsApi(
       profile: const DriverProfile(
         id: 'driver-1',
@@ -71,6 +77,8 @@ void main() {
           heading: heading,
           vehicleModeStore: vehicleModeStore,
           mapStyleStore: mapStyleStore,
+          notificationPreferencesStore: notificationPreferencesStore,
+          coRiderVoiceStore: voiceStore,
           api: api,
         ),
         authRepositoryProvider.overrideWithValue(
@@ -399,6 +407,71 @@ void main() {
     expect(container.read(mapStyleProvider), MapStyle.light);
   });
 
+  testWidgets('the driver picks the co-rider voice in Settings', (
+    tester,
+  ) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+    expect(find.byKey(const Key('co-rider-voice-selector')), findsOneWidget);
+    expect(find.text('Applies to your next conversation.'), findsOneWidget);
+    // Nothing saved: Anna, matching the backend's default.
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
+
+    final michael = find.bySemanticsLabel('Michael');
+    await tester.ensureVisible(michael);
+    await tester.tap(michael);
+    await settle(tester);
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
+    expect(voiceStore.value, CoRiderVoice.michael);
+
+    container.invalidate(coRiderVoiceProvider);
+    await settle(tester);
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
+  });
+
+  testWidgets('notification toggles persist the driver choices', (
+    tester,
+  ) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+
+    expect(find.byKey(const Key('notification-preferences')), findsOneWidget);
+    expect(
+      container.read(notificationPreferencesProvider).proactiveAlertsEnabled,
+      isTrue,
+    );
+    expect(
+      container.read(notificationPreferencesProvider).shiftSummaryReadyEnabled,
+      isTrue,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('proactive-alerts-toggle')),
+        matching: find.byType(Switch),
+      ),
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('shift-summary-ready-toggle')),
+        matching: find.byType(Switch),
+      ),
+    );
+    await settle(tester);
+
+    expect(notificationPreferencesStore.value.proactiveAlertsEnabled, isFalse);
+    expect(
+      notificationPreferencesStore.value.shiftSummaryReadyEnabled,
+      isFalse,
+    );
+
+    container.invalidate(notificationPreferencesProvider);
+    await settle(tester);
+    final restored = container.read(notificationPreferencesProvider);
+    expect(restored.proactiveAlertsEnabled, isFalse);
+    expect(restored.shiftSummaryReadyEnabled, isFalse);
+  });
+
   testWidgets('map dependencies warm before the Map tab is built', (
     tester,
   ) async {
@@ -626,10 +699,7 @@ void main() {
 
   test('each map style has its own OpenFreeMap style and cache identity', () {
     expect(MapStyle.dark.url, 'https://tiles.openfreemap.org/styles/dark');
-    expect(
-      MapStyle.light.url,
-      'https://tiles.openfreemap.org/styles/positron',
-    );
+    expect(MapStyle.light.url, 'https://tiles.openfreemap.org/styles/positron');
     expect(
       MapStyle.detailed.url,
       'https://tiles.openfreemap.org/styles/liberty',
