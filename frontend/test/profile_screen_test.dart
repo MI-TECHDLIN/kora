@@ -141,7 +141,7 @@ void main() {
     );
     expect(
       tester.widget<Text>(find.byKey(const Key('profile-since'))).data,
-      'Driving with VoiceOps since September 2026',
+      'Driving with Kora since September 2026',
     );
 
     // The phone is shown, but no text field holds it.
