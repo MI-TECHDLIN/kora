@@ -355,20 +355,50 @@ void main() {
 
       socket.emit({'event': 'agent_state', 'state': 'thinking'});
       flush();
-      socket
-        ..emitAudio(Uint8List(960))
-        ..emit({'event': 'agent_state', 'state': 'speaking'});
+      expect(container.read(agentStateProvider), AgentState.thinking);
+
+      // The reply's audio alone puts the orb in `speaking`: the backend
+      // has no such agent_state yet (docs/backend-handoff/
+      // agent-state-speaking.md), so it is read off the playback.
+      socket.emitAudio(Uint8List(960));
       flush();
       expect(container.read(agentStateProvider), AgentState.speaking);
-      // The button keeps its own speaking state; the orb's mood is separate.
       expect(ptt(), PushToTalkState.speaking);
 
-      socket
-        ..emit({'event': 'reply_done'})
-        ..emit({'event': 'agent_state', 'state': 'idle'});
+      // A mood that lands mid-reply waits for the reply to finish.
+      socket.emit({'event': 'agent_state', 'state': 'mapping'});
+      flush();
+      expect(container.read(agentStateProvider), AgentState.speaking);
+
+      socket.emit({'event': 'reply_done'});
+      flush();
+      expect(container.read(agentStateProvider), AgentState.mapping);
+      expect(ptt(), PushToTalkState.idle);
+
+      // The backend's own idle after reply_done settles the orb.
+      socket.emit({'event': 'agent_state', 'state': 'idle'});
       flush();
       expect(container.read(agentStateProvider), AgentState.idle);
-      expect(ptt(), PushToTalkState.idle);
+    });
+  });
+
+  test('barging in takes the co-rider straight out of speaking', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({'event': 'agent_state', 'state': 'thinking'})
+        ..emitAudio(Uint8List(960));
+      flush();
+      expect(container.read(agentStateProvider), AgentState.speaking);
+
+      session().onPushToTalk(); // barge in: the reply is cut off
+      flush();
+      expect(container.read(agentStateProvider), AgentState.thinking);
     });
   });
 
