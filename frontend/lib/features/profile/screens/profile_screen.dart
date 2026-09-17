@@ -130,7 +130,7 @@ class _Identity extends StatelessWidget {
               Text(
                 since == null
                     ? 'Your co-rider for every route'
-                    : 'Driving with VoiceOps since ${monthYear(since)}',
+                    : 'Driving with Kora since ${monthYear(since)}',
                 key: const Key('profile-since'),
                 style: VoiceOpsText.bodyMuted,
               ),
