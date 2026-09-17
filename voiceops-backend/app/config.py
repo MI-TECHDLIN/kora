@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     order_offer_window_seconds: float = 75.0         # how long one driver has to accept
     order_dispatch_ping_max_age_minutes: Optional[float] = None  # ignore older GPS pings (None: any)
     logistics_webhook_secret: Optional[str] = None   # HMAC key for POST /v1/logistics/orders
+    demo_area_lat: Optional[float] = None            # Custom demo area center lat (overrides default Austin)
+    demo_area_lng: Optional[float] = None            # Custom demo area center lng (overrides default Austin)
+    demo_area_name: Optional[str] = None             # Optional custom area label
     
     # n8n (Optional - Async dispatcher alerts via webhook)
     n8n_dispatcher_webhook_url: Optional[str] = None

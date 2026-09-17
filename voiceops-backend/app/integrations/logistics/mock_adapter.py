@@ -10,12 +10,16 @@ model `POST /v1/logistics/orders` uses, and hands the order to the dispatcher.
 """
 import asyncio
 import logging
+import math
 import random
 import string
 from collections import deque
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Awaitable, Callable, Deque, Optional
+from typing import Awaitable, Callable, Deque, Optional, Tuple
 
+import httpx
+
+from app.config import settings
 from app.integrations.logistics.base import IncomingOrder, LogisticsAdapter, OrderHandler
 from app.models.schemas import OrderCreatedEvent
 
@@ -23,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE = "mock-logistics"
 
-# Downtown Austin, TX: the frontend map's fallback centre (MapScreen.fallbackCenter)
+# Downtown Austin, TX: default fallback centre (MapScreen.fallbackCenter)
 DEMO_AREA_CENTER = (30.2672, -97.7431)
 
 # Drop-offs within ~2.5 km of the demo centre: (street address, latitude, longitude)
@@ -65,6 +69,73 @@ def _local_tz() -> tzinfo:
         return timezone(timedelta(hours=-5), "CDT")
 
 
+def generate_nearby_coordinate(
+    center_lat: float,
+    center_lng: float,
+    min_dist_km: float = 0.5,
+    max_dist_km: float = 2.5,
+    rng: Optional[random.Random] = None,
+) -> Tuple[float, float]:
+    """Generate a random coordinate between min_dist_km and max_dist_km from center."""
+    r = rng or random.Random()
+    dist_km = r.uniform(min_dist_km, max_dist_km)
+    angle_rad = r.uniform(0, 2 * math.pi)
+
+    delta_lat = (dist_km * math.cos(angle_rad)) / 111.0
+    cos_lat = math.cos(math.radians(center_lat))
+    if abs(cos_lat) < 1e-6:
+        cos_lat = 1.0
+    delta_lng = (dist_km * math.sin(angle_rad)) / (111.0 * cos_lat)
+
+    return round(center_lat + delta_lat, 6), round(center_lng + delta_lng, 6)
+
+
+async def reverse_geocode_async(lat: float, lng: float) -> Optional[str]:
+    """Reverse geocode (lat, lng) to a real street/area address via TomTom or Nominatim."""
+    if settings.tomtom_api_key:
+        url = f"https://api.tomtom.com/search/2/reverseGeocode/{lat},{lng}.json"
+        params = {"key": settings.tomtom_api_key}
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    addresses = data.get("addresses", [])
+                    if addresses:
+                        addr = addresses[0].get("address", {})
+                        freeform = addr.get("freeformAddress")
+                        if freeform:
+                            return freeform
+                        street = addr.get("streetName") or addr.get("street")
+                        muni = addr.get("municipality") or addr.get("countrySubdivision")
+                        if street and muni:
+                            return f"{street}, {muni}"
+                        return street or muni or freeform
+        except Exception as e:
+            logger.debug(f"[MockAdapter] TomTom reverse geocode failed for ({lat}, {lng}): {e}")
+
+    try:
+        url = "https://nominatim.openstreetmap.org/reverse"
+        headers = {"User-Agent": "VoiceOps-Logistics/1.0"}
+        params = {"format": "json", "lat": lat, "lon": lng, "zoom": 18, "addressdetails": 1}
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url, params=params, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                addr = data.get("address", {})
+                road = addr.get("road") or addr.get("street") or addr.get("pedestrian") or addr.get("suburb")
+                city = addr.get("city") or addr.get("town") or addr.get("state") or addr.get("county")
+                if road and city:
+                    return f"{road}, {city}"
+                if data.get("display_name"):
+                    parts = data["display_name"].split(",")
+                    return f"{parts[0].strip()}, {parts[1].strip()}" if len(parts) > 1 else parts[0].strip()
+    except Exception as e:
+        logger.debug(f"[MockAdapter] Nominatim reverse geocode failed for ({lat}, {lng}): {e}")
+
+    return None
+
+
 class MockAdapter(LogisticsAdapter):
     name = SOURCE
 
@@ -91,13 +162,41 @@ class MockAdapter(LogisticsAdapter):
         """Seconds until the next order: uniform in [min_interval, max_interval], drawn fresh."""
         return self._rng.uniform(self.min_interval, self.max_interval)
 
-    def build_order_event(self, now: Optional[datetime] = None) -> dict:
-        """One Order Intake API payload (`OrderCreatedEvent`) for a random demo drop-off."""
+    def build_order_event(
+        self,
+        now: Optional[datetime] = None,
+        center: Optional[Tuple[float, float]] = None,
+        drop_coord: Optional[Tuple[float, float]] = None,
+        address: Optional[str] = None,
+    ) -> dict:
+        """
+        One Order Intake API payload (`OrderCreatedEvent`) for a drop-off.
+        If drop_coord/center are provided, generates a drop-off near that location.
+        Otherwise falls back to the default demo drop-offs in Austin, TX.
+        """
         rng = self._rng
-        now = (now or datetime.now(timezone.utc)).astimezone(_local_tz())
-        street, latitude, longitude = rng.choice(DROPOFFS)
         unit = rng.choice(UNITS)
-        address = street.replace(", Austin", f", {unit}, Austin", 1) if unit else street
+
+        if drop_coord is not None:
+            latitude, longitude = drop_coord
+            if address:
+                order_address = f"{address}, {unit}" if unit and unit not in address else address
+            else:
+                order_address = f"{rng.randint(10, 999)} Local Route, Near {latitude:.3f}, {longitude:.3f}"
+            offset_hours = int(round(longitude / 15.0))
+            now = (now or datetime.now(timezone.utc)).astimezone(timezone(timedelta(hours=offset_hours)))
+        elif center is not None:
+            latitude, longitude = generate_nearby_coordinate(center[0], center[1], rng=rng)
+            if address:
+                order_address = f"{address}, {unit}" if unit and unit not in address else address
+            else:
+                order_address = f"{rng.randint(10, 999)} Local Route, Near {latitude:.3f}, {longitude:.3f}"
+            offset_hours = int(round(longitude / 15.0))
+            now = (now or datetime.now(timezone.utc)).astimezone(timezone(timedelta(hours=offset_hours)))
+        else:
+            now = (now or datetime.now(timezone.utc)).astimezone(_local_tz())
+            street, latitude, longitude = rng.choice(DROPOFFS)
+            order_address = street.replace(", Austin", f", {unit}, Austin", 1) if unit else street
 
         # Window opens at the next half hour plus 30 minutes, and lasts 2 hours
         start = now.replace(second=0, microsecond=0) + timedelta(minutes=30 - now.minute % 30 + 30)
@@ -110,7 +209,7 @@ class MockAdapter(LogisticsAdapter):
                 # 555-0100..0199 is reserved for fiction: no real customer gets called
                 "phone": f"+1512555{rng.randint(100, 199):04d}",
             },
-            "dropoff": {"address": address, "latitude": latitude, "longitude": longitude},
+            "dropoff": {"address": order_address, "latitude": latitude, "longitude": longitude},
             "time_window": {"start": start.isoformat(), "end": end.isoformat()},
             "package_count": rng.randint(1, 3),
         }
@@ -125,25 +224,94 @@ class MockAdapter(LogisticsAdapter):
             "order": order,
         }
 
-    def next_order(self) -> IncomingOrder:
+    def next_order(
+        self,
+        center: Optional[Tuple[float, float]] = None,
+        address: Optional[str] = None,
+    ) -> IncomingOrder:
         """A generated order, parsed exactly as the Order Intake API parses a platform's POST."""
-        return IncomingOrder.from_event(OrderCreatedEvent.model_validate(self.build_order_event()))
+        return IncomingOrder.from_event(
+            OrderCreatedEvent.model_validate(self.build_order_event(center=center, address=address))
+        )
 
-    async def run_feed(self, on_order: OrderHandler, should_generate: Callable[[], bool]) -> None:
+    async def next_order_async(
+        self,
+        center: Optional[Tuple[float, float]] = None,
+    ) -> IncomingOrder:
+        """Asynchronously build next order, reverse-geocoding if a center location is provided."""
+        # If no center or center is downtown Austin demo area, use curated DROPOFFS with 0 network delay
+        is_austin = (
+            center is None
+            or (abs(center[0] - 30.2672) < 0.1 and abs(center[1] - -97.7431) < 0.1)
+        )
+
+        drop_coord = None
+        geo_address = None
+        if center is not None and not is_austin:
+            drop_coord = generate_nearby_coordinate(center[0], center[1], rng=self._rng)
+            geo_address = await reverse_geocode_async(drop_coord[0], drop_coord[1])
+
+        event = self.build_order_event(center=center if not is_austin else None, drop_coord=drop_coord, address=geo_address)
+        return IncomingOrder.from_event(OrderCreatedEvent.model_validate(event))
+
+    async def _fetch_live_driver_location(self) -> Optional[Tuple[float, float]]:
+        """Find the latest GPS ping from active drivers or recent location pings in DB, or config."""
+        if settings.demo_area_lat is not None and settings.demo_area_lng is not None:
+            return float(settings.demo_area_lat), float(settings.demo_area_lng)
+
+        try:
+            from app.db.queries import get_supabase
+            sb = get_supabase()
+            resp = (
+                sb.table("location_pings")
+                .select("latitude, longitude")
+                .order("pinged_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if resp.data and resp.data[0].get("latitude") is not None and resp.data[0].get("longitude") is not None:
+                return float(resp.data[0]["latitude"]), float(resp.data[0]["longitude"])
+        except Exception as e:
+            logger.debug(f"[MockAdapter] Could not query latest location ping: {e}")
+
+        return None
+
+    async def run_feed(
+        self,
+        on_order: OrderHandler,
+        should_generate: Callable[[], bool],
+        get_location: Optional[Callable[[], Awaitable[Optional[Tuple[float, float]]]]] = None,
+    ) -> None:
         """Wait a fresh random interval, then emit one order (unless nobody could take it). Forever."""
         while True:
             await self._sleep(self.next_interval())
             if not should_generate():
                 continue
-            order = self.next_order()
+
+            center = None
+            if get_location is not None:
+                try:
+                    center = await get_location()
+                except Exception as e:
+                    logger.debug(f"[MockAdapter] get_location failed: {e}")
+
+            if center is None:
+                center = await self._fetch_live_driver_location()
+
+            order = await self.next_order_async(center=center)
             try:
                 await on_order(order)
             except Exception:
                 logger.exception(f"[MockAdapter] Dispatching {order.external_id} failed")
 
-    async def start_order_feed(self, on_order: OrderHandler, should_generate: Callable[[], bool]) -> None:
+    async def start_order_feed(
+        self,
+        on_order: OrderHandler,
+        should_generate: Callable[[], bool],
+        get_location: Optional[Callable[[], Awaitable[Optional[Tuple[float, float]]]]] = None,
+    ) -> None:
         if self._feed is None or self._feed.done():
-            self._feed = asyncio.create_task(self.run_feed(on_order, should_generate))
+            self._feed = asyncio.create_task(self.run_feed(on_order, should_generate, get_location))
 
     async def stop_order_feed(self) -> None:
         if self._feed is not None:

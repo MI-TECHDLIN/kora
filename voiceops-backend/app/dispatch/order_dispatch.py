@@ -140,17 +140,57 @@ class OrderDispatcher:
         self.ping_max_age_minutes = (settings.order_dispatch_ping_max_age_minutes
                                      if ping_max_age_minutes is None else ping_max_age_minutes)
         self.feed_enabled = settings.order_feed_enabled if feed_enabled is None else feed_enabled
+        if fallback_origin == DEMO_AREA_CENTER and settings.demo_area_lat is not None and settings.demo_area_lng is not None:
+            fallback_origin = (float(settings.demo_area_lat), float(settings.demo_area_lng))
         self.fallback_origin = fallback_origin
         self._orders: Dict[str, OpenOrder] = {}
         self._lock = asyncio.Lock()
         self._background: Set[asyncio.Task] = set()
+
+    async def get_target_location(self) -> Optional[Tuple[float, float]]:
+        """Location around which to generate mock orders: online drivers' location or recent pings."""
+        online_shifts = self.hub.live_shifts()
+        if online_shifts:
+            positions = await _try_db(get_active_driver_positions) or []
+            valid_positions = [
+                (float(p["latitude"]), float(p["longitude"]))
+                for p in positions
+                if p.get("shift_id") in online_shifts and p.get("latitude") is not None and p.get("longitude") is not None
+            ]
+            if valid_positions:
+                rng = getattr(self.adapter, "_rng", None)
+                return rng.choice(valid_positions) if rng else valid_positions[0]
+
+        if settings.demo_area_lat is not None and settings.demo_area_lng is not None:
+            return float(settings.demo_area_lat), float(settings.demo_area_lng)
+
+        try:
+            from app.db.queries import get_supabase
+            resp = (
+                get_supabase()
+                .table("location_pings")
+                .select("latitude, longitude")
+                .order("pinged_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if resp.data and resp.data[0].get("latitude") is not None and resp.data[0].get("longitude") is not None:
+                return float(resp.data[0]["latitude"]), float(resp.data[0]["longitude"])
+        except Exception:
+            pass
+
+        return None
 
     # ------------------------------------------------------------------ lifecycle
 
     async def start(self) -> None:
         await self._recover()
         if self.feed_enabled:
-            await self.adapter.start_order_feed(self.ingest, self.should_generate)
+            await self.adapter.start_order_feed(
+                self.ingest,
+                self.should_generate,
+                get_location=self.get_target_location,
+            )
 
     async def stop(self) -> None:
         await self.adapter.stop_order_feed()
