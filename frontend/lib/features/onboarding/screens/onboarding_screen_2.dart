@@ -278,7 +278,7 @@ class _CardStackState extends State<_CardStack>
               // of the next-stop and mic cards instead of under them, but
               // not so far off that its icon and label get cropped away.
               card: const FractionalTranslation(
-                translation: Offset(-0.15, -0.3),
+                translation: Offset(-0.15, -0.45),
                 child: _Tilted(angle: _tiltTeaser, child: _LiveRouteTeaser()),
               ),
             ),
