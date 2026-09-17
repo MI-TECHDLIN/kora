@@ -1001,3 +1001,27 @@ def test_app_startup_runs_the_order_feed_end_to_end(store, monkeypatch):
     assert all(r["source"] == "mock-logistics" and r["shift_id"] is None for r in rows)
     assert hub.offers[0][0] == REAL["shift_id"]
     assert dispatcher.adapter._feed is None  # shutdown stopped it
+
+
+def test_mock_adapter_nearby_coordinate_generation():
+    from app.integrations.logistics.mock_adapter import generate_nearby_coordinate
+    from app.utils.geo import haversine_km
+
+    center = (31.47477, 73.16320)
+    for _ in range(20):
+        lat, lng = generate_nearby_coordinate(center[0], center[1], min_dist_km=0.5, max_dist_km=2.5)
+        dist = haversine_km(center[0], center[1], lat, lng)
+        assert 0.49 <= dist <= 2.51
+
+
+def test_mock_adapter_build_order_with_custom_center():
+    from app.integrations.logistics.mock_adapter import MockAdapter
+    from app.utils.geo import haversine_km
+
+    adapter = MockAdapter(10, 20)
+    center = (51.5074, -0.1278)  # London
+    event = adapter.build_order_event(center=center, address="Baker Street, London")
+    order = event["order"]
+    assert "Baker Street" in order["dropoff"]["address"]
+    dist = haversine_km(center[0], center[1], order["dropoff"]["latitude"], order["dropoff"]["longitude"])
+    assert 0.49 <= dist <= 2.51

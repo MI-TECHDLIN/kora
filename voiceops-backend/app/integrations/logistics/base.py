@@ -11,7 +11,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Tuple
 
 from app.models.schemas import OrderCreatedEvent
 
@@ -105,11 +105,18 @@ class LogisticsAdapter(ABC):
     name: str
 
     @abstractmethod
-    async def start_order_feed(self, on_order: OrderHandler, should_generate: Callable[[], bool]) -> None:
+    async def start_order_feed(
+        self,
+        on_order: OrderHandler,
+        should_generate: Callable[[], bool],
+        get_location: Optional[Callable[[], Awaitable[Optional[Tuple[float, float]]]]] = None,
+    ) -> None:
         """
         Start delivering new orders to `on_order`. `should_generate()` is false while nobody
-        could take an order, and a feed that creates orders itself skips them then. A platform
-        that only pushes through the Order Intake API makes this a no-op.
+        could take an order, and a feed that creates orders itself skips them then.
+        `get_location()` optionally supplies the (latitude, longitude) of online drivers
+        around which to generate mock drop-offs.
+        A platform that only pushes through the Order Intake API makes this a no-op.
         """
 
     @abstractmethod
