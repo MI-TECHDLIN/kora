@@ -19,6 +19,7 @@ from app.api.routes import (
 from app.api.websocket.driver_ws import router as driver_ws_router
 from app.api.websocket.voice import router as voice_router
 from app.dispatch.order_dispatch import get_order_dispatcher
+from app.services.self_ping_service import self_ping_service
 
 
 @asynccontextmanager
@@ -27,9 +28,14 @@ async def lifespan(app: FastAPI):
     print(f"VoiceOps backend starting in {settings.environment} mode")
     dispatcher = get_order_dispatcher()
     await dispatcher.start()
+    
+    # Start self-ping service to keep Render instance awake
+    await self_ping_service.start()
+    
     yield
     # Shutdown
     print("VoiceOps backend shutting down")
+    await self_ping_service.stop()
     await dispatcher.stop()
 
 
