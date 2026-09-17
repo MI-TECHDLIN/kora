@@ -13,6 +13,7 @@ import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/summary/data/shift_report.dart';
 import 'package:voiceops/providers/co_rider_voice_provider.dart';
+import 'package:voiceops/providers/company_connection_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
@@ -173,6 +174,36 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     return profile ?? const DriverProfile(id: 'driver-1');
   }
 
+  /// Every name sent to `PUT /v1/driver/profile`, in order.
+  final nameUpdates = <String>[];
+  ApiException? updateFailure;
+
+  @override
+  Future<DriverProfile> updateDriverName(String name) async {
+    nameUpdates.add(name);
+    if (updateFailure case final f?) throw f;
+    final current = profile ?? const DriverProfile(id: 'driver-1');
+    return profile = DriverProfile(
+      id: current.id,
+      name: name,
+      vehicleType: current.vehicleType,
+      phone: current.phone,
+      createdAt: current.createdAt,
+    );
+  }
+
+  /// Every code sent to `POST /v1/driver/connect`, in order.
+  final connectCodes = <String>[];
+  ApiException? connectFailure;
+  PlatformConnection connection = const PlatformConnection(platform: 'onfleet');
+
+  @override
+  Future<PlatformConnection> connectWithCode(String code) async {
+    connectCodes.add(code);
+    if (connectFailure case final f?) throw f;
+    return connection;
+  }
+
   @override
   Future<String> startShift() async {
     shiftCalls++;
@@ -316,6 +347,17 @@ class FakeCoRiderVoiceStore implements CoRiderVoiceStore {
   Future<void> save(CoRiderVoice voice) async => value = voice;
 }
 
+class FakeCompanyConnectionStore implements CompanyConnectionStore {
+  final saved = <String, PlatformConnection>{};
+
+  @override
+  Future<PlatformConnection?> load(String driverId) async => saved[driverId];
+
+  @override
+  Future<void> save(String driverId, PlatformConnection connection) async =>
+      saved[driverId] = connection;
+}
+
 class FakeOnboardingStore implements OnboardingStore {
   FakeOnboardingStore({this.completed = false});
 
@@ -343,6 +385,7 @@ List<Override> offlineOverrides({
   FakeNotificationPreferencesStore? notificationPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeOnboardingStore? onboardingStore,
+  FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
@@ -371,6 +414,9 @@ List<Override> offlineOverrides({
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
+    ),
+    companyConnectionStoreProvider.overrideWithValue(
+      companyConnectionStore ?? FakeCompanyConnectionStore(),
     ),
   ];
 }
