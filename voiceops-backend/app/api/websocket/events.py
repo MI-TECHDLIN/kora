@@ -149,3 +149,21 @@ def order_offer_closed(order_id: str, outcome: str) -> Dict[str, Any]:
 def error(code: str, message: str) -> Dict[str, Any]:
     _check(code, ERROR_CODES, "error.code")
     return {"event": "error", "code": code, "message": message}
+
+
+def voice_change_accepted(voice: str) -> Dict[str, Any]:
+    """Confirm voice change and signal client to reconnect with new voice."""
+    return {
+        "event": "voice_change_accepted",
+        "voice": voice,
+        "message": f"Voice will change to {voice}. Reconnecting..."
+    }
+
+
+def voice_unchanged(voice: str) -> Dict[str, Any]:
+    """Signal that voice is already set to the requested value."""
+    return {
+        "event": "voice_unchanged",
+        "voice": voice,
+        "message": f"Voice is already set to {voice}"
+    }
