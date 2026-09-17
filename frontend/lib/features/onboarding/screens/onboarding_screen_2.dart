@@ -155,7 +155,7 @@ class _Greeting extends StatelessWidget {
 }
 
 /// "Next stop" behind, the holographic "Live route" teaser peeking in from
-/// the right edge, and the action-required "Mic access" and "Location"
+/// the top-left corner, and the action-required "Mic access" and "Location"
 /// cards in front. The cards arrive almost together, staggered just enough
 /// to read as parallel work.
 class _CardStack extends StatefulWidget {
@@ -188,13 +188,23 @@ class _CardStackState extends State<_CardStack>
   static const _tiltFront = -0.03;
   static const _tiltLocation = 0.03;
 
-  // How far a card slides under the one after it: never more than its
-  // bottom padding, so the mic card can't cover the stop's two rows and the
-  // location card can't cover the mic button, at any text size.
-  static const _underNextStop = VoiceOpsSpacing.md;
-  static const _underMic = VoiceOpsSpacing.sm;
+  // How far a card slides under (positive) or sits apart from (negative)
+  // the one after it. Negative here: a thin seam between the cards, so the
+  // stagger reads as deliberate layering instead of cards merging into each
+  // other. [_Overlapped] bounds either way by [_cardPadding], and [_Tilted]
+  // puts each tilt into the card's laid-out height, so what the column
+  // stacks is what the screen paints: even at the tilt's lowest and highest
+  // corners the seam stays open, and no card covers another's text or allow
+  // button, at any text size.
+  static const _underNextStop = -VoiceOpsSpacing.xs;
+  static const _underMic = -VoiceOpsSpacing.xs;
 
-  static const _teaserAt = Alignment(1, -0.3);
+  // The front cards claim the right edge at the top (next stop) and the
+  // bottom (location), and the left edge in the middle (mic), leaving the
+  // top-left corner — above the mic card, left of the next-stop card —
+  // uncovered, and (unlike the other free corner, bottom-left) still inside
+  // a short phone's unscrolled viewport.
+  static const _teaserAt = Alignment(-1, -1);
 
   static const _cardCount = 4;
 
@@ -262,14 +272,14 @@ class _CardStackState extends State<_CardStack>
             child: _deal(
               1,
               alignment: _teaserAt,
-              widthFactor: 0.56,
-              // Slides past the page edge so it peeks in from the side.
-              card: FractionalTranslation(
-                translation: const Offset(0.45, 0),
-                child: Transform.rotate(
-                  angle: _tiltTeaser,
-                  child: const _LiveRouteTeaser(),
-                ),
+              widthFactor: 0.44,
+              // Peeks past the top-left corner so it reads as sliding in
+              // from off-screen, narrow enough that its label wraps clear
+              // of the next-stop and mic cards instead of under them, but
+              // not so far off that its icon and label get cropped away.
+              card: const FractionalTranslation(
+                translation: Offset(-0.15, -0.45),
+                child: _Tilted(angle: _tiltTeaser, child: _LiveRouteTeaser()),
               ),
             ),
           ),
@@ -282,10 +292,7 @@ class _CardStackState extends State<_CardStack>
                   0,
                   alignment: Alignment.centerRight,
                   widthFactor: 0.64,
-                  card: Transform.rotate(
-                    angle: _tiltBack,
-                    child: const _NextStopCard(),
-                  ),
+                  card: const _Tilted(angle: _tiltBack, child: _NextStopCard()),
                 ),
               ),
               _Overlapped(
@@ -294,7 +301,7 @@ class _CardStackState extends State<_CardStack>
                   2,
                   alignment: Alignment.centerLeft,
                   widthFactor: 0.76,
-                  card: Transform.rotate(
+                  card: _Tilted(
                     angle: _tiltFront,
                     child: _AccessCard(
                       title: 'Mic access',
@@ -314,7 +321,7 @@ class _CardStackState extends State<_CardStack>
                 3,
                 alignment: Alignment.centerRight,
                 widthFactor: 0.7,
-                card: Transform.rotate(
+                card: _Tilted(
                   angle: _tiltLocation,
                   child: _AccessCard(
                     title: 'Location',
@@ -337,9 +344,22 @@ class _CardStackState extends State<_CardStack>
 
 /// Lays [child] out as usual but takes [overlap] less height in its parent,
 /// so the next card in the column slides over that much of its bottom edge.
-/// Keeps intrinsic sizing, which [FillOrScroll] needs.
+/// A negative [overlap] does the opposite: the child takes that much more
+/// height, leaving a gap before the next card. Keeps intrinsic sizing, which
+/// [FillOrScroll] needs.
+///
+/// [overlap] may not exceed [_cardPadding] either way. Every card in the
+/// stack pads its content by that much and reports its tilt as part of its
+/// height ([_Tilted]), so an overlap within the padding lands on blank card,
+/// never on a row of text or an allow button, and a gap within it keeps the
+/// cards close enough to read as one stack rather than a list.
 class _Overlapped extends SingleChildRenderObjectWidget {
-  const _Overlapped({required this.overlap, required super.child});
+  const _Overlapped({required this.overlap, required super.child})
+    : assert(
+        -_cardPadding <= overlap && overlap <= _cardPadding,
+        'a card may slide under, or sit apart from, the next one by at most '
+        'its own padding',
+      );
 
   final double overlap;
 
@@ -364,6 +384,8 @@ class _RenderOverlapped extends RenderProxyBox {
     markNeedsLayout();
   }
 
+  // A positive overlap trims the height the parent stacks; a negative one
+  // (a gap) adds to it.
   double _trim(double height) => math.max(0, height - _overlap);
 
   @override
@@ -398,6 +420,127 @@ class _RenderOverlapped extends RenderProxyBox {
   }
 }
 
+/// Tilts [child] by [angle] radians and, unlike [Transform.rotate], counts
+/// the tilt in its own layout height: a rotated card's top corners rise and
+/// its bottom corners drop outside the unrotated box, and the column that
+/// stacks the cards has to stack what is actually painted. Without this the
+/// card after it starts that much higher than the layout says, which is what
+/// used to push the mic card onto the stop's rows.
+///
+/// Width is left alone. The cards are already inset by their width factors,
+/// and the teaser is meant to bleed off the right edge.
+class _Tilted extends SingleChildRenderObjectWidget {
+  const _Tilted({required this.angle, required super.child});
+
+  final double angle;
+
+  @override
+  _RenderTilted createRenderObject(BuildContext context) =>
+      _RenderTilted(angle);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderTilted renderObject) =>
+      renderObject.angle = angle;
+}
+
+class _RenderTilted extends RenderShiftedBox {
+  _RenderTilted(this._angle) : super(null);
+
+  double _angle;
+  set angle(double value) {
+    if (value == _angle) return;
+    _angle = value;
+    markNeedsLayout();
+  }
+
+  /// Height of a [width] x [height] box once tilted about its centre. The
+  /// child sits centred inside it, so each end gains half the difference.
+  double _tilted(double width, double height) => math.max(
+    height,
+    width * math.sin(_angle).abs() + height * math.cos(_angle).abs(),
+  );
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _tilted(width, super.computeMinIntrinsicHeight(width));
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _tilted(width, super.computeMaxIntrinsicHeight(width));
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) return constraints.smallest;
+    final inner = child.getDryLayout(constraints);
+    return constraints.constrain(
+      Size(inner.width, _tilted(inner.width, inner.height)),
+    );
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child!;
+    child.layout(constraints, parentUsesSize: true);
+    size = constraints.constrain(
+      Size(child.size.width, _tilted(child.size.width, child.size.height)),
+    );
+    (child.parentData! as BoxParentData).offset = Offset(
+      (size.width - child.size.width) / 2,
+      (size.height - child.size.height) / 2,
+    );
+  }
+
+  /// Rotation about the centre of this box, which is also the centre of the
+  /// child — so the tilted card fills the height reserved for it exactly.
+  Matrix4 get _rotation {
+    final centre = size.center(Offset.zero);
+    return Matrix4.identity()
+      ..translateByDouble(centre.dx, centre.dy, 0, 1)
+      ..rotateZ(_angle)
+      ..translateByDouble(-centre.dx, -centre.dy, 0, 1);
+  }
+
+  final _tilt = LayerHandle<TransformLayer>();
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) return;
+    _tilt.layer = context.pushTransform(
+      needsCompositing,
+      offset,
+      _rotation,
+      super.paint,
+      oldLayer: _tilt.layer,
+    );
+  }
+
+  @override
+  void dispose() {
+    _tilt.layer = null;
+    super.dispose();
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      result.addWithPaintTransform(
+        transform: _rotation,
+        position: position,
+        hitTest: (result, position) =>
+            super.hitTestChildren(result, position: position),
+      );
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    transform.multiply(_rotation);
+    super.applyPaintTransform(child, transform);
+  }
+}
+
+/// What every light card pads its content by, and so the budget a card has
+/// to spare when the next one slides under it (see [_Overlapped]).
+const _cardPadding = VoiceOpsSpacing.lg;
+
 /// Frosted-white card surface shared by the light cards.
 BoxDecoration _paperCard({required bool front}) => BoxDecoration(
   color: front ? VoiceOpsMood.paper : VoiceOpsMood.paperGlass,
@@ -418,7 +561,7 @@ class _NextStopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(_cardPadding),
       decoration: _paperCard(front: false),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -439,10 +582,15 @@ class _NextStopCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                '12 min',
-                style: VoiceOpsText.label.copyWith(
-                  color: VoiceOpsMood.inkMuted,
+              // The ETA gives way to the kicker rather than pushing the
+              // row past the card edge at a large text size.
+              Flexible(
+                child: Text(
+                  '12 min',
+                  style: VoiceOpsText.label.copyWith(
+                    color: VoiceOpsMood.inkMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -467,7 +615,7 @@ class _LiveRouteTeaser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(_cardPadding),
       decoration: BoxDecoration(
         gradient: VoiceOpsMood.holographic,
         borderRadius: BorderRadius.circular(VoiceOpsRadius.card),
@@ -535,7 +683,7 @@ class _AccessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(_cardPadding),
       decoration: _paperCard(front: true),
       child: Column(
         mainAxisSize: MainAxisSize.min,

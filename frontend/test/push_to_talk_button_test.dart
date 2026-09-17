@@ -69,6 +69,7 @@ void main() {
     expect(seen.values.toSet().length, PushToTalkState.values.length);
     container.read(pushToTalkProvider.notifier).set(PushToTalkState.idle);
     await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 
   testWidgets('a tap goes to the voice session: idle starts the mic', (
@@ -92,6 +93,7 @@ void main() {
     expect(recorder.isRecording, isTrue);
     expect(decorationOf(tester).color, VoiceOpsColors.live);
     await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 
   test('live lime never leaks into the Material colour scheme', () {

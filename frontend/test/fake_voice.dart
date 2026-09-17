@@ -11,8 +11,12 @@ import 'package:voiceops/core/realtime/voice_socket.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
+import 'package:voiceops/features/summary/data/shift_report.dart';
+import 'package:voiceops/providers/co_rider_voice_provider.dart';
+import 'package:voiceops/providers/company_connection_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
+import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
@@ -157,6 +161,12 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
   int profileCalls = 0;
   int shiftCalls = 0;
 
+  /// Every GPS ping the app has posted, in order.
+  final pings = <LocationPing>[];
+
+  /// Thrown by the next [sendLocationPing]; telemetry must shrug it off.
+  ApiException? pingFailure;
+
   @override
   Future<DriverProfile> fetchDriverProfile() async {
     profileCalls++;
@@ -164,11 +174,63 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     return profile ?? const DriverProfile(id: 'driver-1');
   }
 
+  /// Every name sent to `PUT /v1/driver/profile`, in order.
+  final nameUpdates = <String>[];
+  ApiException? updateFailure;
+
+  @override
+  Future<DriverProfile> updateDriverName(String name) async {
+    nameUpdates.add(name);
+    if (updateFailure case final f?) throw f;
+    final current = profile ?? const DriverProfile(id: 'driver-1');
+    return profile = DriverProfile(
+      id: current.id,
+      name: name,
+      vehicleType: current.vehicleType,
+      phone: current.phone,
+      createdAt: current.createdAt,
+    );
+  }
+
+  /// Every code sent to `POST /v1/driver/connect`, in order.
+  final connectCodes = <String>[];
+  ApiException? connectFailure;
+  PlatformConnection connection = const PlatformConnection(platform: 'onfleet');
+
+  @override
+  Future<PlatformConnection> connectWithCode(String code) async {
+    connectCodes.add(code);
+    if (connectFailure case final f?) throw f;
+    return connection;
+  }
+
   @override
   Future<String> startShift() async {
     shiftCalls++;
     if (shiftFailure case final f?) throw f;
     return 'shift-1';
+  }
+
+  @override
+  Future<void> sendLocationPing(LocationPing ping) async {
+    pings.add(ping);
+    if (pingFailure case final f?) throw f;
+  }
+
+  /// Returned by [fetchShiftReport]; null means "still processing".
+  ShiftReport? report;
+
+  /// Thrown by the next [fetchShiftReport] instead of returning [report].
+  ApiException? reportFailure;
+
+  /// Shift ids the app asked for a report on, in order.
+  final reportRequests = <String>[];
+
+  @override
+  Future<ShiftReport?> fetchShiftReport(String shiftId) async {
+    reportRequests.add(shiftId);
+    if (reportFailure case final f?) throw f;
+    return report;
   }
 }
 
@@ -248,6 +310,54 @@ class FakeMapStyleStore implements MapStyleStore {
   Future<void> save(MapStyle style) async => value = style;
 }
 
+class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
+  FakeNotificationPreferencesStore({
+    bool proactiveAlertsEnabled = true,
+    bool shiftSummaryReadyEnabled = true,
+  }) : value = NotificationPreferences(
+         proactiveAlertsEnabled: proactiveAlertsEnabled,
+         shiftSummaryReadyEnabled: shiftSummaryReadyEnabled,
+       );
+
+  NotificationPreferences value;
+
+  @override
+  Future<NotificationPreferences> load() async => value;
+
+  @override
+  Future<void> saveProactiveAlerts({required bool enabled}) async {
+    value = value.copyWith(proactiveAlertsEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveShiftSummaryReady({required bool enabled}) async {
+    value = value.copyWith(shiftSummaryReadyEnabled: enabled);
+  }
+}
+
+class FakeCoRiderVoiceStore implements CoRiderVoiceStore {
+  FakeCoRiderVoiceStore([this.value]);
+
+  CoRiderVoice? value;
+
+  @override
+  Future<CoRiderVoice?> load() async => value;
+
+  @override
+  Future<void> save(CoRiderVoice voice) async => value = voice;
+}
+
+class FakeCompanyConnectionStore implements CompanyConnectionStore {
+  final saved = <String, PlatformConnection>{};
+
+  @override
+  Future<PlatformConnection?> load(String driverId) async => saved[driverId];
+
+  @override
+  Future<void> save(String driverId, PlatformConnection connection) async =>
+      saved[driverId] = connection;
+}
+
 class FakeOnboardingStore implements OnboardingStore {
   FakeOnboardingStore({this.completed = false});
 
@@ -272,7 +382,10 @@ List<Override> offlineOverrides({
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
   FakeMapStyleStore? mapStyleStore,
+  FakeNotificationPreferencesStore? notificationPreferencesStore,
+  FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeOnboardingStore? onboardingStore,
+  FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
@@ -292,9 +405,18 @@ List<Override> offlineOverrides({
     mapStyleStoreProvider.overrideWithValue(
       mapStyleStore ?? FakeMapStyleStore(),
     ),
+    notificationPreferencesStoreProvider.overrideWithValue(
+      notificationPreferencesStore ?? FakeNotificationPreferencesStore(),
+    ),
+    coRiderVoiceStoreProvider.overrideWithValue(
+      coRiderVoiceStore ?? FakeCoRiderVoiceStore(),
+    ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
+    ),
+    companyConnectionStoreProvider.overrideWithValue(
+      companyConnectionStore ?? FakeCompanyConnectionStore(),
     ),
   ];
 }

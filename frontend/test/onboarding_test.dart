@@ -322,6 +322,187 @@ void main() {
       expect(tester.getRect(next()).bottom, lessThanOrEqualTo(size.height));
     });
   }
+
+  // The card stack is meant to read as a staggered, tilted pile: every card
+  // slides under the one after it. What it may never do is slide far enough
+  // to hide what that card shows — the stop's two rows, or an allow button
+  // the driver has to reach. Each card is padded by VoiceOpsSpacing.lg and
+  // slides under the next one by less than that, so the overlap lands on
+  // blank card. The tilts used to break it: Transform.rotate leaves its
+  // corners outside its box, so a card started higher than the column
+  // thought and ate into the one before it.
+  group('the Power card stack stays staggered without covering itself', () {
+    /// Where [finder] actually lands on screen, tilt included.
+    Rect painted(WidgetTester tester, Finder finder) {
+      final box = tester.renderObject<RenderBox>(finder);
+      return MatrixUtils.transformRect(
+        box.getTransformTo(null),
+        box.paintBounds,
+      );
+    }
+
+    /// The card carrying [text]: its outermost painted surface.
+    Finder card(String text) => find
+        .ancestor(of: find.text(text), matching: find.byType(Container))
+        .first;
+
+    /// Pumps Power alone, so the sweep can set a text scale cheaply.
+    Future<void> pumpPower(
+      WidgetTester tester, {
+      required Size size,
+      required double textScale,
+      required bool allowed,
+    }) async {
+      tester.view.physicalSize = size * 3;
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildVoiceOpsTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: size,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: Scaffold(
+              backgroundColor: VoiceOpsMood.lavender.first,
+              body: OnboardingPower(
+                driverName: 'Mary',
+                micAllowed: allowed,
+                onAllowMic: () {},
+                locationAllowed: allowed,
+                onAllowLocation: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+    }
+
+    for (final size in [
+      const Size(320, 568),
+      const Size(360, 780),
+      const Size(390, 844),
+    ]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        for (final allowed in [false, true]) {
+          final state = allowed ? 'allowed' : 'asking';
+          testWidgets('$size at ${scale}x text, $state', (tester) async {
+            await pumpPower(
+              tester,
+              size: size,
+              textScale: scale,
+              allowed: allowed,
+            );
+
+            final stop = card('Capitol Hill');
+            final mic = card('Mic access');
+            final location = card('Location');
+
+            // Everything the card behind shows has to stay uncovered.
+            for (final (name, over, under) in [
+              ('mic card over NEXT STOP', mic, find.text('NEXT STOP')),
+              ('mic card over the stop', mic, find.text('Capitol Hill')),
+              ('mic card over the ETA', mic, find.text('12 min')),
+              (
+                'location card over its title',
+                location,
+                find.text('Mic access'),
+              ),
+              (
+                'location card over the mic control',
+                location,
+                find.text(allowed ? 'Mic allowed' : 'Allow mic'),
+              ),
+              // The teaser paints first (furthest back) and peeks from the
+              // top-left corner, the one spot none of the front cards
+              // reach — it must stay readable, not swallowed behind them.
+              (
+                'the stop card over the teaser label',
+                stop,
+                find.text('Live route'),
+              ),
+              (
+                'the mic card over the teaser label',
+                mic,
+                find.text('Live route'),
+              ),
+            ]) {
+              final covering = painted(tester, over);
+              final covered = painted(tester, under);
+              expect(
+                covering.overlaps(covered),
+                isFalse,
+                reason: '$name: $covering covers $covered',
+              );
+            }
+
+            // The peek is only worth anything if it actually lands inside
+            // the unscrolled viewport, not just clear of the front cards —
+            // a corner that's technically uncovered but scrolled off is
+            // just as invisible to the driver.
+            final teaserLabel = painted(tester, find.text('Live route'));
+            expect(
+              teaserLabel.top < size.height && teaserLabel.bottom > 0,
+              isTrue,
+              reason:
+                  'teaser label $teaserLabel sits outside the '
+                  '${size.width}x${size.height} viewport',
+            );
+
+            // …while each pair keeps a thin seam: open even at the tilted
+            // corners, so the layering reads as deliberate, but no wider than
+            // a small spacing step, so this stays a stack and does not
+            // quietly become a list.
+            for (final (name, over, under) in [
+              ('mic card below the stop card', mic, stop),
+              ('location card below the mic card', location, mic),
+            ]) {
+              final seam =
+                  painted(tester, over).top - painted(tester, under).bottom;
+              expect(
+                seam,
+                inInclusiveRange(1, VoiceOpsSpacing.sm),
+                reason: '$name sits $seam apart',
+              );
+            }
+          });
+        }
+      }
+    }
+
+    testWidgets('both allow buttons take a tap through the tilt', (
+      tester,
+    ) async {
+      var mic = 0;
+      var location = 0;
+      tester.view.physicalSize = phone * 3;
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildVoiceOpsTheme(),
+          home: Scaffold(
+            body: OnboardingPower(
+              driverName: 'Mary',
+              micAllowed: false,
+              onAllowMic: () => mic++,
+              locationAllowed: false,
+              onAllowLocation: () => location++,
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+
+      // Tapped at the centre the tilt actually puts them at.
+      await tapInView(tester, find.text('Allow mic'));
+      await tapInView(tester, find.text('Allow location'));
+      expect(mic, 1);
+      expect(location, 1);
+    });
+  });
 }
 
 /// A mid-range Android phone, in logical pixels.

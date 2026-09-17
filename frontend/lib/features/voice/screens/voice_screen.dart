@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
+import '../../../app/router.dart';
 import '../../../core/realtime/voice_events.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
@@ -161,6 +163,26 @@ class _MapPreview extends StatelessWidget {
           children: [
             const Positioned.fill(
               child: ExcludeSemantics(child: CustomPaint(painter: _MapGrid())),
+            ),
+            // The profile lives behind this corner icon, not in the bottom
+            // nav, stacked on the map preview instead of its own row.
+            Positioned(
+              top: VoiceOpsSpacing.sm,
+              right: VoiceOpsSpacing.sm,
+              child: IconButton(
+                key: const Key('profile-button'),
+                tooltip: 'Your profile',
+                onPressed: () => context.go(AppRoutes.profile),
+                constraints: const BoxConstraints(
+                  minWidth: VoiceOpsSize.touchTarget,
+                  minHeight: VoiceOpsSize.touchTarget,
+                ),
+                icon: const Icon(
+                  TablerIcons.userCircle,
+                  size: VoiceOpsSize.iconLg,
+                  color: VoiceOpsColors.textPrimary,
+                ),
+              ),
             ),
             Positioned(
               top: VoiceOpsSpacing.lg,

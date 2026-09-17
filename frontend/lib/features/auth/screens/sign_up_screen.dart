@@ -11,6 +11,7 @@ import '../data/auth_repository.dart';
 import '../validation.dart';
 import '../widgets/auth_attempt.dart';
 import '../widgets/auth_controls.dart';
+import '../widgets/auth_entrance.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/terms_agreement.dart';
@@ -26,7 +27,11 @@ class SignUpScreen extends ConsumerStatefulWidget {
   ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState extends ConsumerState<SignUpScreen> with AuthAttempt {
+class _SignUpScreenState extends ConsumerState<SignUpScreen>
+    with SingleTickerProviderStateMixin, AuthAttempt, AuthEntrance {
+  @override
+  int get entranceItemCount => 5;
+
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
@@ -90,51 +95,63 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> with AuthAttempt {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AuthTextField(
-                  label: 'Full name',
-                  hint: 'Enter your name',
-                  icon: TablerIcons.user,
-                  controller: _name,
-                  enabled: !busy,
-                  validator: AuthValidators.fullName,
-                  keyboardType: TextInputType.name,
-                  textCapitalization: TextCapitalization.words,
-                  autofillHints: const [AutofillHints.name],
+                arrive(
+                  0,
+                  AuthTextField(
+                    label: 'Full name',
+                    hint: 'Enter your name',
+                    icon: TablerIcons.user,
+                    controller: _name,
+                    enabled: !busy,
+                    validator: AuthValidators.fullName,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.words,
+                    autofillHints: const [AutofillHints.name],
+                  ),
                 ),
                 const SizedBox(height: VoiceOpsSpacing.lg),
-                AuthTextField(
-                  label: 'Email',
-                  hint: 'Enter your email',
-                  icon: TablerIcons.mail,
-                  controller: _email,
-                  enabled: !busy,
-                  validator: AuthValidators.email,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
+                arrive(
+                  1,
+                  AuthTextField(
+                    label: 'Email',
+                    hint: 'Enter your email',
+                    icon: TablerIcons.mail,
+                    controller: _email,
+                    enabled: !busy,
+                    validator: AuthValidators.email,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                  ),
                 ),
                 const SizedBox(height: VoiceOpsSpacing.lg),
-                AuthTextField(
-                  label: 'Password',
-                  hint: 'Create a password',
-                  icon: TablerIcons.lock,
-                  controller: _password,
-                  enabled: !busy,
-                  obscure: true,
-                  validator: AuthValidators.newPassword,
-                  autofillHints: const [AutofillHints.newPassword],
+                arrive(
+                  2,
+                  AuthTextField(
+                    label: 'Password',
+                    hint: 'Create a password',
+                    icon: TablerIcons.lock,
+                    controller: _password,
+                    enabled: !busy,
+                    obscure: true,
+                    validator: AuthValidators.newPassword,
+                    autofillHints: const [AutofillHints.newPassword],
+                  ),
                 ),
                 const SizedBox(height: VoiceOpsSpacing.lg),
-                AuthTextField(
-                  label: 'Phone number',
-                  hint: '+234 801 234 5678',
-                  icon: TablerIcons.phone,
-                  controller: _phone,
-                  enabled: !busy,
-                  validator: AuthValidators.phone,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: const [AutofillHints.telephoneNumber],
-                  onSubmitted: (_) => _createAccount(),
+                arrive(
+                  3,
+                  AuthTextField(
+                    label: 'Phone number',
+                    hint: '+234 801 234 5678',
+                    icon: TablerIcons.phone,
+                    controller: _phone,
+                    enabled: !busy,
+                    validator: AuthValidators.phone,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.telephoneNumber],
+                    onSubmitted: (_) => _createAccount(),
+                  ),
                 ),
               ],
             ),
@@ -152,10 +169,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> with AuthAttempt {
           AuthErrorBanner(message: message),
           const SizedBox(height: VoiceOpsSpacing.lg),
         ],
-        PrimaryButton(
-          label: busy ? 'Creating account…' : SignUpScreen.title,
-          expand: true,
-          onPressed: busy ? null : _createAccount,
+        arrive(
+          4,
+          PrimaryButton(
+            label: busy ? 'Creating account…' : SignUpScreen.title,
+            expand: true,
+            onPressed: busy ? null : _createAccount,
+          ),
         ),
         const SizedBox(height: VoiceOpsSpacing.xl),
         const OrDivider(),
