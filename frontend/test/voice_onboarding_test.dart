@@ -136,7 +136,11 @@ void main() {
     expect(find.byType(MainShell), findsOneWidget);
     expect(coRiderVoiceStore.value, CoRiderVoice.michael);
 
+    // invalidate() only marks the provider dirty; reading its notifier
+    // below is what actually rebuilds it and starts the async storage
+    // load, so wait on that load before checking the reloaded state.
     container.invalidate(coRiderVoiceProvider);
+    await container.read(coRiderVoiceProvider.notifier).loaded;
     await settle(tester);
     expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
   });

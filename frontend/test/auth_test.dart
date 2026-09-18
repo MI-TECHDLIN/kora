@@ -26,6 +26,7 @@ import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
+import 'package:voiceops/providers/voice_onboarding_provider.dart';
 
 import 'fake_auth.dart';
 import 'fake_voice.dart';
@@ -61,6 +62,11 @@ void main() {
           onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
           onboardingStoreProvider.overrideWithValue(
             FakeOnboardingStore(completed: onboarded),
+          ),
+          // A never-shown store, like a fresh device: sign-up tests below
+          // rely on the post-sign-up voice step showing.
+          voiceOnboardingStoreProvider.overrideWithValue(
+            FakeVoiceOnboardingStore(),
           ),
           // Onboarding's Power screen checks the mic and location.
           voiceRecorderProvider.overrideWithValue(FakeRecorder()),
