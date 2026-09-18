@@ -7,6 +7,7 @@ import '../../../app/router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../providers/voice_onboarding_provider.dart';
 import '../data/auth_repository.dart';
 import '../validation.dart';
 import '../widgets/auth_attempt.dart';
@@ -68,9 +69,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
         ),
       ),
     );
-    // signedIn needs nothing: the router's auth gate takes over.
-    if (result == SignUpResult.confirmEmail && mounted) {
-      setState(() => _confirmationSentTo = email);
+    if (result == SignUpResult.confirmEmail) {
+      if (mounted) setState(() => _confirmationSentTo = email);
+    } else if (result == SignUpResult.signedIn && mounted) {
+      // The router's auth gate takes over from here. Flag the voice step so
+      // its redirect can insert itself before the main app — but only on a
+      // device that has never shown it, and never for a plain sign-in.
+      await ref.read(voiceOnboardingProvider.notifier).showIfNeverShown();
     }
   }
 

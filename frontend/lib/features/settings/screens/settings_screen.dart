@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
-import '../../../providers/co_rider_voice_provider.dart';
 import '../../../providers/map_style_provider.dart';
 import '../../../providers/notification_preferences_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
+import '../widgets/co_rider_voice_picker.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
 /// (`screen_navigate: settings`). Full settings sections land in
@@ -20,7 +19,6 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicleMode = ref.watch(vehicleModeProvider);
     final mapStyle = ref.watch(mapStyleProvider);
-    final voice = ref.watch(coRiderVoiceProvider);
     final notificationPreferences = ref.watch(notificationPreferencesProvider);
     return SafeArea(
       child: SingleChildScrollView(
@@ -121,36 +119,7 @@ class SettingsScreen extends ConsumerWidget {
             GlassCard(
               key: const Key('co-rider-voice-selector'),
               padding: const EdgeInsets.all(KoraSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final accent in CoRiderAccent.values) ...[
-                    Text(accent.label, style: KoraText.bodyMuted),
-                    const SizedBox(height: KoraSpacing.sm),
-                    Wrap(
-                      spacing: KoraSpacing.sm,
-                      runSpacing: KoraSpacing.sm,
-                      children: [
-                        for (final option in CoRiderVoice.values)
-                          if (option.accent == accent)
-                            _Choice(
-                              label: option.label,
-                              icon: TablerIcons.microphone,
-                              selected: option == voice,
-                              onTap: () => ref
-                                  .read(coRiderVoiceProvider.notifier)
-                                  .select(option),
-                            ),
-                      ],
-                    ),
-                    const SizedBox(height: KoraSpacing.md),
-                  ],
-                  Text(
-                    'Applies to your next conversation.',
-                    style: KoraText.bodyMuted,
-                  ),
-                ],
-              ),
+              child: const CoRiderVoicePicker(),
             ),
             const SizedBox(height: KoraSpacing.lg),
             Text('MAP SOURCES', style: KoraText.caption),

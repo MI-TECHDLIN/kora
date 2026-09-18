@@ -20,6 +20,7 @@ import 'package:voiceops/features/auth/widgets/terms_agreement.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_flow.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_screen_2.dart';
 import 'package:voiceops/features/voice/screens/voice_screen.dart';
+import 'package:voiceops/features/voice_onboarding/screens/voice_onboarding_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
@@ -148,9 +149,15 @@ void main() {
     await tap(tester, find.byType(Checkbox));
     await tap(tester, createAccount);
 
-    // The session lands past onboarding: straight into the main app.
+    // The session lands past onboarding — but a fresh sign-up on a device
+    // that has never shown it first meets the co-rider voice step.
     expect(auth.lastSignUp, isNotNull);
     expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(VoiceOnboardingScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
+
+    await tap(tester, find.text('Continue'));
+    expect(find.byType(VoiceOnboardingScreen), findsNothing);
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(VoiceScreen), findsOneWidget);
   });
@@ -262,10 +269,14 @@ void main() {
     expect(sent.password, 'correct-horse');
     expect(sent.phone, '+2348012345678'); // E.164 for drivers.phone
 
-    // The session lands: onboarding is behind the driver, so the gate hands
-    // over to the main app.
-    expect(find.byType(MainShell), findsOneWidget);
+    // The session lands: onboarding is behind the driver, and a never-shown
+    // device meets the voice step before the gate hands over to the main app.
     expect(find.byType(SignUpScreen), findsNothing);
+    expect(find.byType(VoiceOnboardingScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
+
+    await tap(tester, find.text('Continue'));
+    expect(find.byType(MainShell), findsOneWidget);
     expect(auth.profileChecks, 1);
   });
 
