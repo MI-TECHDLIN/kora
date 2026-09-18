@@ -8,7 +8,7 @@ mixin AuthEntrance<T extends StatefulWidget> on State<T>, TickerProvider {
 
   late final AnimationController _entrance = AnimationController(
     vsync: this,
-    duration: VoiceOpsMotion.stagger,
+    duration: KoraMotion.stagger,
   );
 
   @override
@@ -35,7 +35,7 @@ mixin AuthEntrance<T extends StatefulWidget> on State<T>, TickerProvider {
     final start = order * 0.4 / (entranceItemCount - 1);
     final progress = _entrance.drive(
       CurveTween(
-        curve: Interval(start, start + 0.6, curve: VoiceOpsMotion.standard),
+        curve: Interval(start, start + 0.6, curve: KoraMotion.standard),
       ),
     );
     return FadeTransition(
@@ -45,7 +45,7 @@ mixin AuthEntrance<T extends StatefulWidget> on State<T>, TickerProvider {
         animation: progress,
         child: child,
         builder: (context, child) => Transform.translate(
-          offset: Offset(0, -VoiceOpsSpacing.md * (1 - progress.value)),
+          offset: Offset(0, -KoraSpacing.md * (1 - progress.value)),
           child: child,
         ),
       ),

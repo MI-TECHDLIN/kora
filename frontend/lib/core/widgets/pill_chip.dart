@@ -11,7 +11,7 @@ class PillChip extends StatelessWidget {
     super.key,
     required this.icon,
     required this.label,
-    this.accent = VoiceOpsColors.primaryLight,
+    this.accent = KoraColors.primaryLight,
     this.filled = false,
     this.onTap,
   });
@@ -27,10 +27,10 @@ class PillChip extends StatelessWidget {
     // Checked here, not in the constructor, so PillChip stays const-able
     // (Color's == isn't allowed in constant expressions).
     assert(
-      accent != VoiceOpsColors.live,
+      accent != KoraColors.live,
       'live lime is reserved for the mic-hot state — pick another accent',
     );
-    final ink = filled ? VoiceOpsColors.onAccent : VoiceOpsColors.textPrimary;
+    final ink = filled ? KoraColors.onAccent : KoraColors.textPrimary;
 
     return Semantics(
       button: onTap != null,
@@ -41,46 +41,46 @@ class PillChip extends StatelessWidget {
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            minHeight: VoiceOpsSize.touchTarget,
+            minHeight: KoraSize.touchTarget,
           ),
           child: GlassCard(
             frosted: false,
             shadow: false,
-            borderRadius: VoiceOpsRadius.pill,
+            borderRadius: KoraRadius.pill,
             fill: filled ? accent : accent.withValues(alpha: 0.10),
             border: Border.all(
               color: accent.withValues(alpha: filled ? 0 : 0.22),
-              width: VoiceOpsGlass.borderWidth,
+              width: KoraGlass.borderWidth,
             ),
             padding: const EdgeInsets.fromLTRB(
-              VoiceOpsSpacing.sm,
-              VoiceOpsSpacing.sm,
-              VoiceOpsSpacing.lg,
-              VoiceOpsSpacing.sm,
+              KoraSpacing.sm,
+              KoraSpacing.sm,
+              KoraSpacing.lg,
+              KoraSpacing.sm,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: VoiceOpsSize.iconXl,
-                  height: VoiceOpsSize.iconXl,
+                  width: KoraSize.iconXl,
+                  height: KoraSize.iconXl,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: filled
-                        ? VoiceOpsColors.onAccent.withValues(alpha: 0.12)
+                        ? KoraColors.onAccent.withValues(alpha: 0.12)
                         : accent,
                   ),
                   child: Icon(
                     icon,
-                    size: VoiceOpsSize.iconSm,
-                    color: VoiceOpsColors.onAccent,
+                    size: KoraSize.iconSm,
+                    color: KoraColors.onAccent,
                   ),
                 ),
-                const SizedBox(width: VoiceOpsSpacing.sm),
+                const SizedBox(width: KoraSpacing.sm),
                 Flexible(
                   child: Text(
                     label,
-                    style: VoiceOpsText.label.copyWith(color: ink),
+                    style: KoraText.label.copyWith(color: ink),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

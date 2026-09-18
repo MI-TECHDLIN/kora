@@ -18,7 +18,7 @@ class RootStack extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: VoiceOpsColors.canvas,
+        systemNavigationBarColor: KoraColors.canvas,
       ),
       child: GradientOrbBackground(
         // Gives the overlays (which sit outside any route) Material text

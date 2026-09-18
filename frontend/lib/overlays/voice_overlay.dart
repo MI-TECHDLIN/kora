@@ -39,11 +39,11 @@ class VoiceOverlay extends ConsumerWidget {
     return Positioned(
       top:
           MediaQuery.paddingOf(context).top +
-          VoiceOpsSpacing.md +
-          VoiceOpsSize.orbBubble +
-          VoiceOpsSpacing.sm,
-      left: VoiceOpsSpacing.gutter,
-      right: VoiceOpsSpacing.gutter,
+          KoraSpacing.md +
+          KoraSize.orbBubble +
+          KoraSpacing.sm,
+      left: KoraSpacing.gutter,
+      right: KoraSpacing.gutter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -61,7 +61,7 @@ class VoiceOverlay extends ConsumerWidget {
               onAction: ref.read(voiceSessionProvider.notifier).dismissIssue,
             ),
           if (issue != null && call != null)
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            const SizedBox(height: KoraSpacing.sm),
           if (call != null)
             _CallCard(
               name: call.customerName ?? 'your customer',
@@ -83,10 +83,10 @@ class VoiceOverlay extends ConsumerWidget {
               },
             ),
           if ((issue != null || call != null) && hasAlert)
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            const SizedBox(height: KoraSpacing.sm),
           if (hasAlert) const ProactiveAlertCard(),
           if ((issue != null || call != null || hasAlert) && hasOffer)
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            const SizedBox(height: KoraSpacing.sm),
           if (hasOffer) const OrderOfferPanel(),
         ],
       ),
@@ -111,34 +111,34 @@ class _Banner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.92),
+      fill: KoraColors.raised.withValues(alpha: 0.92),
       border: Border.all(
-        color: VoiceOpsColors.amber.withValues(alpha: 0.5),
-        width: VoiceOpsGlass.borderWidth,
+        color: KoraColors.amber.withValues(alpha: 0.5),
+        width: KoraGlass.borderWidth,
       ),
-      padding: const EdgeInsets.only(left: VoiceOpsSpacing.md),
+      padding: const EdgeInsets.only(left: KoraSpacing.md),
       child: Row(
         children: [
-          Icon(icon, size: VoiceOpsSize.iconMd, color: VoiceOpsColors.amber),
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          Icon(icon, size: KoraSize.iconMd, color: KoraColors.amber),
+          const SizedBox(width: KoraSpacing.sm),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.md),
-              child: Text(message, style: VoiceOpsText.label),
+              padding: const EdgeInsets.symmetric(vertical: KoraSpacing.md),
+              child: Text(message, style: KoraText.label),
             ),
           ),
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
               minimumSize: const Size(
-                VoiceOpsSize.touchTarget,
-                VoiceOpsSize.touchTarget,
+                KoraSize.touchTarget,
+                KoraSize.touchTarget,
               ),
             ),
             child: Text(
               actionLabel,
-              style: VoiceOpsText.label.copyWith(
-                color: VoiceOpsColors.primaryLight,
+              style: KoraText.label.copyWith(
+                color: KoraColors.primaryLight,
               ),
             ),
           ),
@@ -163,35 +163,35 @@ class _CallCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       key: const Key('call-card'),
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.92),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+      fill: KoraColors.raised.withValues(alpha: 0.92),
+      padding: const EdgeInsets.all(KoraSpacing.md),
       child: Row(
         children: [
           Container(
-            width: VoiceOpsSize.avatar,
-            height: VoiceOpsSize.avatar,
+            width: KoraSize.avatar,
+            height: KoraSize.avatar,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: VoiceOpsColors.primaryTint,
+              color: KoraColors.primaryTint,
             ),
             child: const Icon(
               TablerIcons.phoneCall,
-              size: VoiceOpsSize.iconLg,
-              color: VoiceOpsColors.primaryLight,
+              size: KoraSize.iconLg,
+              color: KoraColors.primaryLight,
             ),
           ),
-          const SizedBox(width: VoiceOpsSpacing.md),
+          const SizedBox(width: KoraSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   sequence == null ? 'ON A CALL' : 'ON A CALL · STOP $sequence',
-                  style: VoiceOpsText.caption,
+                  style: KoraText.caption,
                 ),
                 Text(
                   'Calling $name',
-                  style: VoiceOpsText.title,
+                  style: KoraText.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -206,16 +206,16 @@ class _CallCard extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: onEnd,
               child: Container(
-                width: VoiceOpsSize.touchTarget,
-                height: VoiceOpsSize.touchTarget,
+                width: KoraSize.touchTarget,
+                height: KoraSize.touchTarget,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: VoiceOpsColors.danger,
+                  color: KoraColors.danger,
                 ),
                 child: const Icon(
                   TablerIcons.phoneOff,
-                  size: VoiceOpsSize.iconMd,
-                  color: VoiceOpsColors.onAccent,
+                  size: KoraSize.iconMd,
+                  color: KoraColors.onAccent,
                 ),
               ),
             ),

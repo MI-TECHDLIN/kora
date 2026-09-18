@@ -109,7 +109,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                     autofillHints: const [AutofillHints.name],
                   ),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 arrive(
                   1,
                   AuthTextField(
@@ -123,7 +123,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                     autofillHints: const [AutofillHints.email],
                   ),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 arrive(
                   2,
                   AuthTextField(
@@ -137,7 +137,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                     autofillHints: const [AutofillHints.newPassword],
                   ),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 arrive(
                   3,
                   AuthTextField(
@@ -157,17 +157,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
             ),
           ),
         ),
-        const SizedBox(height: VoiceOpsSpacing.md),
+        const SizedBox(height: KoraSpacing.md),
         TermsAgreement(
           value: _agreed,
           enabled: !busy,
           showError: _showTermsError && !_agreed,
           onChanged: (agreed) => setState(() => _agreed = agreed),
         ),
-        const SizedBox(height: VoiceOpsSpacing.lg),
+        const SizedBox(height: KoraSpacing.lg),
         if (error case final message?) ...[
           AuthErrorBanner(message: message),
-          const SizedBox(height: VoiceOpsSpacing.lg),
+          const SizedBox(height: KoraSpacing.lg),
         ],
         arrive(
           4,
@@ -177,13 +177,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
             onPressed: busy ? null : _createAccount,
           ),
         ),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         const OrDivider(),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         GoogleButton(
           onPressed: busy ? null : () => attempt((a) => a.signInWithGoogle()),
         ),
-        const SizedBox(height: VoiceOpsSpacing.md),
+        const SizedBox(height: KoraSpacing.md),
         AuthSwitchLink(
           prompt: 'Already have an account?',
           action: 'Sign in',
@@ -206,28 +206,28 @@ class _ConfirmEmailCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         GlassCard(
-          padding: const EdgeInsets.all(VoiceOpsSpacing.xl),
+          padding: const EdgeInsets.all(KoraSpacing.xl),
           child: Semantics(
             liveRegion: true,
             child: Column(
               children: [
                 const Icon(
                   TablerIcons.mailOpened,
-                  size: VoiceOpsSize.iconXl,
-                  color: VoiceOpsColors.primaryLight,
+                  size: KoraSize.iconXl,
+                  color: KoraColors.primaryLight,
                 ),
-                const SizedBox(height: VoiceOpsSpacing.md),
+                const SizedBox(height: KoraSpacing.md),
                 Text(
                   'We sent a confirmation link to $email. Open it on this '
                   'phone, then sign in.',
-                  style: VoiceOpsText.body,
+                  style: KoraText.body,
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         PrimaryButton(
           label: 'Go to sign in',
           expand: true,

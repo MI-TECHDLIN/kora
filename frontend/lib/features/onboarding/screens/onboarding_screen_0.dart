@@ -19,16 +19,16 @@ class OnboardingSplash extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: VoiceOpsSpacing.gutter),
+      padding: const EdgeInsets.symmetric(horizontal: KoraSpacing.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: VoiceOpsSpacing.lg),
+          const SizedBox(height: KoraSpacing.lg),
           Text(
             'VOICEOPS',
             textAlign: TextAlign.center,
-            style: VoiceOpsText.caption.copyWith(
-              color: VoiceOpsColors.textPrimary,
+            style: KoraText.caption.copyWith(
+              color: KoraColors.textPrimary,
             ),
           ),
           Expanded(
@@ -45,14 +45,14 @@ class OnboardingSplash extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: VoiceOpsSpacing.xl),
+          const SizedBox(height: KoraSpacing.xl),
           PrimaryButton(
             label: 'Get started',
             tone: PrimaryButtonTone.white,
             expand: true,
             onPressed: onGetStarted,
           ),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          const SizedBox(height: KoraSpacing.sm),
         ],
       ),
     );
@@ -67,13 +67,13 @@ class _EditorialHeadline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = VoiceOpsText.editorial;
+    final type = KoraText.editorial;
     final pillHeight = type.fontSize! * 0.9;
 
     WidgetSpan inline(Widget child) => WidgetSpan(
       alignment: PlaceholderAlignment.middle,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.xs),
+        padding: const EdgeInsets.symmetric(vertical: KoraSpacing.xs),
         child: child,
       ),
     );
@@ -93,16 +93,16 @@ class _EditorialHeadline extends StatelessWidget {
               // would clip the type or stretch the highlight full width.
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: VoiceOpsColors.textPrimary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+                  color: KoraColors.textPrimary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(KoraRadius.pill),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: VoiceOpsSpacing.md,
+                    horizontal: KoraSpacing.md,
                   ),
                   child: Text(
                     'co-rider',
-                    style: VoiceOpsText.weight(
+                    style: KoraText.weight(
                       type,
                       FontWeight.w700,
                     ).copyWith(height: 1),
@@ -114,10 +114,10 @@ class _EditorialHeadline extends StatelessWidget {
             inline(
               _Pill(
                 height: pillHeight,
-                color: VoiceOpsColors.elevated,
+                color: KoraColors.elevated,
                 child: const MascotDisplay(
                   state: AgentState.idle,
-                  size: VoiceOpsSize.orbBubble,
+                  size: KoraSize.orbBubble,
                 ),
               ),
             ),
@@ -125,11 +125,11 @@ class _EditorialHeadline extends StatelessWidget {
             inline(
               _Pill(
                 height: pillHeight,
-                gradient: VoiceOpsMood.holographic,
+                gradient: KoraMood.holographic,
                 child: const Icon(
                   TablerIcons.truckDelivery,
-                  size: VoiceOpsSize.iconXl,
-                  color: VoiceOpsMood.ink,
+                  size: KoraSize.iconXl,
+                  color: KoraMood.ink,
                 ),
               ),
             ),
@@ -164,10 +164,10 @@ class _Pill extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         gradient: gradient,
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+        borderRadius: BorderRadius.circular(KoraRadius.pill),
         border: Border.all(
-          color: VoiceOpsGlass.border,
-          width: VoiceOpsGlass.borderWidth,
+          color: KoraGlass.border,
+          width: KoraGlass.borderWidth,
         ),
       ),
       // OverflowBox lets the orb's halo bleed to the capsule edge instead of

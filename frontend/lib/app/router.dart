@@ -180,7 +180,7 @@ Page<void> _fadePage(GoRouterState state, Widget child) =>
     CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
-      transitionDuration: VoiceOpsMotion.slow,
+      transitionDuration: KoraMotion.slow,
       transitionsBuilder: (context, animation, secondaryAnimation, child) =>
           FadeTransition(
             opacity: animation,

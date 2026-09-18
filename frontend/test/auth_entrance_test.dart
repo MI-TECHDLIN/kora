@@ -87,7 +87,7 @@ void main() {
           isTrue,
         );
         await tester.enterText(editable, entry.value);
-        await tester.pump(VoiceOpsMotion.slow);
+        await tester.pump(KoraMotion.slow);
       }
       if (form.screen is SignUpScreen) {
         await tester.ensureVisible(find.byType(Checkbox));
@@ -119,10 +119,10 @@ void main() {
       expect(opacities(tester), everyElement(0.0));
 
       final firstVisible = List<int?>.filled(items.length, null);
-      final step = VoiceOpsMotion.fast ~/ 2;
+      final step = KoraMotion.fast ~/ 2;
       for (
         var elapsed = step;
-        elapsed <= VoiceOpsMotion.stagger;
+        elapsed <= KoraMotion.stagger;
         elapsed += step
       ) {
         await tester.pump(step);
@@ -153,7 +153,7 @@ void main() {
         expect(end.dx, initialPositions[i].dx);
         expect(
           end.dy,
-          closeTo(initialPositions[i].dy + VoiceOpsSpacing.md, 0.01),
+          closeTo(initialPositions[i].dy + KoraSpacing.md, 0.01),
         );
       }
       await verifyInteraction(tester, auth);
@@ -177,7 +177,7 @@ void main() {
       tester,
     ) async {
       await pumpForm(tester);
-      await tester.pump(VoiceOpsMotion.fast);
+      await tester.pump(KoraMotion.fast);
       expect(opacities(tester).first, inExclusiveRange(0.0, 1.0));
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           FakeAccessibilityFeatures(disableAnimations: true);

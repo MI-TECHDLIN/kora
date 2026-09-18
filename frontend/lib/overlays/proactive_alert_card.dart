@@ -24,16 +24,16 @@ class ProactiveAlertCard extends ConsumerWidget {
 
     return GlassCard(
       key: const Key('proactive-alert'),
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.92),
+      fill: KoraColors.raised.withValues(alpha: 0.92),
       border: Border.all(
         color: accent.withValues(alpha: 0.5),
-        width: VoiceOpsGlass.borderWidth,
+        width: KoraGlass.borderWidth,
       ),
       padding: const EdgeInsets.fromLTRB(
-        VoiceOpsSpacing.md,
-        VoiceOpsSpacing.md,
-        VoiceOpsSpacing.sm,
-        VoiceOpsSpacing.md,
+        KoraSpacing.md,
+        KoraSpacing.md,
+        KoraSpacing.sm,
+        KoraSpacing.md,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -44,20 +44,20 @@ class ProactiveAlertCard extends ConsumerWidget {
             children: [
               Icon(
                 _iconFor(alert.riskType),
-                size: VoiceOpsSize.iconMd,
+                size: KoraSize.iconMd,
                 color: accent,
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _labelFor(alert.riskType),
-                      style: VoiceOpsText.caption,
+                      style: KoraText.caption,
                     ),
-                    const SizedBox(height: VoiceOpsSpacing.xs),
-                    Text(alert.message, style: VoiceOpsText.body),
+                    const SizedBox(height: KoraSpacing.xs),
+                    Text(alert.message, style: KoraText.body),
                   ],
                 ),
               ),
@@ -69,12 +69,12 @@ class ProactiveAlertCard extends ConsumerWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: ref.read(proactiveAlertProvider.notifier).dismiss,
                   child: const SizedBox(
-                    width: VoiceOpsSize.touchTarget,
-                    height: VoiceOpsSize.touchTarget,
+                    width: KoraSize.touchTarget,
+                    height: KoraSize.touchTarget,
                     child: Icon(
                       TablerIcons.x,
-                      size: VoiceOpsSize.iconSm,
-                      color: VoiceOpsColors.textMuted,
+                      size: KoraSize.iconSm,
+                      color: KoraColors.textMuted,
                     ),
                   ),
                 ),
@@ -83,7 +83,7 @@ class ProactiveAlertCard extends ConsumerWidget {
           ),
           if (alert.routeSuggestion case final suggestion?)
             Padding(
-              padding: const EdgeInsets.only(top: VoiceOpsSpacing.sm),
+              padding: const EdgeInsets.only(top: KoraSpacing.sm),
               child: _EtaComparison(suggestion: suggestion),
             ),
         ],
@@ -92,9 +92,9 @@ class ProactiveAlertCard extends ConsumerWidget {
   }
 
   static Color _accentFor(RiskSeverity severity) => switch (severity) {
-    RiskSeverity.critical => VoiceOpsColors.danger,
-    RiskSeverity.high => VoiceOpsColors.amber,
-    RiskSeverity.medium || RiskSeverity.low => VoiceOpsColors.primaryLight,
+    RiskSeverity.critical => KoraColors.danger,
+    RiskSeverity.high => KoraColors.amber,
+    RiskSeverity.medium || RiskSeverity.low => KoraColors.primaryLight,
   };
 
   static IconData _iconFor(RiskType type) => switch (type) {
@@ -136,37 +136,37 @@ class _EtaComparison extends StatelessWidget {
         if (current != null) ...[
           Text(
             '$current min',
-            style: VoiceOpsText.label.copyWith(
-              color: VoiceOpsColors.textMuted,
+            style: KoraText.label.copyWith(
+              color: KoraColors.textMuted,
               decoration: alternate == null
                   ? TextDecoration.none
                   : TextDecoration.lineThrough,
-              decorationColor: VoiceOpsColors.textMuted,
+              decorationColor: KoraColors.textMuted,
             ),
           ),
           if (alternate != null) ...[
-            const SizedBox(width: VoiceOpsSpacing.sm),
+            const SizedBox(width: KoraSpacing.sm),
             const Icon(
               TablerIcons.arrowNarrowRight,
-              size: VoiceOpsSize.iconSm,
-              color: VoiceOpsColors.textFaint,
+              size: KoraSize.iconSm,
+              color: KoraColors.textFaint,
             ),
-            const SizedBox(width: VoiceOpsSpacing.sm),
+            const SizedBox(width: KoraSpacing.sm),
           ],
         ],
         if (alternate != null)
           Text(
             '$alternate min',
-            style: VoiceOpsText.label.copyWith(
-              color: VoiceOpsColors.primaryLight,
+            style: KoraText.label.copyWith(
+              color: KoraColors.primaryLight,
             ),
           ),
         if (savings != null) ...[
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          const SizedBox(width: KoraSpacing.sm),
           Flexible(
             child: Text(
               '- saves $savings min',
-              style: VoiceOpsText.label.copyWith(color: VoiceOpsColors.success),
+              style: KoraText.label.copyWith(color: KoraColors.success),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

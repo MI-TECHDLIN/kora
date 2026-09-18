@@ -19,7 +19,7 @@ class _BreathingState extends State<Breathing>
     with SingleTickerProviderStateMixin {
   late final AnimationController _breath = AnimationController(
     vsync: this,
-    duration: VoiceOpsMotion.breath,
+    duration: KoraMotion.breath,
   );
 
   late final Animation<double> _scale = Tween<double>(

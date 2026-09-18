@@ -80,7 +80,7 @@ class _OrderOfferCardState extends State<OrderOfferCard> {
   void _startCountdown() {
     _ticker?.cancel();
     _remaining = widget.offer.expiresInSeconds;
-    _ticker = Timer.periodic(VoiceOpsMotion.countdownTick, (_) {
+    _ticker = Timer.periodic(KoraMotion.countdownTick, (_) {
       if (_remaining <= 0) {
         _ticker?.cancel();
         return;
@@ -100,13 +100,13 @@ class _OrderOfferCardState extends State<OrderOfferCard> {
     final offer = widget.offer;
     return GlassCard(
       key: const Key('order-offer-card'),
-      borderRadius: VoiceOpsRadius.sheet,
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.96),
+      borderRadius: KoraRadius.sheet,
+      fill: KoraColors.raised.withValues(alpha: 0.96),
       border: Border.all(
-        color: VoiceOpsColors.primary.withValues(alpha: 0.7),
-        width: VoiceOpsGlass.borderWidth,
+        color: KoraColors.primary.withValues(alpha: 0.7),
+        width: KoraGlass.borderWidth,
       ),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -114,44 +114,44 @@ class _OrderOfferCardState extends State<OrderOfferCard> {
           Row(
             children: [
               Container(
-                width: VoiceOpsSize.touchTarget,
-                height: VoiceOpsSize.touchTarget,
+                width: KoraSize.touchTarget,
+                height: KoraSize.touchTarget,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: VoiceOpsColors.primaryTint,
+                  color: KoraColors.primaryTint,
                 ),
                 child: const Icon(
                   TablerIcons.package,
-                  size: VoiceOpsSize.iconLg,
-                  color: VoiceOpsColors.primaryLight,
+                  size: KoraSize.iconLg,
+                  color: KoraColors.primaryLight,
                 ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.md),
+              const SizedBox(width: KoraSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('NEW DELIVERY OFFER', style: VoiceOpsText.caption),
+                    Text('NEW DELIVERY OFFER', style: KoraText.caption),
                     Text(
                       offer.area,
-                      style: VoiceOpsText.title,
+                      style: KoraText.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               _Countdown(seconds: _remaining),
             ],
           ),
           if (offer.distanceKm != null ||
               offer.timeWindow != null ||
               offer.packageCount != null) ...[
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             Wrap(
-              spacing: VoiceOpsSpacing.sm,
-              runSpacing: VoiceOpsSpacing.sm,
+              spacing: KoraSpacing.sm,
+              runSpacing: KoraSpacing.sm,
               children: [
                 if (offer.distanceKm != null)
                   _Detail(
@@ -170,7 +170,7 @@ class _OrderOfferCardState extends State<OrderOfferCard> {
               ],
             ),
           ],
-          const SizedBox(height: VoiceOpsSpacing.lg),
+          const SizedBox(height: KoraSpacing.lg),
           Row(
             children: [
               Expanded(
@@ -178,39 +178,39 @@ class _OrderOfferCardState extends State<OrderOfferCard> {
                   key: const Key('decline-order'),
                   onPressed: widget.responding ? null : widget.onDecline,
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(VoiceOpsSize.control),
-                    foregroundColor: VoiceOpsColors.textPrimary,
+                    minimumSize: const Size.fromHeight(KoraSize.control),
+                    foregroundColor: KoraColors.textPrimary,
                     side: const BorderSide(
-                      color: VoiceOpsColors.divider,
-                      width: VoiceOpsGlass.borderWidth,
+                      color: KoraColors.divider,
+                      width: KoraGlass.borderWidth,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
-                        VoiceOpsRadius.control,
+                        KoraRadius.control,
                       ),
                     ),
                   ),
-                  child: Text('Decline', style: VoiceOpsText.label),
+                  child: Text('Decline', style: KoraText.label),
                 ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               Expanded(
                 child: FilledButton(
                   key: const Key('accept-order'),
                   onPressed: widget.responding ? null : widget.onAccept,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(VoiceOpsSize.control),
-                    backgroundColor: VoiceOpsColors.primary,
-                    foregroundColor: VoiceOpsColors.onPrimary,
+                    minimumSize: const Size.fromHeight(KoraSize.control),
+                    backgroundColor: KoraColors.primary,
+                    foregroundColor: KoraColors.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
-                        VoiceOpsRadius.control,
+                        KoraRadius.control,
                       ),
                     ),
                   ),
                   child: Text(
                     widget.responding ? 'Responding…' : 'Accept',
-                    style: VoiceOpsText.label,
+                    style: KoraText.label,
                   ),
                 ),
               ),
@@ -230,16 +230,16 @@ class _Countdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const Key('offer-countdown'),
-      constraints: const BoxConstraints(minHeight: VoiceOpsSize.touchTarget),
-      padding: const EdgeInsets.symmetric(horizontal: VoiceOpsSpacing.md),
+      constraints: const BoxConstraints(minHeight: KoraSize.touchTarget),
+      padding: const EdgeInsets.symmetric(horizontal: KoraSpacing.md),
       decoration: BoxDecoration(
-        color: VoiceOpsColors.overlay,
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+        color: KoraColors.overlay,
+        borderRadius: BorderRadius.circular(KoraRadius.pill),
       ),
       alignment: Alignment.center,
       child: Text(
         seconds > 0 ? '${seconds}s' : 'Closing…',
-        style: VoiceOpsText.label.copyWith(color: VoiceOpsColors.primaryLight),
+        style: KoraText.label.copyWith(color: KoraColors.primaryLight),
       ),
     );
   }
@@ -255,9 +255,9 @@ class _Detail extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: VoiceOpsSize.iconSm, color: VoiceOpsColors.textMuted),
-        const SizedBox(width: VoiceOpsSpacing.xs),
-        Text(text, style: VoiceOpsText.bodyMuted),
+        Icon(icon, size: KoraSize.iconSm, color: KoraColors.textMuted),
+        const SizedBox(width: KoraSpacing.xs),
+        Text(text, style: KoraText.bodyMuted),
       ],
     );
   }
@@ -272,34 +272,34 @@ class _ClosedNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       key: const Key('order-offer-closed-notice'),
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.96),
-      padding: const EdgeInsets.only(left: VoiceOpsSpacing.md),
+      fill: KoraColors.raised.withValues(alpha: 0.96),
+      padding: const EdgeInsets.only(left: KoraSpacing.md),
       child: Row(
         children: [
           const Icon(
             TablerIcons.infoCircle,
-            size: VoiceOpsSize.iconMd,
-            color: VoiceOpsColors.primaryLight,
+            size: KoraSize.iconMd,
+            color: KoraColors.primaryLight,
           ),
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          const SizedBox(width: KoraSpacing.sm),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.md),
-              child: Text(message, style: VoiceOpsText.label),
+              padding: const EdgeInsets.symmetric(vertical: KoraSpacing.md),
+              child: Text(message, style: KoraText.label),
             ),
           ),
           TextButton(
             onPressed: onDismiss,
             style: TextButton.styleFrom(
               minimumSize: const Size(
-                VoiceOpsSize.touchTarget,
-                VoiceOpsSize.touchTarget,
+                KoraSize.touchTarget,
+                KoraSize.touchTarget,
               ),
             ),
             child: Text(
               'Dismiss',
-              style: VoiceOpsText.label.copyWith(
-                color: VoiceOpsColors.primaryLight,
+              style: KoraText.label.copyWith(
+                color: KoraColors.primaryLight,
               ),
             ),
           ),

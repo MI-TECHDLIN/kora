@@ -37,7 +37,7 @@ void main() {
   // instead of pumpAndSettle.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow * 2);
+    await tester.pump(KoraMotion.slow * 2);
   }
 
   /// Boots the real app (router and auth gate included) on a phone-sized
@@ -65,7 +65,7 @@ void main() {
           voiceRecorderProvider.overrideWithValue(FakeRecorder()),
           locationSourceProvider.overrideWithValue(FakeLocationSource()),
         ],
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);
@@ -90,7 +90,7 @@ void main() {
     await tester.pump();
     await tester.enterText(field, text);
     // A focused field scrolls itself on screen; let that finish.
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
   }
 
   Future<void> systemBack(WidgetTester tester) async {
@@ -282,7 +282,7 @@ void main() {
       tester.view.viewInsets = FakeViewPadding(bottom: 300 * 3 * i / 10);
       await tester.pump(const Duration(milliseconds: 16));
     }
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
     final box = find.byType(Checkbox);
     expect(
       tester.getRect(box).bottom,
@@ -407,7 +407,7 @@ void main() {
     expect(logs, contains(contains(failure.detail)));
 
     // Let the notice time out so no timer outlives the test.
-    await tester.pump(VoiceOpsMotion.notice);
+    await tester.pump(KoraMotion.notice);
     await settle(tester);
     expect(find.text(failure.message), findsNothing);
   });

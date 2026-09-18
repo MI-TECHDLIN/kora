@@ -50,7 +50,7 @@ class _TermsAgreementState extends State<TermsAgreement> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: VoiceOpsColors.canvas,
+      backgroundColor: KoraColors.canvas,
       builder: (context) => SizedBox(
         height: MediaQuery.sizeOf(context).height,
         child: LegalDocumentViewer(document: doc),
@@ -64,10 +64,10 @@ class _TermsAgreementState extends State<TermsAgreement> {
 
   @override
   Widget build(BuildContext context) {
-    final link = VoiceOpsText.weight(
-      VoiceOpsText.body,
+    final link = KoraText.weight(
+      KoraText.body,
       FontWeight.w700,
-    ).copyWith(color: VoiceOpsColors.primaryLight);
+    ).copyWith(color: KoraColors.primaryLight);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -82,17 +82,17 @@ class _TermsAgreementState extends State<TermsAgreement> {
                   : null,
               semanticLabel:
                   'I agree to the Terms of Service and Privacy Policy',
-              activeColor: VoiceOpsColors.primary,
-              checkColor: VoiceOpsColors.onPrimary,
+              activeColor: KoraColors.primary,
+              checkColor: KoraColors.onPrimary,
               side: const BorderSide(
-                color: VoiceOpsColors.textMuted,
-                width: VoiceOpsGlass.borderWidth,
+                color: KoraColors.textMuted,
+                width: KoraGlass.borderWidth,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(VoiceOpsSpacing.xs),
+                borderRadius: BorderRadius.circular(KoraSpacing.xs),
               ),
             ),
-            const SizedBox(width: VoiceOpsSpacing.xs),
+            const SizedBox(width: KoraSpacing.xs),
             Expanded(
               // Tapping the sentence (outside the links) toggles the box too.
               child: GestureDetector(
@@ -101,7 +101,7 @@ class _TermsAgreementState extends State<TermsAgreement> {
                 child: Text.rich(
                   TextSpan(
                     text: 'I agree to the ',
-                    style: VoiceOpsText.bodyMuted,
+                    style: KoraText.bodyMuted,
                     children: [
                       TextSpan(
                         text: LegalDocument.terms.title,
@@ -122,7 +122,7 @@ class _TermsAgreementState extends State<TermsAgreement> {
           ],
         ),
         if (widget.showError)
-          _Note(TermsAgreement.errorText, color: VoiceOpsColors.danger),
+          _Note(TermsAgreement.errorText, color: KoraColors.danger),
       ],
     );
   }
@@ -140,11 +140,11 @@ class _Note extends StatelessWidget {
     return Padding(
       // Lines up under the sentence, past the checkbox's tap target.
       padding: const EdgeInsets.only(
-        left: VoiceOpsSize.touchTarget + VoiceOpsSpacing.xs,
+        left: KoraSize.touchTarget + KoraSpacing.xs,
       ),
       child: Semantics(
         liveRegion: true,
-        child: Text(text, style: VoiceOpsText.label.copyWith(color: color)),
+        child: Text(text, style: KoraText.label.copyWith(color: color)),
       ),
     );
   }
