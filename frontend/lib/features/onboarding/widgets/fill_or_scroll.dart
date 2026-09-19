@@ -22,7 +22,7 @@ class FillOrScroll extends StatelessWidget {
 
   /// The onboarding headline style for [viewport].
   static TextStyle headlineFor(Size viewport) =>
-      isCompact(viewport) ? VoiceOpsText.displayCompact : VoiceOpsText.display;
+      isCompact(viewport) ? KoraText.displayCompact : KoraText.display;
 
   @override
   Widget build(BuildContext context) {

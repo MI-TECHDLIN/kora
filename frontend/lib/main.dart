@@ -28,13 +28,13 @@ Future<void> main() async {
       overrides: [
         onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
       ],
-      child: const VoiceOpsApp(),
+      child: const KoraApp(),
     ),
   );
 }
 
-class VoiceOpsApp extends ConsumerWidget {
-  const VoiceOpsApp({super.key});
+class KoraApp extends ConsumerWidget {
+  const KoraApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

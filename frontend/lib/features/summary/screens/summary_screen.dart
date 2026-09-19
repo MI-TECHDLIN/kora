@@ -23,19 +23,19 @@ class SummaryScreen extends ConsumerWidget {
     if (summary == null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(VoiceOpsSpacing.gutter),
+          padding: const EdgeInsets.all(KoraSpacing.gutter),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Your shift summary',
-                style: VoiceOpsText.headline,
+                style: KoraText.headline,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: VoiceOpsSpacing.sm),
+              const SizedBox(height: KoraSpacing.sm),
               Text(
                 'Ask your co-rider "how did my shift go?" and it appears here.',
-                style: VoiceOpsText.bodyMuted,
+                style: KoraText.bodyMuted,
                 textAlign: TextAlign.center,
               ),
             ],
@@ -47,10 +47,10 @@ class SummaryScreen extends ConsumerWidget {
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSize.orbBubble + VoiceOpsSpacing.xl,
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSpacing.xl,
+          KoraSpacing.gutter,
+          KoraSize.orbBubble + KoraSpacing.xl,
+          KoraSpacing.gutter,
+          KoraSpacing.xl,
         ),
         child: !summary.isComplete || shiftId == null
             ? RecapCard(text: summary.text, live: !summary.isComplete)
@@ -103,7 +103,7 @@ class _FinishedShift extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         RecapCard(text: recap, live: false),
-        const SizedBox(height: VoiceOpsSpacing.md),
+        const SizedBox(height: KoraSpacing.md),
         status,
       ],
     );
@@ -126,31 +126,31 @@ class _ReportStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               SizedBox.square(
-                dimension: VoiceOpsSize.iconMd,
+                dimension: KoraSize.iconMd,
                 child: icon == null
                     ? const CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: VoiceOpsColors.primaryLight,
+                        color: KoraColors.primaryLight,
                       )
                     : Icon(
                         icon,
-                        size: VoiceOpsSize.iconMd,
-                        color: VoiceOpsColors.primaryLight,
+                        size: KoraSize.iconMd,
+                        color: KoraColors.primaryLight,
                       ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.md),
-              Expanded(child: Text(message, style: VoiceOpsText.bodyMuted)),
+              const SizedBox(width: KoraSpacing.md),
+              Expanded(child: Text(message, style: KoraText.bodyMuted)),
             ],
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             PrimaryButton(
               label: 'Check again',
               icon: TablerIcons.refresh,

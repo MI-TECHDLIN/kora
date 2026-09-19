@@ -78,6 +78,8 @@ sealed class VoiceEvent {
         code: field('code'),
         message: json['message'] as String? ?? '',
       ),
+      'voice_change_accepted' => VoiceChangeAcceptedEvent(field('voice')),
+      'voice_unchanged' => VoiceUnchangedEvent(field('voice')),
       _ => null,
     };
   }
@@ -305,4 +307,17 @@ class ErrorEvent extends VoiceEvent {
   /// The token was rejected, so reconnecting won't help. `session_expired`
   /// is not fatal: the next connect sends Supabase's refreshed token.
   bool get isFatal => code == 'auth_failed';
+}
+
+/// The backend took a `change_voice` request and is about to close the
+/// socket so the app reconnects with the new voice.
+class VoiceChangeAcceptedEvent extends VoiceEvent {
+  const VoiceChangeAcceptedEvent(this.voice);
+  final String voice;
+}
+
+/// The requested voice is already the session's voice; nothing reconnects.
+class VoiceUnchangedEvent extends VoiceEvent {
+  const VoiceUnchangedEvent(this.voice);
+  final String voice;
 }

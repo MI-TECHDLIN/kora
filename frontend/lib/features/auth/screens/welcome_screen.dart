@@ -27,18 +27,18 @@ class WelcomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: VoiceOpsSpacing.gutter,
+            horizontal: KoraSpacing.gutter,
           ),
           child: FillOrScroll(
             builder: (context, viewport) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 Text(
                   'VOICEOPS',
                   textAlign: TextAlign.center,
-                  style: VoiceOpsText.caption.copyWith(
-                    color: VoiceOpsColors.textPrimary,
+                  style: KoraText.caption.copyWith(
+                    color: KoraColors.textPrimary,
                   ),
                 ),
                 Expanded(
@@ -46,7 +46,7 @@ class WelcomeScreen extends StatelessWidget {
                     child: MascotDisplay(
                       state: AgentState.idle,
                       size: math.min(
-                        VoiceOpsSize.orbHero,
+                        KoraSize.orbHero,
                         viewport.height * 0.26,
                       ),
                     ),
@@ -60,25 +60,25 @@ class WelcomeScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.md),
+                const SizedBox(height: KoraSpacing.md),
                 Text(
                   tagline,
-                  style: VoiceOpsText.bodyMuted,
+                  style: KoraText.bodyMuted,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: VoiceOpsSpacing.xxl),
+                const SizedBox(height: KoraSpacing.xxl),
                 PrimaryButton(
                   label: 'Get started',
                   expand: true,
                   onPressed: () => context.go(AppRoutes.signUp),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                const SizedBox(height: KoraSpacing.sm),
                 AuthSwitchLink(
                   prompt: 'Already have an account?',
                   action: 'Sign in',
                   onPressed: () => context.go(AppRoutes.signIn),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                const SizedBox(height: KoraSpacing.sm),
               ],
             ),
           ),

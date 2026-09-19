@@ -103,6 +103,20 @@ async def receive_location_ping(
                         "geometry": risk.evidence.get("geometry", ""),
                     }
                 
+                spoken_instructions = None
+                if risk.risk_type.value == "ROUTE_DEVIATION":
+                    spoken_instructions = (
+                        f"A traffic delay was detected ahead. Tell the driver now in a conversational tone: "
+                        f"'{risk.recommended_action}'. If the driver agrees to reroute, confirm and call accept_reroute."
+                    )
+                elif risk.risk_type.value == "EXCESSIVE_IDLE":
+                    spoken_instructions = (
+                        f"The driver has been stationary at their stop. Check in on them proactively: "
+                        f"'{risk.recommended_action}'. If they need help contacting the customer, call them using call_customer or log an exception."
+                    )
+                else:
+                    spoken_instructions = f"Inform the driver briefly: '{risk.recommended_action}'."
+
                 sent = await alert_service.emit_voice_alert(
                     driver_id=driver_id,
                     message=risk.recommended_action,
@@ -110,6 +124,8 @@ async def receive_location_ping(
                     risk_type=risk.risk_type.value,
                     delivery_id=risk.delivery_id,
                     route_suggestion=route_suggestion,
+                    shift_id=shift_id,
+                    spoken_instructions=spoken_instructions,
                 )
                 if sent:
                     alerts_sent.append(risk.to_dict())

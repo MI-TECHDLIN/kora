@@ -25,7 +25,7 @@ class ShiftReportView extends StatelessWidget {
     final recapText = (recap?.trim().isNotEmpty ?? false)
         ? recap!.trim()
         : report.executiveSummary;
-    final gap = const SizedBox(height: VoiceOpsSpacing.md);
+    final gap = const SizedBox(height: KoraSpacing.md);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -46,7 +46,7 @@ class ShiftReportView extends StatelessWidget {
             key: const Key('report-incidents'),
             title: 'INCIDENTS - ${report.incidents.length}',
             items: report.incidents,
-            dotColor: VoiceOpsColors.amber,
+            dotColor: KoraColors.amber,
           ),
         ],
         if (report.routeIssues.isNotEmpty) ...[
@@ -55,7 +55,7 @@ class ShiftReportView extends StatelessWidget {
             key: const Key('report-route-issues'),
             title: 'ROUTE NOTES',
             items: report.routeIssues,
-            dotColor: VoiceOpsColors.blue,
+            dotColor: KoraColors.blue,
           ),
         ],
         if (report.recommendations case final note?) ...[
@@ -78,16 +78,16 @@ class RecapCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             live ? 'SHIFT SUMMARY - LIVE' : "CO-RIDER'S RECAP",
-            style: VoiceOpsText.caption,
+            style: KoraText.caption,
           ),
-          const SizedBox(height: VoiceOpsSpacing.md),
-          Text(text, style: VoiceOpsText.body),
+          const SizedBox(height: KoraSpacing.md),
+          Text(text, style: KoraText.body),
         ],
       ),
     );
@@ -104,39 +104,39 @@ class _SuccessCard extends StatelessWidget {
     final percent = report.successRate.round();
     return GlassCard(
       key: const Key('report-success'),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Row(
         children: [
           Semantics(
             label: '$percent percent success rate',
             excludeSemantics: true,
             child: SizedBox.square(
-              dimension: VoiceOpsSize.successRing,
+              dimension: KoraSize.successRing,
               child: TweenAnimationBuilder<double>(
                 tween: Tween(end: report.successRate / 100),
-                duration: VoiceOpsMotion.slow,
-                curve: VoiceOpsMotion.standard,
+                duration: KoraMotion.slow,
+                curve: KoraMotion.standard,
                 builder: (context, value, child) =>
                     CustomPaint(painter: _RingPainter(value), child: child),
                 child: Center(
-                  child: Text('$percent%', style: VoiceOpsText.numericCompact),
+                  child: Text('$percent%', style: KoraText.numericCompact),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: VoiceOpsSpacing.lg),
+          const SizedBox(width: KoraSpacing.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SUCCESS RATE', style: VoiceOpsText.caption),
-                const SizedBox(height: VoiceOpsSpacing.xs),
+                Text('SUCCESS RATE', style: KoraText.caption),
+                const SizedBox(height: KoraSpacing.xs),
                 Text(
                   report.totalDeliveries == 0
                       ? 'No stops on this shift'
                       : '${report.deliveredCount} of '
                             '${report.totalDeliveries} delivered',
-                  style: VoiceOpsText.title,
+                  style: KoraText.title,
                 ),
               ],
             ),
@@ -155,12 +155,12 @@ class _RingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const stroke = VoiceOpsSize.successRingStroke;
+    const stroke = KoraSize.successRingStroke;
     final rect = (Offset.zero & size).deflate(stroke / 2);
     final track = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
-      ..color = VoiceOpsColors.divider;
+      ..color = KoraColors.divider;
     canvas.drawArc(rect, 0, math.pi * 2, false, track);
     if (progress <= 0) return;
     // Start the sweep a cap's width before 12 o'clock so the round start
@@ -171,7 +171,7 @@ class _RingPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
-        colors: const [VoiceOpsColors.primary, VoiceOpsColors.success],
+        colors: const [KoraColors.primary, KoraColors.success],
         transform: GradientRotation(-math.pi / 2 - cap),
       ).createShader(rect);
     canvas.drawArc(
@@ -200,43 +200,43 @@ class _StatGrid extends StatelessWidget {
     final stats = <_Stat>[
       (
         icon: TablerIcons.circleCheck,
-        color: VoiceOpsColors.success,
+        color: KoraColors.success,
         value: '${report.deliveredCount}',
         label: 'Delivered',
       ),
       (
         icon: TablerIcons.circleX,
-        color: VoiceOpsColors.pink,
+        color: KoraColors.pink,
         value: '${report.failedCount}',
         label: 'Failed',
       ),
       (
         icon: TablerIcons.hourglass,
-        color: VoiceOpsColors.amber,
+        color: KoraColors.amber,
         value: '${report.remainingCount}',
         label: 'Remaining',
       ),
       if (duration != null)
         (
           icon: TablerIcons.clockHour4,
-          color: VoiceOpsColors.blue,
+          color: KoraColors.blue,
           value: formatShiftDuration(duration),
           label: 'On shift',
         )
       else if (report.voiceSessions case final sessions?)
         (
           icon: TablerIcons.microphone,
-          color: VoiceOpsColors.primaryLight,
+          color: KoraColors.primaryLight,
           value: '$sessions',
           label: 'Voice check-ins',
         ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = (constraints.maxWidth - VoiceOpsSpacing.md) / 2;
+        final width = (constraints.maxWidth - KoraSpacing.md) / 2;
         return Wrap(
-          spacing: VoiceOpsSpacing.md,
-          runSpacing: VoiceOpsSpacing.md,
+          spacing: KoraSpacing.md,
+          runSpacing: KoraSpacing.md,
           children: [
             for (final stat in stats)
               SizedBox(
@@ -261,27 +261,27 @@ class _StatTile extends StatelessWidget {
       key: Key('stat-${stat.label}'),
       frosted: false,
       shadow: false,
-      borderRadius: VoiceOpsRadius.control,
-      padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+      borderRadius: KoraRadius.control,
+      padding: const EdgeInsets.all(KoraSpacing.md),
       child: Semantics(
         label: '${stat.label}: ${stat.value}',
         excludeSemantics: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(stat.icon, size: VoiceOpsSize.iconMd, color: stat.color),
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            Icon(stat.icon, size: KoraSize.iconMd, color: stat.color),
+            const SizedBox(height: KoraSpacing.sm),
             Text(
               stat.value,
-              style: VoiceOpsText.numericCompact,
+              style: KoraText.numericCompact,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: VoiceOpsSpacing.xs),
+            const SizedBox(height: KoraSpacing.xs),
             Text(
               stat.label,
-              style: VoiceOpsText.label.copyWith(
-                color: VoiceOpsColors.textMuted,
+              style: KoraText.label.copyWith(
+                color: KoraColors.textMuted,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -317,53 +317,53 @@ class _SentimentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       key: const Key('report-sentiment'),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('HOW THE SHIFT FELT', style: VoiceOpsText.caption),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          Text('HOW THE SHIFT FELT', style: KoraText.caption),
+          const SizedBox(height: KoraSpacing.sm),
           Row(
             children: [
               Icon(
                 TablerIcons.moodSmile,
-                size: VoiceOpsSize.iconMd,
-                color: VoiceOpsColors.blue,
+                size: KoraSize.iconMd,
+                color: KoraColors.blue,
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
-              Expanded(child: Text(_mood, style: VoiceOpsText.title)),
+              const SizedBox(width: KoraSpacing.sm),
+              Expanded(child: Text(_mood, style: KoraText.title)),
               Text(
                 '${(score * 100).round()}%',
-                style: VoiceOpsText.label.copyWith(
-                  color: VoiceOpsColors.textMuted,
+                style: KoraText.label.copyWith(
+                  color: KoraColors.textMuted,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: VoiceOpsSpacing.md),
+          const SizedBox(height: KoraSpacing.md),
           Semantics(
             label: 'Sentiment ${(score * 100).round()} percent',
             excludeSemantics: true,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+              borderRadius: BorderRadius.circular(KoraRadius.pill),
               child: SizedBox(
-                height: VoiceOpsSize.meter,
+                height: KoraSize.meter,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: VoiceOpsColors.divider),
+                    const ColoredBox(color: KoraColors.divider),
                     FractionallySizedBox(
                       alignment: Alignment.centerLeft,
                       widthFactor: score,
                       child: const DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.all(
-                            Radius.circular(VoiceOpsRadius.pill),
+                            Radius.circular(KoraRadius.pill),
                           ),
                           gradient: LinearGradient(
                             colors: [
-                              VoiceOpsColors.blue,
-                              VoiceOpsColors.success,
+                              KoraColors.blue,
+                              KoraColors.success,
                             ],
                           ),
                         ),
@@ -374,10 +374,10 @@ class _SentimentCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          const SizedBox(height: KoraSpacing.sm),
           Text(
             'How calm and confident you sounded on your voice check-ins.',
-            style: VoiceOpsText.label.copyWith(color: VoiceOpsColors.textFaint),
+            style: KoraText.label.copyWith(color: KoraColors.textFaint),
           ),
         ],
       ),
@@ -400,31 +400,31 @@ class _NoteList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: VoiceOpsText.caption),
+          Text(title, style: KoraText.caption),
           for (final item in items) ...[
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            const SizedBox(height: KoraSpacing.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   // Centres the dot on the first line of body text.
-                  padding: const EdgeInsets.only(top: VoiceOpsSpacing.sm),
+                  padding: const EdgeInsets.only(top: KoraSpacing.sm),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: dotColor,
                       shape: BoxShape.circle,
                     ),
                     child: const SizedBox.square(
-                      dimension: VoiceOpsSize.listDot,
+                      dimension: KoraSize.listDot,
                     ),
                   ),
                 ),
-                const SizedBox(width: VoiceOpsSpacing.md),
-                Expanded(child: Text(item, style: VoiceOpsText.bodyMuted)),
+                const SizedBox(width: KoraSpacing.md),
+                Expanded(child: Text(item, style: KoraText.bodyMuted)),
               ],
             ),
           ],
@@ -443,12 +443,12 @@ class _CoachNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       key: const Key('report-coach-note'),
-      fill: VoiceOpsColors.primaryTint,
+      fill: KoraColors.primaryTint,
       border: Border.all(
-        color: VoiceOpsColors.primaryGlow,
-        width: VoiceOpsGlass.borderWidth,
+        color: KoraColors.primaryGlow,
+        width: KoraGlass.borderWidth,
       ),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -456,15 +456,15 @@ class _CoachNote extends StatelessWidget {
             children: [
               Icon(
                 TablerIcons.bulb,
-                size: VoiceOpsSize.iconMd,
-                color: VoiceOpsColors.primaryLight,
+                size: KoraSize.iconMd,
+                color: KoraColors.primaryLight,
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
-              Text("COACH'S NOTE", style: VoiceOpsText.caption),
+              const SizedBox(width: KoraSpacing.sm),
+              Text("COACH'S NOTE", style: KoraText.caption),
             ],
           ),
-          const SizedBox(height: VoiceOpsSpacing.md),
-          Text(text, style: VoiceOpsText.body),
+          const SizedBox(height: KoraSpacing.md),
+          Text(text, style: KoraText.body),
         ],
       ),
     );

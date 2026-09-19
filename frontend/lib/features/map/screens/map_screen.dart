@@ -59,7 +59,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// Short screens start the card folded so the route isn't hidden under it.
   bool get _cardExpanded =>
       _cardExpandedChoice ??
-      MediaQuery.sizeOf(context).height >= VoiceOpsMap.compactHeight;
+      MediaQuery.sizeOf(context).height >= KoraMap.compactHeight;
 
   @override
   void initState() {
@@ -134,16 +134,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   EdgeInsets _fitPadding() {
     final insets = MediaQuery.paddingOf(context);
     final height = MediaQuery.sizeOf(context).height;
-    final top = insets.top + VoiceOpsMap.fitPadding + VoiceOpsSize.touchTarget;
+    final top = insets.top + KoraMap.fitPadding + KoraSize.touchTarget;
     final sheet = _sheetKey.currentContext?.size?.height ?? height * 0.4;
     final bottom =
-        insets.bottom + VoiceOpsSpacing.sm + sheet + VoiceOpsSpacing.lg;
+        insets.bottom + KoraSpacing.sm + sheet + KoraSpacing.lg;
     return EdgeInsets.fromLTRB(
-      VoiceOpsMap.fitPadding,
+      KoraMap.fitPadding,
       top,
-      VoiceOpsMap.fitPadding,
+      KoraMap.fitPadding,
       // A tall card on a small phone still leaves some map to fit into.
-      math.min(bottom, height * (1 - VoiceOpsMap.minFitShare) - top),
+      math.min(bottom, height * (1 - KoraMap.minFitShare) - top),
     );
   }
 
@@ -159,12 +159,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         fix != null &&
         target != null &&
         const Distance().distance(fix.point, target) <=
-            VoiceOpsMap.maxFitDriverMetres;
+            KoraMap.maxFitDriverMetres;
     _map.fitCamera(
       CameraFit.coordinates(
         coordinates: [...coordinates, if (includeDriver) fix.point],
         padding: _fitPadding(),
-        maxZoom: VoiceOpsMap.maxFitZoom,
+        maxZoom: KoraMap.maxFitZoom,
       ),
     );
   }
@@ -176,8 +176,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       CameraFit.coordinates(
         coordinates: [point],
         padding: _fitPadding(),
-        minZoom: VoiceOpsMap.followZoom,
-        maxZoom: VoiceOpsMap.followZoom,
+        minZoom: KoraMap.followZoom,
+        maxZoom: KoraMap.followZoom,
       ),
     );
   }
@@ -220,8 +220,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   route?.target?.point ??
                   MapScreen.fallbackCenter,
               initialZoom: fix == null
-                  ? VoiceOpsMap.initialZoom
-                  : VoiceOpsMap.followZoom,
+                  ? KoraMap.initialZoom
+                  : KoraMap.followZoom,
               backgroundColor: mapStyle.ground,
               // North stays up: easier to read at a glance on a bike mount.
               interactionOptions: const InteractionOptions(
@@ -241,10 +241,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   polylines: [
                     Polyline(
                       points: route.line,
-                      strokeWidth: VoiceOpsMap.routeWidth,
-                      color: VoiceOpsColors.primary,
-                      borderStrokeWidth: VoiceOpsMap.routeCasingWidth,
-                      borderColor: VoiceOpsColors.primaryDark,
+                      strokeWidth: KoraMap.routeWidth,
+                      color: KoraColors.primary,
+                      borderStrokeWidth: KoraMap.routeCasingWidth,
+                      borderColor: KoraColors.primaryDark,
                     ),
                   ],
                 ),
@@ -260,8 +260,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   markers: [
                     Marker(
                       point: fix.point,
-                      width: VoiceOpsMap.positionHalo,
-                      height: VoiceOpsMap.positionHalo,
+                      width: KoraMap.positionHalo,
+                      height: KoraMap.positionHalo,
                       child: PositionMarker(
                         heading: heading,
                         vehicleMode: vehicleMode,
@@ -277,14 +277,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           top: 0,
           left: 0,
           right: 0,
-          height: insets.top + VoiceOpsSpacing.xxl,
+          height: insets.top + KoraSpacing.xxl,
           child: const IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [VoiceOpsColors.scrim, Colors.transparent],
+                  colors: [KoraColors.scrim, Colors.transparent],
                 ),
               ),
             ),
@@ -293,12 +293,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // Top row: the floating co-rider sits at the left (MascotOverlay),
         // so status chips start after it; recenter sits at the right.
         Positioned(
-          top: insets.top + VoiceOpsSpacing.md,
+          top: insets.top + KoraSpacing.md,
           left:
-              VoiceOpsSpacing.gutter +
-              VoiceOpsSize.orbBubble +
-              VoiceOpsSpacing.sm,
-          right: VoiceOpsSpacing.gutter,
+              KoraSpacing.gutter +
+              KoraSize.orbBubble +
+              KoraSpacing.sm,
+          right: KoraSpacing.gutter,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -308,7 +308,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   child: _LocationStatus(location: location),
                 ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               _RoundGlassButton(
                 icon: route != null
                     ? TablerIcons.arrowsMinimize
@@ -322,10 +322,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
         ),
         Positioned(
-          left: VoiceOpsSpacing.gutter,
-          right: VoiceOpsSpacing.gutter,
+          left: KoraSpacing.gutter,
+          right: KoraSpacing.gutter,
           // Scaffold.extendBody puts the bottom nav's height in the padding.
-          bottom: insets.bottom + VoiceOpsSpacing.sm,
+          bottom: insets.bottom + KoraSpacing.sm,
           child: NotificationListener<SizeChangedLayoutNotification>(
             key: const Key('map-bottom-sheet'),
             onNotification: _onSheetResized,
@@ -352,7 +352,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Marker _stopMarker(RouteStop stop, {required bool active}) {
-    final size = active ? VoiceOpsMap.stopPinActive : VoiceOpsMap.stopPin;
+    final size = active ? KoraMap.stopPinActive : KoraMap.stopPin;
     final who = stop.recipientName ?? stop.address ?? 'Delivery stop';
     return Marker(
       key: ValueKey('stop-${stop.deliveryId}'),
@@ -399,7 +399,7 @@ class _LocationStatus extends ConsumerWidget {
         final asks = problem == LocationProblem.denied;
         return MapChip(
           icon: TablerIcons.mapPinOff,
-          tone: VoiceOpsColors.amber,
+          tone: KoraColors.amber,
           message: error is LocationUnavailable
               ? error.message
               : const LocationUnavailable(LocationProblem.unavailable).message,
@@ -441,14 +441,14 @@ class _RoundGlassButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: GlassCard(
-          borderRadius: VoiceOpsRadius.pill,
-          fill: VoiceOpsColors.raised.withValues(alpha: 0.88),
+          borderRadius: KoraRadius.pill,
+          fill: KoraColors.raised.withValues(alpha: 0.88),
           child: SizedBox.square(
-            dimension: VoiceOpsSize.touchTarget,
+            dimension: KoraSize.touchTarget,
             child: Icon(
               icon,
-              size: VoiceOpsSize.iconMd,
-              color: VoiceOpsColors.textPrimary,
+              size: KoraSize.iconMd,
+              color: KoraColors.textPrimary,
             ),
           ),
         ),

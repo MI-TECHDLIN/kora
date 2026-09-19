@@ -25,7 +25,7 @@ class StopPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = active ? VoiceOpsMap.stopPinActive : VoiceOpsMap.stopPin;
+    final size = active ? KoraMap.stopPinActive : KoraMap.stopPin;
     return Semantics(
       button: onTap != null,
       label: semanticLabel,
@@ -33,23 +33,23 @@ class StopPin extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: VoiceOpsMotion.base,
-          curve: VoiceOpsMotion.standard,
+          duration: KoraMotion.base,
+          curve: KoraMotion.standard,
           width: size,
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? VoiceOpsColors.primary : VoiceOpsColors.elevated,
+            color: active ? KoraColors.primary : KoraColors.elevated,
             border: Border.all(
               color: active
-                  ? VoiceOpsColors.primaryLight
-                  : VoiceOpsColors.primary,
-              width: VoiceOpsGlass.borderWidth * 2,
+                  ? KoraColors.primaryLight
+                  : KoraColors.primary,
+              width: KoraGlass.borderWidth * 2,
             ),
             boxShadow: const [
               BoxShadow(
-                color: VoiceOpsColors.primaryGlow,
+                color: KoraColors.primaryGlow,
                 blurRadius: 12,
                 offset: Offset(0, 4),
               ),
@@ -58,13 +58,13 @@ class StopPin extends StatelessWidget {
           child: label.isEmpty
               ? Icon(
                   TablerIcons.package,
-                  size: VoiceOpsSize.iconSm,
-                  color: VoiceOpsColors.onPrimary,
+                  size: KoraSize.iconSm,
+                  color: KoraColors.onPrimary,
                 )
               : Text(
                   label,
-                  style: VoiceOpsText.label.copyWith(
-                    color: VoiceOpsColors.onPrimary,
+                  style: KoraText.label.copyWith(
+                    color: KoraColors.onPrimary,
                   ),
                 ),
         ),
@@ -92,32 +92,32 @@ class PositionMarker extends StatelessWidget {
     return Semantics(
       label: 'Your location',
       child: Container(
-        width: VoiceOpsMap.positionHalo,
-        height: VoiceOpsMap.positionHalo,
+        width: KoraMap.positionHalo,
+        height: KoraMap.positionHalo,
         alignment: Alignment.center,
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: VoiceOpsColors.primaryTint,
+          color: KoraColors.primaryTint,
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
             Container(
-              width: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
-              height: VoiceOpsMap.positionDot + VoiceOpsSpacing.sm,
+              width: KoraMap.positionDot + KoraSpacing.sm,
+              height: KoraMap.positionDot + KoraSpacing.sm,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: VoiceOpsColors.primary,
+                color: KoraColors.primary,
                 border: Border.all(
-                  color: VoiceOpsColors.onPrimary,
-                  width: VoiceOpsGlass.borderWidth * 2,
+                  color: KoraColors.onPrimary,
+                  width: KoraGlass.borderWidth * 2,
                 ),
               ),
               child: Icon(
                 vehicleMode.icon,
-                size: VoiceOpsSize.iconSm,
-                color: VoiceOpsColors.onPrimary,
+                size: KoraSize.iconSm,
+                color: KoraColors.onPrimary,
               ),
             ),
             if (heading != null)
@@ -125,13 +125,13 @@ class PositionMarker extends StatelessWidget {
                 key: const Key('vehicle-heading'),
                 angle: heading * math.pi / 180,
                 child: const SizedBox.square(
-                  dimension: VoiceOpsMap.headingRing,
+                  dimension: KoraMap.headingRing,
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Icon(
                       TablerIcons.navigationFilled,
-                      size: VoiceOpsMap.headingArrow,
-                      color: VoiceOpsColors.onPrimary,
+                      size: KoraMap.headingArrow,
+                      color: KoraColors.onPrimary,
                     ),
                   ),
                 ),

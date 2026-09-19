@@ -102,7 +102,7 @@ void main() {
   /// Lets the card finish resizing and the camera re-frame after it.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
     await tester.pump();
   }
 
@@ -120,7 +120,7 @@ void main() {
     expect(onScreen.x, inInclusiveRange(0, width), reason: '$point x');
     expect(
       onScreen.y,
-      inInclusiveRange(VoiceOpsSize.touchTarget, sheetTop),
+      inInclusiveRange(KoraSize.touchTarget, sheetTop),
       reason: '$point y',
     );
   }
@@ -149,7 +149,7 @@ void main() {
     expect(find.text('Finding your location…'), findsNothing);
     expect(find.byType(PositionMarker), findsOneWidget);
     expectInClearView(tester, _nearStops);
-    expect(camera(tester).zoom, VoiceOpsMap.followZoom);
+    expect(camera(tester).zoom, KoraMap.followZoom);
 
     // A moving position, not a static pin.
     location.emit(const LocationFix(_furtherOn, heading: 90));
@@ -200,7 +200,7 @@ void main() {
       for (final point in [...route.coordinates, _nearStops]) {
         expectInClearView(tester, point);
       }
-      expect(camera(tester).zoom, lessThanOrEqualTo(VoiceOpsMap.maxFitZoom));
+      expect(camera(tester).zoom, lessThanOrEqualTo(KoraMap.maxFitZoom));
 
       // The camera stays on the route while the driver moves.
       final framed = camera(tester).center;
@@ -264,7 +264,7 @@ void main() {
       tester,
       MapRoute.fromJson(noRoadMapRoute()).target!.point,
     );
-    expect(camera(tester).zoom, VoiceOpsMap.maxFitZoom);
+    expect(camera(tester).zoom, KoraMap.maxFitZoom);
   });
 
   testWidgets('"where am I" follows the driver again; the route stays', (
@@ -279,7 +279,7 @@ void main() {
     container.read(mapFocusProvider.notifier).followDriver();
     await settle(tester);
     expectInClearView(tester, _nearStops);
-    expect(camera(tester).zoom, VoiceOpsMap.followZoom);
+    expect(camera(tester).zoom, KoraMap.followZoom);
     expect(find.byType(PolylineLayer), findsOneWidget);
     location.emit(const LocationFix(_furtherOn));
     await settle(tester);
@@ -413,13 +413,20 @@ void main() {
     await pump(tester, const SettingsScreen());
     await settle(tester);
     expect(find.byKey(const Key('co-rider-voice-selector')), findsOneWidget);
-    expect(find.text('Applies to your next conversation.'), findsOneWidget);
+    expect(find.text('Your co-rider speaks as Anna.'), findsOneWidget);
     // Nothing saved: Anna, matching the backend's default.
     expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
 
     final michael = find.bySemanticsLabel('Michael');
     await tester.ensureVisible(michael);
     await tester.tap(michael);
+    await settle(tester);
+    // Only a draft until Save.
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
+    expect(voiceStore.value, isNull);
+    final save = find.byKey(const Key('co-rider-voice-save'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
     await settle(tester);
     expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
     expect(voiceStore.value, CoRiderVoice.michael);
@@ -567,12 +574,12 @@ void main() {
     Color skeleton() => tester
         .widget<ColoredBox>(find.byKey(const Key('map-loading-skeleton')))
         .color;
-    expect(skeleton(), VoiceOpsColors.mapGroundDark);
+    expect(skeleton(), KoraColors.mapGroundDark);
 
     container.read(mapStyleProvider.notifier).select(MapStyle.light);
     await tester.pump();
     // No dark placeholder flashing ahead of a light map.
-    expect(skeleton(), VoiceOpsColors.mapGroundLight);
+    expect(skeleton(), KoraColors.mapGroundLight);
   });
 
   group('live tiles', () {
@@ -657,7 +664,7 @@ void main() {
             home: FlutterMap(
               options: const MapOptions(
                 initialCenter: MapScreen.fallbackCenter,
-                initialZoom: VoiceOpsMap.followZoom,
+                initialZoom: KoraMap.followZoom,
               ),
               children: const [OpenFreeMapLayer()],
             ),
@@ -674,7 +681,7 @@ void main() {
       expect(requested, [MapStyle.dark]);
       expect(layer().theme.id, openFreeMapThemeId(MapStyle.dark));
       expect(layer().layerMode, VectorTileLayerMode.raster);
-      expect(ground(), VoiceOpsColors.mapGroundDark);
+      expect(ground(), KoraColors.mapGroundDark);
       // Under live tiles there is only the style's ground: no fake streets
       // to show through a tile that is still rendering.
       expect(find.byKey(const Key('map-loading-skeleton')), findsNothing);
@@ -687,7 +694,7 @@ void main() {
       expect(requested, [MapStyle.dark, MapStyle.light]);
       expect(MapStyle.light.url, endsWith('/styles/positron'));
       expect(layer().theme.id, openFreeMapThemeId(MapStyle.light));
-      expect(ground(), VoiceOpsColors.mapGroundLight);
+      expect(ground(), KoraColors.mapGroundLight);
       // A new tile layer, so no tile rendered in the dark style lingers.
       expect(tester.state(find.byType(TileLayer)), isNot(same(darkTiles)));
 

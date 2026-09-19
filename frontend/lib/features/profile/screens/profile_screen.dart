@@ -25,10 +25,10 @@ class ProfileScreen extends ConsumerWidget {
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSpacing.sm,
-          VoiceOpsSpacing.gutter,
-          VoiceOpsSpacing.xl,
+          KoraSpacing.gutter,
+          KoraSpacing.sm,
+          KoraSpacing.gutter,
+          KoraSpacing.xl,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,15 +43,15 @@ class ProfileScreen extends ConsumerWidget {
                       : context.go(AppRoutes.voice),
                   icon: const Icon(
                     TablerIcons.arrowLeft,
-                    size: VoiceOpsSize.iconLg,
-                    color: VoiceOpsColors.textPrimary,
+                    size: KoraSize.iconLg,
+                    color: KoraColors.textPrimary,
                   ),
                 ),
-                const SizedBox(width: VoiceOpsSpacing.xs),
-                Text('Profile', style: VoiceOpsText.headline),
+                const SizedBox(width: KoraSpacing.xs),
+                Text('Profile', style: KoraText.headline),
               ],
             ),
-            const SizedBox(height: VoiceOpsSpacing.lg),
+            const SizedBox(height: KoraSpacing.lg),
             ...profile.when(
               loading: () => [
                 const _StatusCard(
@@ -75,13 +75,13 @@ class ProfileScreen extends ConsumerWidget {
               ],
               data: (driver) => [
                 _Identity(driver: driver),
-                const SizedBox(height: VoiceOpsSpacing.xl),
-                Text('YOUR DETAILS', style: VoiceOpsText.caption),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                const SizedBox(height: KoraSpacing.xl),
+                Text('YOUR DETAILS', style: KoraText.caption),
+                const SizedBox(height: KoraSpacing.sm),
                 _DetailsCard(driver: driver),
-                const SizedBox(height: VoiceOpsSpacing.xl),
-                Text('YOUR COMPANY', style: VoiceOpsText.caption),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                const SizedBox(height: KoraSpacing.xl),
+                Text('YOUR COMPANY', style: KoraText.caption),
+                const SizedBox(height: KoraSpacing.sm),
                 _CompanyCard(driverId: driver.id),
               ],
             ),
@@ -104,26 +104,26 @@ class _Identity extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: VoiceOpsSize.avatar,
-          height: VoiceOpsSize.avatar,
+          width: KoraSize.avatar,
+          height: KoraSize.avatar,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: VoiceOpsColors.primaryTint,
+            color: KoraColors.primaryTint,
           ),
           child: const Icon(
             TablerIcons.user,
-            size: VoiceOpsSize.iconLg,
-            color: VoiceOpsColors.primaryLight,
+            size: KoraSize.iconLg,
+            color: KoraColors.primaryLight,
           ),
         ),
-        const SizedBox(width: VoiceOpsSpacing.md),
+        const SizedBox(width: KoraSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 driver.name ?? 'Add your name',
-                style: VoiceOpsText.title,
+                style: KoraText.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -132,7 +132,7 @@ class _Identity extends StatelessWidget {
                     ? 'Your co-rider for every route'
                     : 'Driving with Kora since ${monthYear(since)}',
                 key: const Key('profile-since'),
-                style: VoiceOpsText.bodyMuted,
+                style: KoraText.bodyMuted,
               ),
             ],
           ),
@@ -220,7 +220,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
     final vehicle = ref.watch(vehicleModeProvider);
     return GlassCard(
       key: const Key('profile-details'),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Form(
         key: _form,
         child: Column(
@@ -241,7 +241,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
                   : null,
               onSubmitted: (_) => _changed && !_saving ? _save() : null,
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             PrimaryButton(
               key: const Key('profile-save'),
               label: _saving ? 'Saving…' : 'Save name',
@@ -250,10 +250,10 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
               onPressed: _changed && !_saving ? _save : null,
             ),
             if (_outcome case final outcome?) ...[
-              const SizedBox(height: VoiceOpsSpacing.sm),
+              const SizedBox(height: KoraSpacing.sm),
               _OutcomeLine(outcome, key: const Key('profile-save-result')),
             ],
-            const SizedBox(height: VoiceOpsSpacing.lg),
+            const SizedBox(height: KoraSpacing.lg),
             _ReadOnlyRow(
               key: const Key('profile-phone'),
               icon: TablerIcons.phone,
@@ -262,11 +262,11 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
               note: 'Your sign-in number. It can’t be changed here.',
               trailing: const Icon(
                 TablerIcons.lock,
-                size: VoiceOpsSize.iconSm,
-                color: VoiceOpsColors.textFaint,
+                size: KoraSize.iconSm,
+                color: KoraColors.textFaint,
               ),
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             _ReadOnlyRow(
               key: const Key('profile-vehicle'),
               icon: vehicle.icon,
@@ -276,16 +276,16 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
                 key: const Key('profile-vehicle-settings'),
                 onPressed: () => context.go(AppRoutes.settings),
                 style: TextButton.styleFrom(
-                  foregroundColor: VoiceOpsColors.primaryLight,
+                  foregroundColor: KoraColors.primaryLight,
                   minimumSize: const Size(
-                    VoiceOpsSize.touchTarget,
-                    VoiceOpsSize.touchTarget,
+                    KoraSize.touchTarget,
+                    KoraSize.touchTarget,
                   ),
                 ),
                 child: Text(
                   'Change',
-                  style: VoiceOpsText.label.copyWith(
-                    color: VoiceOpsColors.primaryLight,
+                  style: KoraText.label.copyWith(
+                    color: KoraColors.primaryLight,
                   ),
                 ),
               ),
@@ -359,7 +359,7 @@ class _CompanyCardState extends ConsumerState<_CompanyCard> {
     final connection = stored.valueOrNull;
     return GlassCard(
       key: const Key('profile-company'),
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Form(
         key: _form,
         child: Column(
@@ -381,7 +381,7 @@ class _CompanyCardState extends ConsumerState<_CompanyCard> {
                   ? null
                   : 'Linked ${_date(connection.connectedAt!)}',
             ),
-            const SizedBox(height: VoiceOpsSpacing.lg),
+            const SizedBox(height: KoraSpacing.lg),
             AuthTextField(
               key: const Key('profile-connect-code'),
               label: connection == null ? 'Connect code' : 'New connect code',
@@ -396,7 +396,7 @@ class _CompanyCardState extends ConsumerState<_CompanyCard> {
                   : 'Enter the 6 digits from your dispatcher.',
               onSubmitted: (_) => _connect(),
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             PrimaryButton(
               key: const Key('profile-connect'),
               label: _connecting ? 'Connecting…' : 'Connect company',
@@ -405,7 +405,7 @@ class _CompanyCardState extends ConsumerState<_CompanyCard> {
               onPressed: _connecting ? null : _connect,
             ),
             if (_outcome case final outcome?) ...[
-              const SizedBox(height: VoiceOpsSpacing.sm),
+              const SizedBox(height: KoraSpacing.sm),
               _OutcomeLine(outcome, key: const Key('profile-connect-result')),
             ],
           ],
@@ -445,8 +445,8 @@ class _OutcomeLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = outcome.succeeded
-        ? VoiceOpsColors.success
-        : VoiceOpsColors.danger;
+        ? KoraColors.success
+        : KoraColors.danger;
     return Semantics(
       liveRegion: true,
       child: Row(
@@ -456,14 +456,14 @@ class _OutcomeLine extends StatelessWidget {
             outcome.succeeded
                 ? TablerIcons.circleCheck
                 : TablerIcons.alertCircle,
-            size: VoiceOpsSize.iconSm,
+            size: KoraSize.iconSm,
             color: color,
           ),
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          const SizedBox(width: KoraSpacing.sm),
           Expanded(
             child: Text(
               outcome.message,
-              style: VoiceOpsText.label.copyWith(color: color),
+              style: KoraText.label.copyWith(color: color),
             ),
           ),
         ],
@@ -493,25 +493,25 @@ class _ReadOnlyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: VoiceOpsSize.iconMd, color: VoiceOpsColors.textFaint),
-        const SizedBox(width: VoiceOpsSpacing.md),
+        Icon(icon, size: KoraSize.iconMd, color: KoraColors.textFaint),
+        const SizedBox(width: KoraSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: VoiceOpsText.label.copyWith(
-                  color: VoiceOpsColors.textMuted,
+                style: KoraText.label.copyWith(
+                  color: KoraColors.textMuted,
                 ),
               ),
-              Text(value, style: VoiceOpsText.body),
-              if (note != null) Text(note!, style: VoiceOpsText.caption),
+              Text(value, style: KoraText.body),
+              if (note != null) Text(note!, style: KoraText.caption),
             ],
           ),
         ),
         if (trailing != null) ...[
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          const SizedBox(width: KoraSpacing.sm),
           trailing!,
         ],
       ],
@@ -539,13 +539,13 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ReadOnlyRow(icon: icon, label: title, value: message),
           if (actionLabel != null) ...[
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             PrimaryButton(
               label: actionLabel!,
               icon: TablerIcons.refresh,

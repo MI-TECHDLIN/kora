@@ -11,7 +11,7 @@ import '../theme/tokens.dart';
 /// The central interaction of the app: a large circular push-to-talk
 /// button. State comes from [pushToTalkProvider], never local widget state,
 /// and each of the four states has its own fill, icon and motion so the
-/// driver can read it at a glance. Only `recording` is lime ([VoiceOpsColors.live]).
+/// driver can read it at a glance. Only `recording` is lime ([KoraColors.live]).
 ///
 /// A tap goes to the voice session ([onPressed] overrides it): idle starts
 /// the mic, recording sends the turn, speaking interrupts the co-rider.
@@ -19,9 +19,9 @@ class PushToTalkButton extends ConsumerStatefulWidget {
   const PushToTalkButton({
     super.key,
     this.onPressed,
-    this.size = VoiceOpsSize.pushToTalk,
+    this.size = KoraSize.pushToTalk,
   }) : assert(
-         size >= VoiceOpsSize.pushToTalkMin,
+         size >= KoraSize.pushToTalkMin,
          'push-to-talk must stay at least 80×80',
        );
 
@@ -84,8 +84,8 @@ class _PushToTalkButtonState extends ConsumerState<PushToTalkButton>
         child: CustomPaint(
           painter: _PttHaloPainter(state: state, progress: _loop),
           child: AnimatedContainer(
-            duration: VoiceOpsMotion.base,
-            curve: VoiceOpsMotion.standard,
+            duration: KoraMotion.base,
+            curve: KoraMotion.standard,
             width: widget.size,
             height: widget.size,
             decoration: BoxDecoration(
@@ -94,7 +94,7 @@ class _PushToTalkButtonState extends ConsumerState<PushToTalkButton>
               gradient: look.gradient,
               border: Border.all(
                 color: look.border,
-                width: VoiceOpsGlass.borderWidth * 2,
+                width: KoraGlass.borderWidth * 2,
               ),
               boxShadow: [
                 BoxShadow(
@@ -105,11 +105,11 @@ class _PushToTalkButtonState extends ConsumerState<PushToTalkButton>
               ],
             ),
             child: AnimatedSwitcher(
-              duration: VoiceOpsMotion.fast,
+              duration: KoraMotion.fast,
               child: Icon(
                 look.icon,
                 key: ValueKey(state),
-                size: VoiceOpsSize.iconXl,
+                size: KoraSize.iconXl,
                 color: look.ink,
               ),
             ),
@@ -144,45 +144,45 @@ class _PttLook {
     // Resting brand violet.
     PushToTalkState.idle => const _PttLook(
       icon: TablerIcons.microphone,
-      ink: VoiceOpsColors.onPrimary,
+      ink: KoraColors.onPrimary,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [VoiceOpsColors.primary, VoiceOpsColors.primaryDark],
+        colors: [KoraColors.primary, KoraColors.primaryDark],
       ),
-      border: VoiceOpsGlass.border,
-      glow: VoiceOpsColors.primaryGlow,
+      border: KoraGlass.border,
+      glow: KoraColors.primaryGlow,
       semanticLabel: 'Push to talk',
     ),
     // Mic hot — the one place lime is allowed.
     PushToTalkState.recording => const _PttLook(
       icon: TablerIcons.microphoneFilled,
-      ink: VoiceOpsColors.onLive,
-      fill: VoiceOpsColors.live,
-      border: VoiceOpsColors.live,
-      glow: VoiceOpsColors.liveGlow,
+      ink: KoraColors.onLive,
+      fill: KoraColors.live,
+      border: KoraColors.live,
+      glow: KoraColors.liveGlow,
       semanticLabel: 'Recording. Tap to stop',
     ),
     // Dark, outlined, with a sweeping arc: working, mic off.
     PushToTalkState.processing => const _PttLook(
       icon: TablerIcons.loader2,
-      ink: VoiceOpsColors.primaryLight,
-      fill: VoiceOpsColors.elevated,
-      border: VoiceOpsColors.primaryTint,
-      glow: VoiceOpsColors.primaryTint,
+      ink: KoraColors.primaryLight,
+      fill: KoraColors.elevated,
+      border: KoraColors.primaryTint,
+      glow: KoraColors.primaryTint,
       semanticLabel: 'Working on it',
     ),
     // Co-rider talking: light violet with a breathing ring.
     PushToTalkState.speaking => const _PttLook(
       icon: TablerIcons.waveSine,
-      ink: VoiceOpsColors.onAccent,
+      ink: KoraColors.onAccent,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [VoiceOpsColors.primaryLight, VoiceOpsColors.primary],
+        colors: [KoraColors.primaryLight, KoraColors.primary],
       ),
-      border: VoiceOpsColors.primaryLight,
-      glow: VoiceOpsColors.primaryGlow,
+      border: KoraColors.primaryLight,
+      glow: KoraColors.primaryGlow,
       semanticLabel: 'Co-rider speaking. Tap to interrupt',
     ),
   };
@@ -215,7 +215,7 @@ class _PttHaloPainter extends CustomPainter {
             Paint()
               ..style = PaintingStyle.stroke
               ..strokeWidth = 3
-              ..color = VoiceOpsColors.live.withValues(alpha: 0.55 * (1 - p)),
+              ..color = KoraColors.live.withValues(alpha: 0.55 * (1 - p)),
           );
         }
       case PushToTalkState.processing:
@@ -229,7 +229,7 @@ class _PttHaloPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3
             ..strokeCap = StrokeCap.round
-            ..color = VoiceOpsColors.primaryLight,
+            ..color = KoraColors.primaryLight,
         );
       case PushToTalkState.speaking:
         final breath = (math.sin(t * 2 * math.pi) + 1) / 2;
@@ -239,7 +239,7 @@ class _PttHaloPainter extends CustomPainter {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2
-            ..color = VoiceOpsColors.primaryLight.withValues(
+            ..color = KoraColors.primaryLight.withValues(
               alpha: 0.25 + 0.35 * breath,
             ),
         );

@@ -48,11 +48,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
 
     await container.read(voiceSessionProvider.notifier).startTalking();
     await tester.pump();
@@ -82,11 +82,11 @@ void main() {
 
       // The offer follows the driver to every tab.
       await tester.tap(find.bySemanticsLabel('Map'));
-      await tester.pump(VoiceOpsMotion.slow);
+      await tester.pump(KoraMotion.slow);
       expect(find.byType(MapScreen), findsOneWidget);
       expect(find.byType(OrderOfferCard), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Settings'));
-      await tester.pump(VoiceOpsMotion.slow);
+      await tester.pump(KoraMotion.slow);
       expect(find.byType(SettingsScreen), findsOneWidget);
       expect(find.byType(OrderOfferCard), findsOneWidget);
 
@@ -188,7 +188,7 @@ void main() {
       find.text('Offer closed because another driver took the order.'),
       findsOneWidget,
     );
-    await tester.pump(VoiceOpsMotion.notice);
+    await tester.pump(KoraMotion.notice);
     expect(find.byKey(const Key('order-offer-closed-notice')), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     container.dispose();

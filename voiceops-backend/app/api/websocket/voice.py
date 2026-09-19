@@ -159,6 +159,35 @@ async def stream_summary(shift_id: str, text: str) -> int:
     return len(sessions)
 
 
+async def present_proactive_alert(
+    driver_id: str,
+    alert_payload: dict,
+    spoken_instructions: Optional[str] = None,
+    shift_id: Optional[str] = None,
+) -> int:
+    """
+    Push PROACTIVE_ALERT to the driver's active voice session(s) and queue
+    an unprompted co-rider voice announcement via reply.create if instructions are provided.
+    Returns how many sessions received the alert.
+    """
+    targets: List["VoiceSession"] = []
+    if shift_id and shift_id in _sessions:
+        targets = [s for s in _sessions[shift_id] if s.driver_id == driver_id]
+    if not targets:
+        for s_list in _sessions.values():
+            for s in s_list:
+                if s.driver_id == driver_id:
+                    targets.append(s)
+
+    for session in targets:
+        await session.emit(alert_payload)
+        if spoken_instructions:
+            risk_type = alert_payload.get("risk_type", "alert")
+            session._announce(f"risk:{risk_type}", spoken_instructions)
+
+    return len(targets)
+
+
 class VoiceSession:
     """One app ⇄ AssemblyAI relay for one authenticated driver on one shift."""
 

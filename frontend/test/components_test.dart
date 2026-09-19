@@ -29,12 +29,12 @@ void main() {
             PillChip(
               icon: TablerIcons.route,
               label: 'Next stop',
-              accent: VoiceOpsColors.blue,
+              accent: KoraColors.blue,
             ),
             PillChip(
               icon: TablerIcons.phone,
               label: 'Call customer',
-              accent: VoiceOpsColors.pink,
+              accent: KoraColors.pink,
               filled: true,
             ),
             PrimaryButton(label: 'Get started', onPressed: null),
@@ -46,7 +46,7 @@ void main() {
     expect(find.text('Get started'), findsOneWidget);
 
     final chip = tester.getSize(find.byType(PillChip).first);
-    expect(chip.height, greaterThanOrEqualTo(VoiceOpsSize.touchTarget));
+    expect(chip.height, greaterThanOrEqualTo(KoraSize.touchTarget));
   });
 
   testWidgets('PillChip refuses the live lime accent', (tester) async {
@@ -55,7 +55,7 @@ void main() {
         const PillChip(
           icon: TablerIcons.microphone,
           label: 'Nope',
-          accent: VoiceOpsColors.live,
+          accent: KoraColors.live,
         ),
       ),
     );

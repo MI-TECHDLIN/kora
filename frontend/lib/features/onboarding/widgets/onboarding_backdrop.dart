@@ -5,9 +5,9 @@ import '../../../core/theme/tokens.dart';
 /// The mood behind each onboarding screen, in page order (PRD v4.0 §4.7):
 /// holographic editorial splash, dark navy Hook, lavender Power.
 const onboardingMoods = [
-  VoiceOpsMood.editorial,
-  VoiceOpsMood.navy,
-  VoiceOpsMood.lavender,
+  KoraMood.editorial,
+  KoraMood.navy,
+  KoraMood.lavender,
 ];
 
 /// How far [page] sits on the light lavender mood, 0 (dark) to 1 (lavender).
@@ -53,7 +53,7 @@ class OnboardingBackdrop extends StatelessWidget {
           : Stack(
               fit: StackFit.expand,
               children: [
-                for (final s in VoiceOpsMood.splashSheen)
+                for (final s in KoraMood.splashSheen)
                   Align(
                     alignment: s.at,
                     child: Transform.scale(

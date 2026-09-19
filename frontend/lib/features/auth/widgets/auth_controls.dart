@@ -11,14 +11,14 @@ class OrDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const rule = Expanded(
-      child: Divider(color: VoiceOpsColors.divider, height: 1),
+      child: Divider(color: KoraColors.divider, height: 1),
     );
     return Row(
       children: [
         rule,
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: VoiceOpsSpacing.md),
-          child: Text('Or', style: VoiceOpsText.bodyMuted),
+          padding: const EdgeInsets.symmetric(horizontal: KoraSpacing.md),
+          child: Text('Or', style: KoraText.bodyMuted),
         ),
         rule,
       ],
@@ -44,12 +44,12 @@ class GoogleButton extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: AnimatedOpacity(
-        duration: VoiceOpsMotion.fast,
+        duration: KoraMotion.fast,
         opacity: enabled ? 1 : 0.4,
         child: GlassCard(
           frosted: false,
           shadow: false,
-          borderRadius: VoiceOpsRadius.pill,
+          borderRadius: KoraRadius.pill,
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
@@ -57,25 +57,25 @@ class GoogleButton extends StatelessWidget {
               customBorder: const StadiumBorder(),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minHeight: VoiceOpsSize.control,
+                  minHeight: KoraSize.control,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: VoiceOpsSpacing.xl,
+                    horizontal: KoraSpacing.xl,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(
                         TablerIcons.brandGoogle,
-                        size: VoiceOpsSize.iconMd,
-                        color: VoiceOpsColors.textPrimary,
+                        size: KoraSize.iconMd,
+                        color: KoraColors.textPrimary,
                       ),
-                      const SizedBox(width: VoiceOpsSpacing.sm),
+                      const SizedBox(width: KoraSpacing.sm),
                       Flexible(
                         child: Text(
                           label,
-                          style: VoiceOpsText.title,
+                          style: KoraText.title,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -110,21 +110,21 @@ class AuthSwitchLink extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, VoiceOpsSize.touchTarget),
-          foregroundColor: VoiceOpsColors.primaryLight,
+          minimumSize: const Size(0, KoraSize.touchTarget),
+          foregroundColor: KoraColors.primaryLight,
           shape: const StadiumBorder(),
         ),
         child: Text.rich(
           TextSpan(
             text: '$prompt ',
-            style: VoiceOpsText.bodyMuted,
+            style: KoraText.bodyMuted,
             children: [
               TextSpan(
                 text: action,
-                style: VoiceOpsText.weight(
-                  VoiceOpsText.body,
+                style: KoraText.weight(
+                  KoraText.body,
                   FontWeight.w700,
-                ).copyWith(color: VoiceOpsColors.primaryLight),
+                ).copyWith(color: KoraColors.primaryLight),
               ),
             ],
           ),
@@ -148,23 +148,23 @@ class AuthErrorBanner extends StatelessWidget {
       child: GlassCard(
         frosted: false,
         shadow: false,
-        borderRadius: VoiceOpsRadius.control,
-        fill: VoiceOpsColors.danger.withValues(alpha: 0.10),
+        borderRadius: KoraRadius.control,
+        fill: KoraColors.danger.withValues(alpha: 0.10),
         border: Border.all(
-          color: VoiceOpsColors.danger.withValues(alpha: 0.35),
-          width: VoiceOpsGlass.borderWidth,
+          color: KoraColors.danger.withValues(alpha: 0.35),
+          width: KoraGlass.borderWidth,
         ),
-        padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+        padding: const EdgeInsets.all(KoraSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(
               TablerIcons.alertCircle,
-              size: VoiceOpsSize.iconMd,
-              color: VoiceOpsColors.danger,
+              size: KoraSize.iconMd,
+              color: KoraColors.danger,
             ),
-            const SizedBox(width: VoiceOpsSpacing.sm),
-            Expanded(child: Text(message, style: VoiceOpsText.body)),
+            const SizedBox(width: KoraSpacing.sm),
+            Expanded(child: Text(message, style: KoraText.body)),
           ],
         ),
       ),
@@ -176,9 +176,9 @@ class AuthErrorBanner extends StatelessWidget {
 /// tap or a screen change.
 SnackBar authNotice(String message) => SnackBar(
   behavior: SnackBarBehavior.floating,
-  duration: VoiceOpsMotion.notice,
-  backgroundColor: VoiceOpsColors.overlay,
+  duration: KoraMotion.notice,
+  backgroundColor: KoraColors.overlay,
   showCloseIcon: true,
-  closeIconColor: VoiceOpsColors.textMuted,
-  content: Text(message, style: VoiceOpsText.body),
+  closeIconColor: KoraColors.textMuted,
+  content: Text(message, style: KoraText.body),
 );

@@ -82,7 +82,7 @@ class LemurIntelligencePipeline:
             lines.append("Driver: Start shift. All deliveries loaded.")
             lines.append("VoiceOps Assistant: Shift started. 12 stops planned.")
             lines.append("Driver: Next stop please.")
-            lines.append("VoiceOps Assistant: Stop 1 is 14 Broad Street, Lagos Island.")
+            lines.append("VoiceOps Assistant: Stop 1 is 812 Lavaca St, Austin.")
             lines.append("Driver: Delivered. Next stop.")
             lines.append("VoiceOps Assistant: Marked delivered. Proceeding to stop 2.")
 
@@ -91,7 +91,8 @@ class LemurIntelligencePipeline:
     async def analyze_with_lemur(
         self,
         transcript: str,
-        shift_stats: Dict[str, Any]
+        shift_stats: Dict[str, Any],
+        deliveries: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Send transcript to AssemblyAI LeMUR for multi-factor post-shift intelligence.
@@ -133,6 +134,7 @@ class LemurIntelligencePipeline:
                     if json_match:
                         parsed = json.loads(json_match.group(0))
                         parsed["lemur_source"] = "assemblyai_lemur_api"
+                        parsed["is_estimated"] = False
                         return parsed
                     return {
                         "executive_summary": raw_response[:300],
@@ -140,21 +142,24 @@ class LemurIntelligencePipeline:
                         "incidents": [],
                         "route_issues": [],
                         "recommendations": raw_response[300:600] if len(raw_response) > 300 else raw_response,
-                        "lemur_source": "assemblyai_lemur_api"
+                        "lemur_source": "assemblyai_lemur_api",
+                        "is_estimated": False
                     }
         except Exception as e:
             logger.warning(f"AssemblyAI LeMUR direct API call skipped/fallback: {e}")
 
         # Intelligent NLP Fallback (Extracts sentiments, incidents, and recommendations)
-        return self._fallback_nlp_analysis(transcript, shift_stats)
+        return self._fallback_nlp_analysis(transcript, shift_stats, deliveries=deliveries)
 
     def _fallback_nlp_analysis(
         self,
         transcript: str,
-        shift_stats: Dict[str, Any]
+        shift_stats: Dict[str, Any],
+        deliveries: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Deterministic NLP analysis engine providing identical schema when LeMUR API is unreachable.
+        Derives route issues dynamically from actual delivery addresses instead of hardcoded city lists.
         """
         lower = transcript.lower()
 
@@ -171,12 +176,19 @@ class LemurIntelligencePipeline:
         if "dispatcher" in lower or "alert" in lower:
             incidents.append("Dispatcher priority escalation raised")
 
-        # Extract locations / route issues
+        # Extract locations / route issues dynamically from shift deliveries
         route_issues = []
-        lagos_locations = ["broad street", "marina", "victoria island", "ikoyi", "lekki", "yaba", "ikeja"]
-        for loc in lagos_locations:
-            if loc in lower:
-                route_issues.append(f"Congestion noted around {loc.title()}")
+        if deliveries:
+            for d in deliveries:
+                addr = d.get("address") or ""
+                if addr:
+                    street_part = addr.split(",")[0].strip()
+                    tokens = street_part.split()
+                    clean_street = " ".join(t for t in tokens if not t.isdigit()) or street_part
+                    if clean_street.lower() in lower:
+                        issue = f"Congestion or delay noted near {clean_street}"
+                        if issue not in route_issues:
+                            route_issues.append(issue)
 
         # Sentiment scoring
         sentiment_score = 0.90
@@ -190,9 +202,9 @@ class LemurIntelligencePipeline:
         success_rate = shift_stats.get("success_rate", 0)
 
         summary = (
-            f"Driver completed {delivered} of {total} scheduled stops ({round(success_rate, 1)}% completion). "
-            f"{len(incidents)} operational incidents were detected in voice interaction logs. "
-            f"Overall sentiment scored at {int(sentiment_score * 100)}% positive alignment."
+            f"(Estimated while AI analysis was unavailable) Driver completed {delivered} of {total} scheduled stops "
+            f"({round(success_rate, 1)}% completion). {len(incidents)} operational incidents were detected in voice interaction logs. "
+            f"Overall sentiment estimated at {int(sentiment_score * 100)}% alignment."
         )
 
         recommendations = (
@@ -207,7 +219,8 @@ class LemurIntelligencePipeline:
             "incidents": incidents,
             "route_issues": route_issues,
             "recommendations": recommendations,
-            "lemur_source": "voiceops_speech_intelligence_engine"
+            "lemur_source": "voiceops_speech_intelligence_engine",
+            "is_estimated": True
         }
 
 
@@ -229,7 +242,7 @@ async def run_shift_intelligence(shift_id: str, driver_id: Optional[str] = None)
     transcript = pipeline.build_transcript_from_sessions(voice_sessions, deliveries)
 
     # 3. Analyze with LeMUR
-    analysis = await pipeline.analyze_with_lemur(transcript, shift_stats)
+    analysis = await pipeline.analyze_with_lemur(transcript, shift_stats, deliveries=deliveries)
 
     # 4. Prepare Supabase report schema
     total = shift_stats.get("total", len(deliveries))
@@ -238,6 +251,8 @@ async def run_shift_intelligence(shift_id: str, driver_id: Optional[str] = None)
     success_rate = round(float(shift_stats.get("success_rate", (delivered / total * 100) if total > 0 else 0.0)), 2)
 
     valid_shift_id = shift_id if UUID_REGEX.match(shift_id) else None
+    lemur_src = analysis.get("lemur_source", "assemblyai_lemur_api")
+    is_est = analysis.get("is_estimated", lemur_src == "voiceops_speech_intelligence_engine")
 
     report_payload = {
         "total_deliveries": total,
@@ -245,12 +260,15 @@ async def run_shift_intelligence(shift_id: str, driver_id: Optional[str] = None)
         "failed_count": failed,
         "success_rate": success_rate,
         "recommendations": analysis.get("recommendations", ""),
+        "lemur_source": lemur_src,
+        "is_estimated": is_est,
         "failure_patterns": {
             "driver_id": driver_id or "",
             "raw_shift_id": shift_id,
             "executive_summary": analysis.get("executive_summary", ""),
             "incidents": analysis.get("incidents", []),
-            "lemur_source": analysis.get("lemur_source", "assemblyai_lemur"),
+            "lemur_source": lemur_src,
+            "is_estimated": is_est,
             "voice_sessions_analyzed": len(voice_sessions),
             "transcript_length_chars": len(transcript)
         },

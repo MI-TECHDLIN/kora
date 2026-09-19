@@ -64,32 +64,32 @@ class _VehicleLayout extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: VoiceOpsSize.avatar,
-          height: VoiceOpsSize.avatar,
+          width: KoraSize.avatar,
+          height: KoraSize.avatar,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: VoiceOpsColors.primaryTint,
+            color: KoraColors.primaryTint,
           ),
           child: Icon(
             icon,
-            size: VoiceOpsSize.iconLg,
-            color: VoiceOpsColors.primaryLight,
+            size: KoraSize.iconLg,
+            color: KoraColors.primaryLight,
           ),
         ),
-        const SizedBox(width: VoiceOpsSpacing.md),
+        const SizedBox(width: KoraSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: VoiceOpsText.title,
+                style: KoraText.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
                 subtitle,
-                style: VoiceOpsText.bodyMuted,
+                style: KoraText.bodyMuted,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -100,16 +100,16 @@ class _VehicleLayout extends StatelessWidget {
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
-              foregroundColor: VoiceOpsColors.primaryLight,
+              foregroundColor: KoraColors.primaryLight,
               minimumSize: const Size(
-                VoiceOpsSize.touchTarget,
-                VoiceOpsSize.touchTarget,
+                KoraSize.touchTarget,
+                KoraSize.touchTarget,
               ),
             ),
             child: Text(
               actionLabel!,
-              style: VoiceOpsText.label.copyWith(
-                color: VoiceOpsColors.primaryLight,
+              style: KoraText.label.copyWith(
+                color: KoraColors.primaryLight,
               ),
             ),
           ),

@@ -26,22 +26,22 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     ActionChipData(
       icon: TablerIcons.mapPin,
       label: 'Find my next stop',
-      accent: VoiceOpsColors.blue,
+      accent: KoraColors.blue,
     ),
     ActionChipData(
       icon: TablerIcons.listCheck,
       label: "What's left on my list",
-      accent: VoiceOpsColors.amber,
+      accent: KoraColors.amber,
     ),
     ActionChipData(
       icon: TablerIcons.phoneCall,
       label: 'Call the customer',
-      accent: VoiceOpsColors.success,
+      accent: KoraColors.success,
     ),
     ActionChipData(
       icon: TablerIcons.chartBar,
       label: 'Give me my summary',
-      accent: VoiceOpsColors.pink,
+      accent: KoraColors.pink,
     ),
   ];
 
@@ -78,12 +78,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 children: [
                   _MapPreview(state: agentState),
                   Padding(
-                    padding: const EdgeInsets.all(VoiceOpsSpacing.gutter),
+                    padding: const EdgeInsets.all(KoraSpacing.gutter),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const _NextStopCard(),
-                        const SizedBox(height: VoiceOpsSpacing.lg),
+                        const SizedBox(height: KoraSpacing.lg),
                         const _TranscriptCard(),
                       ],
                     ),
@@ -96,23 +96,23 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           // operational detail above scrolls independently.
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: VoiceOpsSpacing.gutter,
+              horizontal: KoraSpacing.gutter,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Quick actions', style: VoiceOpsText.title),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                Text('Quick actions', style: KoraText.title),
+                const SizedBox(height: KoraSpacing.sm),
                 ActionChipsRail(chips: _chips, onSelect: _onChipTap),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: VoiceOpsSpacing.md),
+            padding: const EdgeInsets.symmetric(vertical: KoraSpacing.md),
             child: Column(
               children: [
                 const PushToTalkButton(),
-                const SizedBox(height: VoiceOpsSpacing.sm),
+                const SizedBox(height: KoraSpacing.sm),
                 Text(
                   switch (ref.watch(pushToTalkProvider)) {
                     PushToTalkState.idle => 'Tap to talk to your co-rider',
@@ -124,7 +124,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                           : 'Tap to interrupt',
                   },
                   key: const Key('ptt-hint'),
-                  style: VoiceOpsText.caption,
+                  style: KoraText.caption,
                 ),
               ],
             ),
@@ -143,20 +143,20 @@ class _MapPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact =
-        MediaQuery.sizeOf(context).height < VoiceOpsMap.compactHeight;
+        MediaQuery.sizeOf(context).height < KoraMap.compactHeight;
 
     return SizedBox(
       key: const Key('map-preview'),
       height: compact
-          ? VoiceOpsSize.mapPreviewCompact
-          : VoiceOpsSize.mapPreview,
+          ? KoraSize.mapPreviewCompact
+          : KoraSize.mapPreview,
       width: double.infinity,
       child: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [VoiceOpsColors.overlay, VoiceOpsColors.canvas],
+            colors: [KoraColors.overlay, KoraColors.canvas],
           ),
         ),
         child: Stack(
@@ -167,35 +167,35 @@ class _MapPreview extends StatelessWidget {
             // The profile lives behind this corner icon, not in the bottom
             // nav, stacked on the map preview instead of its own row.
             Positioned(
-              top: VoiceOpsSpacing.sm,
-              right: VoiceOpsSpacing.sm,
+              top: KoraSpacing.sm,
+              right: KoraSpacing.sm,
               child: IconButton(
                 key: const Key('profile-button'),
                 tooltip: 'Your profile',
                 onPressed: () => context.go(AppRoutes.profile),
                 constraints: const BoxConstraints(
-                  minWidth: VoiceOpsSize.touchTarget,
-                  minHeight: VoiceOpsSize.touchTarget,
+                  minWidth: KoraSize.touchTarget,
+                  minHeight: KoraSize.touchTarget,
                 ),
                 icon: const Icon(
                   TablerIcons.userCircle,
-                  size: VoiceOpsSize.iconLg,
-                  color: VoiceOpsColors.textPrimary,
+                  size: KoraSize.iconLg,
+                  color: KoraColors.textPrimary,
                 ),
               ),
             ),
             Positioned(
-              top: VoiceOpsSpacing.lg,
-              left: VoiceOpsSpacing.gutter,
-              right: VoiceOpsSize.orbVoice + VoiceOpsSpacing.lg,
+              top: KoraSpacing.lg,
+              left: KoraSpacing.gutter,
+              right: KoraSize.orbVoice + KoraSpacing.lg,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Your route, together', style: VoiceOpsText.headline),
-                  const SizedBox(height: VoiceOpsSpacing.xs),
+                  Text('Your route, together', style: KoraText.headline),
+                  const SizedBox(height: KoraSpacing.xs),
                   Text(
                     'Map preview · sample route',
-                    style: VoiceOpsText.bodyMuted,
+                    style: KoraText.bodyMuted,
                   ),
                 ],
               ),
@@ -204,27 +204,27 @@ class _MapPreview extends StatelessWidget {
               alignment: Alignment(0.65, -0.15),
               child: Icon(
                 TablerIcons.mapPin,
-                color: VoiceOpsColors.primaryLight,
-                size: VoiceOpsSize.iconXl,
+                color: KoraColors.primaryLight,
+                size: KoraSize.iconXl,
               ),
             ),
             Positioned(
-              right: VoiceOpsSpacing.md,
-              bottom: VoiceOpsSpacing.md,
-              width: VoiceOpsSize.orbVoice,
+              right: KoraSpacing.md,
+              bottom: KoraSpacing.md,
+              width: KoraSize.orbVoice,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   MascotDisplay(
                     state: state,
-                    size: VoiceOpsSize.orbVoice,
+                    size: KoraSize.orbVoice,
                     material: OrbMaterial.chrome,
                   ),
                   Text(
                     state.label ?? 'Your co-rider is ready',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: VoiceOpsText.label,
+                    style: KoraText.label,
                   ),
                 ],
               ),
@@ -243,21 +243,21 @@ class _NextStopCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       frosted: false,
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('NEXT STOP · SAMPLE', style: VoiceOpsText.caption),
-          const SizedBox(height: VoiceOpsSpacing.sm),
-          Text('1400 Lavaca Street', style: VoiceOpsText.title),
-          Text('Downtown, Austin, TX', style: VoiceOpsText.bodyMuted),
-          const SizedBox(height: VoiceOpsSpacing.md),
+          Text('NEXT STOP · SAMPLE', style: KoraText.caption),
+          const SizedBox(height: KoraSpacing.sm),
+          Text('1400 Lavaca Street', style: KoraText.title),
+          Text('Downtown, Austin, TX', style: KoraText.bodyMuted),
+          const SizedBox(height: KoraSpacing.md),
           Wrap(
-            spacing: VoiceOpsSpacing.lg,
-            runSpacing: VoiceOpsSpacing.sm,
+            spacing: KoraSpacing.lg,
+            runSpacing: KoraSpacing.sm,
             children: [
-              Text('Customer: Ada O.', style: VoiceOpsText.label),
-              Text('ETA · 8 min', style: VoiceOpsText.label),
+              Text('Customer: Ada O.', style: KoraText.label),
+              Text('ETA · 8 min', style: KoraText.label),
             ],
           ),
         ],
@@ -283,20 +283,20 @@ class _TranscriptCard extends ConsumerWidget {
     return GlassCard(
       frosted: false,
       shadow: false,
-      padding: const EdgeInsets.all(VoiceOpsSpacing.lg),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             lines.isEmpty ? 'CONVERSATION · SAMPLE' : 'CONVERSATION',
-            style: VoiceOpsText.caption,
+            style: KoraText.caption,
           ),
           if (lines.isEmpty) ...[
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             const _TranscriptLineView(
               TranscriptLine(SpeakerRole.driver, 'Where am I heading next?'),
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             const _TranscriptLineView(
               TranscriptLine(
                 SpeakerRole.agent,
@@ -306,7 +306,7 @@ class _TranscriptCard extends ConsumerWidget {
             ),
           ],
           for (final line in shown) ...[
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             _TranscriptLineView(line),
           ],
         ],
@@ -328,12 +328,12 @@ class _TranscriptLineView extends StatelessWidget {
         Text(
           isDriver ? 'You' : 'Co-rider',
           style: isDriver
-              ? VoiceOpsText.label
-              : VoiceOpsText.label.copyWith(color: VoiceOpsColors.primaryLight),
+              ? KoraText.label
+              : KoraText.label.copyWith(color: KoraColors.primaryLight),
         ),
         Text(
           line.text,
-          style: isDriver ? VoiceOpsText.bodyMuted : VoiceOpsText.body,
+          style: isDriver ? KoraText.bodyMuted : KoraText.body,
         ),
       ],
     );
@@ -346,12 +346,12 @@ class _MapGrid extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = VoiceOpsColors.divider
-      ..strokeWidth = VoiceOpsGlass.borderWidth;
-    for (double x = 0; x < size.width; x += VoiceOpsSpacing.xxl) {
+      ..color = KoraColors.divider
+      ..strokeWidth = KoraGlass.borderWidth;
+    for (double x = 0; x < size.width; x += KoraSpacing.xxl) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
     }
-    for (double y = 0; y < size.height; y += VoiceOpsSpacing.xxl) {
+    for (double y = 0; y < size.height; y += KoraSpacing.xxl) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
     final route = Path()
@@ -361,9 +361,9 @@ class _MapGrid extends CustomPainter {
     canvas.drawPath(
       route,
       Paint()
-        ..color = VoiceOpsColors.primaryTint
+        ..color = KoraColors.primaryTint
         ..style = PaintingStyle.stroke
-        ..strokeWidth = VoiceOpsSpacing.sm
+        ..strokeWidth = KoraSpacing.sm
         ..strokeCap = StrokeCap.round,
     );
   }

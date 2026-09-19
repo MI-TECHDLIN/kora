@@ -43,8 +43,8 @@ class _AuthTextFieldState extends State<AuthTextField> {
   late bool _hidden = widget.obscure;
 
   static OutlineInputBorder _outline(Color color) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(VoiceOpsRadius.control),
-    borderSide: BorderSide(color: color, width: VoiceOpsGlass.borderWidth),
+    borderRadius: BorderRadius.circular(KoraRadius.control),
+    borderSide: BorderSide(color: color, width: KoraGlass.borderWidth),
   );
 
   @override
@@ -54,9 +54,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
       children: [
         Text(
           widget.label,
-          style: VoiceOpsText.label.copyWith(color: VoiceOpsColors.textMuted),
+          style: KoraText.label.copyWith(color: KoraColors.textMuted),
         ),
-        const SizedBox(height: VoiceOpsSpacing.sm),
+        const SizedBox(height: KoraSpacing.sm),
         TextFormField(
           controller: widget.controller,
           validator: widget.validator,
@@ -69,26 +69,26 @@ class _AuthTextFieldState extends State<AuthTextField> {
           textCapitalization: widget.textCapitalization,
           autofillHints: widget.autofillHints,
           onFieldSubmitted: widget.onSubmitted,
-          style: VoiceOpsText.body,
+          style: KoraText.body,
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: VoiceOpsText.body.copyWith(
-              color: VoiceOpsColors.textFaint,
+            hintStyle: KoraText.body.copyWith(
+              color: KoraColors.textFaint,
             ),
-            errorStyle: VoiceOpsText.label.copyWith(
-              color: VoiceOpsColors.danger,
+            errorStyle: KoraText.label.copyWith(
+              color: KoraColors.danger,
             ),
             errorMaxLines: 2,
             filled: true,
-            fillColor: VoiceOpsGlass.fill,
+            fillColor: KoraGlass.fill,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: VoiceOpsSpacing.lg,
-              vertical: VoiceOpsSpacing.lg,
+              horizontal: KoraSpacing.lg,
+              vertical: KoraSpacing.lg,
             ),
             prefixIcon: Icon(
               widget.icon,
-              size: VoiceOpsSize.iconMd,
-              color: VoiceOpsColors.textFaint,
+              size: KoraSize.iconMd,
+              color: KoraColors.textFaint,
             ),
             suffixIcon: widget.obscure
                 ? IconButton(
@@ -96,17 +96,17 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     onPressed: () => setState(() => _hidden = !_hidden),
                     icon: Icon(
                       _hidden ? TablerIcons.eye : TablerIcons.eyeOff,
-                      size: VoiceOpsSize.iconMd,
-                      color: VoiceOpsColors.textMuted,
+                      size: KoraSize.iconMd,
+                      color: KoraColors.textMuted,
                     ),
                   )
                 : null,
-            border: _outline(VoiceOpsGlass.border),
-            enabledBorder: _outline(VoiceOpsGlass.border),
-            disabledBorder: _outline(VoiceOpsColors.divider),
-            focusedBorder: _outline(VoiceOpsColors.primaryLight),
-            errorBorder: _outline(VoiceOpsColors.danger),
-            focusedErrorBorder: _outline(VoiceOpsColors.danger),
+            border: _outline(KoraGlass.border),
+            enabledBorder: _outline(KoraGlass.border),
+            disabledBorder: _outline(KoraColors.divider),
+            focusedBorder: _outline(KoraColors.primaryLight),
+            errorBorder: _outline(KoraColors.danger),
+            focusedErrorBorder: _outline(KoraColors.danger),
           ),
         ),
       ],

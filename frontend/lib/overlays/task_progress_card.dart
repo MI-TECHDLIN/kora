@@ -26,7 +26,7 @@ class TaskProgressCard extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 140),
               child: Text(
                 'Task card placeholder — ${steps.length} steps',
-                style: VoiceOpsText.label,
+                style: KoraText.label,
               ),
             ),
           ),

@@ -20,6 +20,8 @@ import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
+import 'package:voiceops/providers/voice_onboarding_provider.dart';
+import 'package:voiceops/providers/voice_preview_provider.dart';
 
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
@@ -335,6 +337,48 @@ class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
   }
 }
 
+/// The bundled preview clips: no just_audio, no asset bundle. A clip plays
+/// until the test calls [finish] or the app stops it.
+class FakeVoicePreviewPlayer implements VoicePreviewPlayer {
+  FakeVoicePreviewPlayer({Set<CoRiderVoice>? available})
+    : available = available ?? CoRiderVoice.values.toSet();
+
+  /// The voices that "have a clip".
+  Set<CoRiderVoice> available;
+
+  /// Voices whose clip throws when played (a corrupt asset).
+  final broken = <CoRiderVoice>{};
+
+  /// Every clip started, in order.
+  final played = <CoRiderVoice>[];
+  int stops = 0;
+  Completer<void>? _playing;
+
+  bool get isPlaying => _playing != null && !_playing!.isCompleted;
+
+  @override
+  Future<Set<CoRiderVoice>> availableVoices() async => available;
+
+  @override
+  Future<void> play(CoRiderVoice voice) {
+    played.add(voice);
+    if (broken.contains(voice)) throw StateError('undecodable clip');
+    return (_playing = Completer<void>()).future;
+  }
+
+  /// The clip plays to its end.
+  void finish() => _playing?.complete();
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    if (isPlaying) _playing!.complete();
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
 class FakeCoRiderVoiceStore implements CoRiderVoiceStore {
   FakeCoRiderVoiceStore([this.value]);
 
@@ -371,6 +415,18 @@ class FakeOnboardingStore implements OnboardingStore {
       this.completed = completed;
 }
 
+class FakeVoiceOnboardingStore implements VoiceOnboardingStore {
+  FakeVoiceOnboardingStore({this.shown = false});
+
+  bool shown;
+
+  @override
+  Future<bool> load() async => shown;
+
+  @override
+  Future<void> save({required bool shown}) async => this.shown = shown;
+}
+
 /// Everything a pumped app or screen needs to stay offline. Pass the fakes
 /// a test wants to script; the rest are fresh defaults.
 List<Override> offlineOverrides({
@@ -384,7 +440,9 @@ List<Override> offlineOverrides({
   FakeMapStyleStore? mapStyleStore,
   FakeNotificationPreferencesStore? notificationPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
+  FakeVoicePreviewPlayer? voicePreviewPlayer,
   FakeOnboardingStore? onboardingStore,
+  FakeVoiceOnboardingStore? voiceOnboardingStore,
   FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
 }) {
@@ -411,9 +469,15 @@ List<Override> offlineOverrides({
     coRiderVoiceStoreProvider.overrideWithValue(
       coRiderVoiceStore ?? FakeCoRiderVoiceStore(),
     ),
+    voicePreviewPlayerProvider.overrideWithValue(
+      voicePreviewPlayer ?? FakeVoicePreviewPlayer(),
+    ),
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
+    ),
+    voiceOnboardingStoreProvider.overrideWithValue(
+      voiceOnboardingStore ?? FakeVoiceOnboardingStore(),
     ),
     companyConnectionStoreProvider.overrideWithValue(
       companyConnectionStore ?? FakeCompanyConnectionStore(),

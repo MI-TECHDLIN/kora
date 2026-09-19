@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 /// radius, size, duration and text style. Widgets reference these; they
 /// never hardcode a value. Authority: CLAUDE.md § Design System and
 /// `.firstmate/rules/frontend.md`. Dark-mode-first.
-class VoiceOpsColors {
-  VoiceOpsColors._();
+class KoraColors {
+  KoraColors._();
 
   // ── Surfaces (dark, lowest → highest elevation) ──────────────────────
   static const canvas = Color(0xFF07060B);
@@ -64,8 +64,8 @@ class VoiceOpsColors {
 /// before the effect: one capped blur, near-transparent fill, hairline
 /// border. Prefer an unblurred glass fill for repeated items (lists, chip
 /// grids); reserve the backdrop blur for a few large surfaces.
-class VoiceOpsGlass {
-  VoiceOpsGlass._();
+class KoraGlass {
+  KoraGlass._();
 
   /// Capped for perf + readability — restrained glass. Never exceed this.
   static const blur = 12.0;
@@ -87,8 +87,8 @@ class VoiceOpsGlass {
 
 /// Co-rider orb palettes — CLAUDE.md's two distinct orb materials.
 /// Holographic bubble for onboarding, chrome/mercury for the main app.
-class VoiceOpsOrbColors {
-  VoiceOpsOrbColors._();
+class KoraOrbColors {
+  KoraOrbColors._();
 
   static const holographic = [
     Color(0xFFC4B5FD),
@@ -113,9 +113,9 @@ class VoiceOpsOrbColors {
 
 /// Onboarding mood backgrounds and surfaces (PRD v4.0 §4.7): dark navy for
 /// Hook, a lavender gradient for Power, holographic editorial for the
-/// splash. Onboarding only; the main app stays on [VoiceOpsColors.canvas].
-class VoiceOpsMood {
-  VoiceOpsMood._();
+/// splash. Onboarding only; the main app stays on [KoraColors.canvas].
+class KoraMood {
+  KoraMood._();
 
   // Each mood is three top → bottom stops so moods lerp stop-for-stop.
   static const editorial = [
@@ -176,8 +176,8 @@ class VoiceOpsMood {
   ];
 }
 
-class VoiceOpsSpacing {
-  VoiceOpsSpacing._();
+class KoraSpacing {
+  KoraSpacing._();
   static const xs = 4.0;
   static const sm = 8.0;
   static const md = 12.0;
@@ -189,8 +189,8 @@ class VoiceOpsSpacing {
   static const gutter = 22.0;
 }
 
-class VoiceOpsRadius {
-  VoiceOpsRadius._();
+class KoraRadius {
+  KoraRadius._();
   static const control = 14.0;
   static const card = 20.0;
   static const sheet = 28.0;
@@ -199,8 +199,8 @@ class VoiceOpsRadius {
   static const pill = 999.0;
 }
 
-class VoiceOpsSize {
-  VoiceOpsSize._();
+class KoraSize {
+  KoraSize._();
 
   static const iconSm = 16.0;
   static const iconMd = 20.0;
@@ -249,8 +249,8 @@ class VoiceOpsSize {
 }
 
 /// The Map tab: route line, pins, the driver's position dot and camera.
-class VoiceOpsMap {
-  VoiceOpsMap._();
+class KoraMap {
+  KoraMap._();
 
   /// Route polyline stroke, drawn over a darker casing.
   static const routeWidth = 6.0;
@@ -291,8 +291,8 @@ class VoiceOpsMap {
   static const compactHeight = 700.0;
 }
 
-class VoiceOpsMotion {
-  VoiceOpsMotion._();
+class KoraMotion {
+  KoraMotion._();
   static const fast = Duration(milliseconds: 150);
   static const base = Duration(milliseconds: 250);
   static const slow = Duration(milliseconds: 400);
@@ -325,8 +325,8 @@ class VoiceOpsMotion {
 /// Type scale. Plus Jakarta Sans substitutes for Circular Std / Sofia Pro
 /// (proprietary) per CLAUDE.md — if licensed font files are supplied later,
 /// swap them in here only.
-class VoiceOpsText {
-  VoiceOpsText._();
+class KoraText {
+  KoraText._();
 
   /// Giant, light editorial type — the onboarding splash headline only.
   static final editorial = GoogleFonts.plusJakartaSans(
@@ -334,7 +334,7 @@ class VoiceOpsText {
     fontWeight: FontWeight.w300,
     height: 1.12,
     letterSpacing: -1.6,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
   static final display = GoogleFonts.plusJakartaSans(
@@ -342,7 +342,7 @@ class VoiceOpsText {
     fontWeight: FontWeight.w800,
     height: 1.05,
     letterSpacing: -1.2,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
   /// [display] on short phones, where the full size would push a screen's
@@ -357,31 +357,31 @@ class VoiceOpsText {
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: -0.4,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
   static final title = GoogleFonts.plusJakartaSans(
     fontSize: 17,
     fontWeight: FontWeight.w600,
     height: 1.3,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
   static final body = GoogleFonts.plusJakartaSans(
     fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.45,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
-  static final bodyMuted = body.copyWith(color: VoiceOpsColors.textMuted);
+  static final bodyMuted = body.copyWith(color: KoraColors.textMuted);
 
   static final label = GoogleFonts.plusJakartaSans(
     fontSize: 13,
     fontWeight: FontWeight.w600,
     height: 1.3,
     letterSpacing: 0.1,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
   );
 
   /// Small uppercase status text (e.g. the co-rider state pill).
@@ -390,7 +390,7 @@ class VoiceOpsText {
     fontWeight: FontWeight.w700,
     height: 1.3,
     letterSpacing: 0.8,
-    color: VoiceOpsColors.textMuted,
+    color: KoraColors.textMuted,
   );
 
   /// [style] at another [weight]. google_fonts registers one font family per
@@ -406,7 +406,7 @@ class VoiceOpsText {
     fontSize: 28,
     fontWeight: FontWeight.w700,
     height: 1.1,
-    color: VoiceOpsColors.textPrimary,
+    color: KoraColors.textPrimary,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
@@ -418,13 +418,13 @@ ThemeData buildVoiceOpsTheme() {
   // `live` is deliberately absent from the ColorScheme so no Material
   // component can pick it up as an accent.
   final colorScheme = ColorScheme.fromSeed(
-    seedColor: VoiceOpsColors.primary,
+    seedColor: KoraColors.primary,
     brightness: Brightness.dark,
-    primary: VoiceOpsColors.primary,
-    onPrimary: VoiceOpsColors.onPrimary,
-    surface: VoiceOpsColors.raised,
-    onSurface: VoiceOpsColors.textPrimary,
-    error: VoiceOpsColors.danger,
+    primary: KoraColors.primary,
+    onPrimary: KoraColors.onPrimary,
+    surface: KoraColors.raised,
+    onSurface: KoraColors.textPrimary,
+    error: KoraColors.danger,
   );
   final base = ThemeData(
     useMaterial3: true,
@@ -433,21 +433,21 @@ ThemeData buildVoiceOpsTheme() {
   );
 
   return base.copyWith(
-    scaffoldBackgroundColor: VoiceOpsColors.canvas,
-    canvasColor: VoiceOpsColors.canvas,
-    dividerColor: VoiceOpsColors.divider,
+    scaffoldBackgroundColor: KoraColors.canvas,
+    canvasColor: KoraColors.canvas,
+    dividerColor: KoraColors.divider,
     iconTheme: const IconThemeData(
-      color: VoiceOpsColors.textPrimary,
-      size: VoiceOpsSize.iconMd,
+      color: KoraColors.textPrimary,
+      size: KoraSize.iconMd,
     ),
     textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
-      bodyColor: VoiceOpsColors.textPrimary,
-      displayColor: VoiceOpsColors.textPrimary,
+      bodyColor: KoraColors.textPrimary,
+      displayColor: KoraColors.textPrimary,
     ),
     textSelectionTheme: const TextSelectionThemeData(
-      cursorColor: VoiceOpsColors.primaryLight,
-      selectionColor: VoiceOpsColors.primaryGlow,
-      selectionHandleColor: VoiceOpsColors.primary,
+      cursorColor: KoraColors.primaryLight,
+      selectionColor: KoraColors.primaryGlow,
+      selectionHandleColor: KoraColors.primary,
     ),
   );
 }

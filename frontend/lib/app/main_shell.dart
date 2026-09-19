@@ -53,17 +53,17 @@ class _VoiceOpsBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(
-        VoiceOpsSpacing.gutter,
+        KoraSpacing.gutter,
         0,
-        VoiceOpsSpacing.gutter,
-        VoiceOpsSpacing.lg,
+        KoraSpacing.gutter,
+        KoraSpacing.lg,
       ),
       child: GlassCard(
-        borderRadius: VoiceOpsRadius.sheet,
-        fill: VoiceOpsColors.raised.withValues(alpha: 0.72),
+        borderRadius: KoraRadius.sheet,
+        fill: KoraColors.raised.withValues(alpha: 0.72),
         padding: const EdgeInsets.symmetric(
-          vertical: VoiceOpsSpacing.xs,
-          horizontal: VoiceOpsSpacing.sm,
+          vertical: KoraSpacing.xs,
+          horizontal: KoraSpacing.sm,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -106,22 +106,22 @@ class _NavItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: AnimatedContainer(
-          duration: VoiceOpsMotion.base,
-          curve: VoiceOpsMotion.standard,
+          duration: KoraMotion.base,
+          curve: KoraMotion.standard,
           constraints: const BoxConstraints(
-            minWidth: VoiceOpsSize.touchTarget + VoiceOpsSpacing.lg,
-            minHeight: VoiceOpsSize.touchTarget,
+            minWidth: KoraSize.touchTarget + KoraSpacing.lg,
+            minHeight: KoraSize.touchTarget,
           ),
           decoration: BoxDecoration(
-            color: active ? VoiceOpsColors.primaryTint : Colors.transparent,
-            borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+            color: active ? KoraColors.primaryTint : Colors.transparent,
+            borderRadius: BorderRadius.circular(KoraRadius.pill),
           ),
           child: Icon(
             icon,
-            size: VoiceOpsSize.iconLg,
+            size: KoraSize.iconLg,
             color: active
-                ? VoiceOpsColors.primaryLight
-                : VoiceOpsColors.textFaint,
+                ? KoraColors.primaryLight
+                : KoraColors.textFaint,
           ),
         ),
       ),

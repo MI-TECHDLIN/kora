@@ -24,7 +24,7 @@ class SectionHeader extends StatelessWidget {
             header: true,
             child: Text(
               title,
-              style: VoiceOpsText.title,
+              style: KoraText.title,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -37,16 +37,16 @@ class SectionHeader extends StatelessWidget {
               onTap: onAction,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minHeight: VoiceOpsSize.touchTarget,
+                  minHeight: KoraSize.touchTarget,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.only(left: VoiceOpsSpacing.md),
+                  padding: const EdgeInsets.only(left: KoraSpacing.md),
                   child: Center(
                     widthFactor: 1,
                     child: Text(
                       actionLabel!,
-                      style: VoiceOpsText.label.copyWith(
-                        color: VoiceOpsColors.primaryLight,
+                      style: KoraText.label.copyWith(
+                        color: KoraColors.primaryLight,
                       ),
                     ),
                   ),
