@@ -413,13 +413,20 @@ void main() {
     await pump(tester, const SettingsScreen());
     await settle(tester);
     expect(find.byKey(const Key('co-rider-voice-selector')), findsOneWidget);
-    expect(find.text('Applies to your next conversation.'), findsOneWidget);
+    expect(find.text('Your co-rider speaks as Anna.'), findsOneWidget);
     // Nothing saved: Anna, matching the backend's default.
     expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
 
     final michael = find.bySemanticsLabel('Michael');
     await tester.ensureVisible(michael);
     await tester.tap(michael);
+    await settle(tester);
+    // Only a draft until Save.
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
+    expect(voiceStore.value, isNull);
+    final save = find.byKey(const Key('co-rider-voice-save'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
     await settle(tester);
     expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
     expect(voiceStore.value, CoRiderVoice.michael);
