@@ -82,6 +82,11 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   /// The server rejected the token (`auth_failed`); don't reconnect.
   bool _rejected = false;
 
+  /// The backend accepted a `change_voice` and is closing the socket on
+  /// purpose: reconnect at once (`_connect` reads the saved voice), without
+  /// the "voice dropped" banner.
+  bool _switchingVoice = false;
+
   StreamSubscription<Uint8List>? _mic;
   Completer<void>? _micDone;
   final _micBuffer = BytesBuilder(copy: false);
@@ -250,6 +255,20 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     return true;
   }
 
+  /// Tells a live session to switch to [voice] (docs/frontend-voice-change-guide.md).
+  /// The caller has already saved it to `coRiderVoiceProvider`, which every
+  /// new connection reads, so with no live socket there is nothing to do. On
+  /// a live one, the backend answers `voice_change_accepted` and closes, and
+  /// the reconnect opens with the new voice.
+  bool applyVoice(CoRiderVoice voice) {
+    final socket = _socket;
+    if (socket == null || state.connection != VoiceConnection.connected) {
+      return false;
+    }
+    socket.sendText(jsonEncode({'event': 'change_voice', 'voice': voice.name}));
+    return true;
+  }
+
   /// Hides the current issue (the banner's dismiss).
   void dismissIssue() =>
       state = VoiceSessionState(connection: state.connection);
@@ -258,6 +277,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   /// new one.
   Future<void> disconnect() async {
     _sessionWanted = false;
+    _switchingVoice = false;
     _reconnectTimer?.cancel();
     _answerWatchdog?.cancel();
     _idleTimer?.cancel();
@@ -431,6 +451,12 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         connection: VoiceConnection.failed,
         issue: state.issue,
       );
+    } else if (_switchingVoice && _sessionWanted) {
+      _switchingVoice = false;
+      state = const VoiceSessionState(connection: VoiceConnection.reconnecting);
+      _reconnectTimer = Timer(Duration.zero, () {
+        if (mounted) _ensureConnected();
+      });
     } else if (_sessionWanted && _reconnectAttempt < _backoff.length) {
       final delay = Duration(seconds: _backoff[_reconnectAttempt++]);
       state = const VoiceSessionState(
@@ -534,6 +560,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         _onProactiveAlert(event);
       case ErrorEvent():
         _onError(event);
+      case VoiceChangeAcceptedEvent():
+        _switchingVoice = true;
+      case VoiceUnchangedEvent():
+        break;
     }
   }
 
