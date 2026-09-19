@@ -2,14 +2,17 @@
 Unit tests for Twilio integration.
 """
 import asyncio
-from app.integrations.twilio_client import get_twilio_client, make_call, send_sms
+from app.integrations.twilio_client import get_twilio_client, make_call, send_sms, _has_live_twilio_credentials
 
 
 def test_twilio_client_initialized():
-    """Verify Twilio client initializes with configured credentials."""
+    """Verify Twilio client initializes with configured credentials, or returns None in mock mode."""
     client = get_twilio_client()
-    assert client is not None
-    assert client.account_sid.startswith("AC")
+    if _has_live_twilio_credentials():
+        assert client is not None
+        assert client.account_sid.startswith("AC")
+    else:
+        assert client is None
 
 
 def test_make_call_structure():

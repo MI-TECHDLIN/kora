@@ -167,3 +167,26 @@ def voice_unchanged(voice: str) -> Dict[str, Any]:
         "voice": voice,
         "message": f"Voice is already set to {voice}"
     }
+
+
+def proactive_alert(
+    severity: str,
+    risk_type: str,
+    message: str,
+    delivery_id: Optional[str] = None,
+    route_suggestion: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Proactive alert from the risk engine for time window risks, excessive idle,
+    or route deviations (interface.md §1).
+    """
+    payload: Dict[str, Any] = {
+        "event": "PROACTIVE_ALERT",
+        "severity": severity,
+        "risk_type": risk_type,
+        "message": message,
+        "delivery_id": delivery_id,
+    }
+    if route_suggestion:
+        payload["route_suggestion"] = route_suggestion
+    return payload

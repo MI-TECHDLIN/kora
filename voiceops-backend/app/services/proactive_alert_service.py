@@ -45,14 +45,19 @@ class ProactiveAlertService:
         risk_type: str = "operational_alert",
         delivery_id: Optional[str] = None,
         route_suggestion: Optional[Dict[str, Any]] = None,
+        shift_id: Optional[str] = None,
+        spoken_instructions: Optional[str] = None,
     ) -> bool:
         """
         Dispatches proactive voice alert to the driver.
         Stores record in dispatcher_alerts for real-time WebSocket pickup and telemetry.
+        Pushes to the driver's active voice WebSocket and queues unprompted co-rider speech.
         
         Args:
             route_suggestion: Optional dict with route data for ROUTE_DEVIATION alerts
                 {"eta_minutes": int, "current_eta_minutes": int, "geometry": str}
+            shift_id: Optional shift ID to target specific shift session
+            spoken_instructions: Prompt instructions for AssemblyAI reply.create
         """
         logger.info(f"[AlertService] 📢 Proactive Alert [{severity.upper()}] to driver {driver_id}: {message}")
 
@@ -66,22 +71,37 @@ class ProactiveAlertService:
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }).execute()
 
-            # Push directly to driver via live WebSocket channel
-            from app.api.websocket.driver_ws import ws_manager
-            
-            ws_payload = {
-                "type": "PROACTIVE_ALERT",
-                "severity": severity,
-                "risk_type": risk_type,
-                "message": message,
-                "delivery_id": delivery_id,
-            }
-            
-            # Add route suggestion for ROUTE_DEVIATION alerts
-            if risk_type == "ROUTE_DEVIATION" and route_suggestion:
-                ws_payload["route_suggestion"] = route_suggestion
-            
-            await ws_manager.send_to_driver(driver_id, ws_payload)
+            from app.api.websocket import events
+            from app.api.websocket.voice import present_proactive_alert
+
+            # Contract-compliant payload: {"event": "PROACTIVE_ALERT", ...}
+            ws_payload = events.proactive_alert(
+                severity=severity,
+                risk_type=risk_type,
+                message=message,
+                delivery_id=delivery_id,
+                route_suggestion=route_suggestion,
+            )
+
+            # 1. Push to voice socket and trigger unprompted co-rider speech
+            await present_proactive_alert(
+                driver_id=driver_id,
+                alert_payload=ws_payload,
+                spoken_instructions=spoken_instructions,
+                shift_id=shift_id,
+            )
+
+            # 2. Push to legacy driver WebSocket if connected
+            try:
+                from app.api.websocket.driver_ws import ws_manager
+                legacy_payload = {
+                    "type": "PROACTIVE_ALERT",
+                    **ws_payload
+                }
+                await ws_manager.send_to_driver(driver_id, legacy_payload)
+            except Exception:
+                pass
+
             return True
         except Exception as e:
             logger.warning(f"[AlertService] Failed to record alert to DB: {e}")

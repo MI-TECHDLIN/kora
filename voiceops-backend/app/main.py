@@ -26,6 +26,8 @@ from app.services.self_ping_service import self_ping_service
 async def lifespan(app: FastAPI):
     # Startup
     print(f"VoiceOps backend starting in {settings.environment} mode")
+    if not settings.tomtom_api_key:
+        print("[Config] WARNING: TOMTOM_API_KEY is not set. Traffic-aware ETA calculations and proactive reroute suggestions will be disabled.")
     dispatcher = get_order_dispatcher()
     await dispatcher.start()
     
