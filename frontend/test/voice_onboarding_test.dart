@@ -121,7 +121,7 @@ void main() {
     },
   );
 
-  testWidgets('choosing a different voice and continuing persists it', (
+  testWidgets('choosing a different voice and saving persists it', (
     tester,
   ) async {
     await pumpApp(tester);
@@ -130,9 +130,12 @@ void main() {
 
     final michael = find.byKey(const Key('voice-onboarding-option-michael'));
     await tap(tester, michael);
-    expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
+    // Only a draft until Save.
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.anna);
+    expect(coRiderVoiceStore.value, isNull);
 
-    await tap(tester, find.text('Continue'));
+    await tap(tester, find.text('Save'));
+    expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
     expect(find.byType(MainShell), findsOneWidget);
     expect(coRiderVoiceStore.value, CoRiderVoice.michael);
 

@@ -82,6 +82,7 @@ flutter:
   assets:
     - assets/rive/ # co-rider orb, played by lib/mascot/mascot_display.dart
     - assets/legal/
+    - assets/audio/voice_previews/ # per-voice preview clips, see its README
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

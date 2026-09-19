@@ -25,6 +25,7 @@ import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
+import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/voice_onboarding_provider.dart';
 
@@ -71,6 +72,11 @@ void main() {
           // Onboarding's Power screen checks the mic and location.
           voiceRecorderProvider.overrideWithValue(FakeRecorder()),
           locationSourceProvider.overrideWithValue(FakeLocationSource()),
+          // The post-sign-up voice step reads these; no real storage in tests.
+          voiceOnboardingStoreProvider.overrideWithValue(
+            FakeVoiceOnboardingStore(),
+          ),
+          coRiderVoiceStoreProvider.overrideWithValue(FakeCoRiderVoiceStore()),
         ],
         child: const KoraApp(),
       ),
