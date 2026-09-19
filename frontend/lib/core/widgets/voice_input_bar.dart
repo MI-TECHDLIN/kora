@@ -18,8 +18,8 @@ class VoiceInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      borderRadius: VoiceOpsRadius.pill,
-      padding: const EdgeInsets.all(VoiceOpsSpacing.xs),
+      borderRadius: KoraRadius.pill,
+      padding: const EdgeInsets.all(KoraSpacing.xs),
       child: Row(
         children: [
           _RoundButton(
@@ -27,23 +27,23 @@ class VoiceInputBar extends StatelessWidget {
             semanticLabel: 'Add',
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: VoiceOpsColors.primaryTint,
+              color: KoraColors.primaryTint,
             ),
             child: const Icon(
               TablerIcons.plus,
-              size: VoiceOpsSize.iconSm,
-              color: VoiceOpsColors.primaryLight,
+              size: KoraSize.iconSm,
+              color: KoraColors.primaryLight,
             ),
           ),
-          const SizedBox(width: VoiceOpsSpacing.sm),
+          const SizedBox(width: KoraSpacing.sm),
           Expanded(
             child: TextField(
               controller: controller,
-              style: VoiceOpsText.body,
+              style: KoraText.body,
               decoration: InputDecoration(
                 hintText: 'Ask me anything...',
-                hintStyle: VoiceOpsText.body.copyWith(
-                  color: VoiceOpsColors.textFaint,
+                hintStyle: KoraText.body.copyWith(
+                  color: KoraColors.textFaint,
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -58,11 +58,11 @@ class VoiceInputBar extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [VoiceOpsColors.primary, VoiceOpsColors.primaryDark],
+                colors: [KoraColors.primary, KoraColors.primaryDark],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: VoiceOpsColors.primaryGlow,
+                  color: KoraColors.primaryGlow,
                   blurRadius: 14,
                   offset: Offset(0, 4),
                 ),
@@ -70,8 +70,8 @@ class VoiceInputBar extends StatelessWidget {
             ),
             child: const Icon(
               TablerIcons.microphone,
-              size: VoiceOpsSize.iconMd,
-              color: VoiceOpsColors.onPrimary,
+              size: KoraSize.iconMd,
+              color: KoraColors.onPrimary,
             ),
           ),
         ],
@@ -80,7 +80,7 @@ class VoiceInputBar extends StatelessWidget {
   }
 }
 
-/// Circular button with a full [VoiceOpsSize.touchTarget] hit area.
+/// Circular button with a full [KoraSize.touchTarget] hit area.
 class _RoundButton extends StatelessWidget {
   const _RoundButton({
     required this.onTap,
@@ -103,7 +103,7 @@ class _RoundButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox.square(
-          dimension: VoiceOpsSize.touchTarget,
+          dimension: KoraSize.touchTarget,
           child: DecoratedBox(
             decoration: decoration,
             child: Center(child: child),

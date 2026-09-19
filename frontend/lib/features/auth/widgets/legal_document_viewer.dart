@@ -26,7 +26,7 @@ class _LegalDocumentViewerState extends State<LegalDocumentViewer> {
   Widget build(BuildContext context) {
     return Material(
       key: const Key('legal-document-viewer'),
-      color: VoiceOpsColors.canvas,
+      color: KoraColors.canvas,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -38,8 +38,8 @@ class _LegalDocumentViewerState extends State<LegalDocumentViewer> {
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(
                   TablerIcons.x,
-                  size: VoiceOpsSize.iconLg,
-                  color: VoiceOpsColors.textPrimary,
+                  size: KoraSize.iconLg,
+                  color: KoraColors.textPrimary,
                 ),
               ),
             ),
@@ -79,9 +79,9 @@ class _Loading extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Loading ${document.title}…', style: VoiceOpsText.bodyMuted),
-          const SizedBox(height: VoiceOpsSpacing.lg),
-          const CircularProgressIndicator(color: VoiceOpsColors.primaryLight),
+          Text('Loading ${document.title}…', style: KoraText.bodyMuted),
+          const SizedBox(height: KoraSpacing.lg),
+          const CircularProgressIndicator(color: KoraColors.primaryLight),
         ],
       ),
     );
@@ -98,22 +98,22 @@ class _LoadError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(VoiceOpsSpacing.gutter),
+        padding: const EdgeInsets.all(KoraSpacing.gutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'We couldn\'t load the ${document.title}.',
-              style: VoiceOpsText.title,
+              style: KoraText.title,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: VoiceOpsSpacing.sm),
+            const SizedBox(height: KoraSpacing.sm),
             Text(
               'Try again to open the bundled document.',
-              style: VoiceOpsText.bodyMuted,
+              style: KoraText.bodyMuted,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: VoiceOpsSpacing.lg),
+            const SizedBox(height: KoraSpacing.lg),
             TextButton(onPressed: onRetry, child: const Text('Try again')),
           ],
         ),
@@ -133,18 +133,18 @@ class _DocumentBody extends StatelessWidget {
     return ListView.separated(
       key: const Key('legal-document-content'),
       padding: const EdgeInsets.fromLTRB(
-        VoiceOpsSpacing.gutter,
-        VoiceOpsSpacing.sm,
-        VoiceOpsSpacing.gutter,
-        VoiceOpsSpacing.xxl,
+        KoraSpacing.gutter,
+        KoraSpacing.sm,
+        KoraSpacing.gutter,
+        KoraSpacing.xxl,
       ),
       itemCount: blocks.length,
-      separatorBuilder: (_, _) => const SizedBox(height: VoiceOpsSpacing.lg),
+      separatorBuilder: (_, _) => const SizedBox(height: KoraSpacing.lg),
       itemBuilder: (context, index) {
         final block = blocks[index];
         final style = block.isHeading
-            ? VoiceOpsText.headline
-            : VoiceOpsText.body;
+            ? KoraText.headline
+            : KoraText.body;
         return Semantics(
           header: block.isHeading,
           child: SelectableText.rich(
@@ -204,7 +204,7 @@ List<InlineSpan> _inlineSpans(String text, TextStyle baseStyle) {
       spans.add(
         TextSpan(
           text: marked.substring(2, marked.length - 2),
-          style: VoiceOpsText.weight(baseStyle, FontWeight.w700),
+          style: KoraText.weight(baseStyle, FontWeight.w700),
         ),
       );
     } else {

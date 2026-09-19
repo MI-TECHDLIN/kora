@@ -28,7 +28,7 @@ void main() {
   // instead of pumpAndSettle. Covers page turns and the card-stack entrance.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.stagger + VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.stagger + KoraMotion.slow);
   }
 
   /// Boots the real app (router redirect included) on a phone-sized view,
@@ -63,7 +63,7 @@ void main() {
           ),
           authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         ],
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);
@@ -326,7 +326,7 @@ void main() {
   // The card stack is meant to read as a staggered, tilted pile: every card
   // slides under the one after it. What it may never do is slide far enough
   // to hide what that card shows — the stop's two rows, or an allow button
-  // the driver has to reach. Each card is padded by VoiceOpsSpacing.lg and
+  // the driver has to reach. Each card is padded by KoraSpacing.lg and
   // slides under the next one by less than that, so the overlap lands on
   // blank card. The tilts used to break it: Transform.rotate leaves its
   // corners outside its box, so a card started higher than the column
@@ -365,7 +365,7 @@ void main() {
               textScaler: TextScaler.linear(textScale),
             ),
             child: Scaffold(
-              backgroundColor: VoiceOpsMood.lavender.first,
+              backgroundColor: KoraMood.lavender.first,
               body: OnboardingPower(
                 driverName: 'Mary',
                 micAllowed: allowed,
@@ -463,7 +463,7 @@ void main() {
                   painted(tester, over).top - painted(tester, under).bottom;
               expect(
                 seam,
-                inInclusiveRange(1, VoiceOpsSpacing.sm),
+                inInclusiveRange(1, KoraSpacing.sm),
                 reason: '$name sits $seam apart',
               );
             }

@@ -20,11 +20,13 @@ import 'package:voiceops/features/auth/widgets/terms_agreement.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_flow.dart';
 import 'package:voiceops/features/onboarding/screens/onboarding_screen_2.dart';
 import 'package:voiceops/features/voice/screens/voice_screen.dart';
+import 'package:voiceops/features/voice_onboarding/screens/voice_onboarding_screen.dart';
 import 'package:voiceops/main.dart';
 import 'package:voiceops/mascot/mascot_display.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
+import 'package:voiceops/providers/voice_onboarding_provider.dart';
 
 import 'fake_auth.dart';
 import 'fake_voice.dart';
@@ -37,7 +39,7 @@ void main() {
   // instead of pumpAndSettle.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow * 2);
+    await tester.pump(KoraMotion.slow * 2);
   }
 
   /// Boots the real app (router and auth gate included) on a phone-sized
@@ -61,11 +63,16 @@ void main() {
           onboardingStoreProvider.overrideWithValue(
             FakeOnboardingStore(completed: onboarded),
           ),
+          // A never-shown store, like a fresh device: sign-up tests below
+          // rely on the post-sign-up voice step showing.
+          voiceOnboardingStoreProvider.overrideWithValue(
+            FakeVoiceOnboardingStore(),
+          ),
           // Onboarding's Power screen checks the mic and location.
           voiceRecorderProvider.overrideWithValue(FakeRecorder()),
           locationSourceProvider.overrideWithValue(FakeLocationSource()),
         ],
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);
@@ -90,7 +97,7 @@ void main() {
     await tester.pump();
     await tester.enterText(field, text);
     // A focused field scrolls itself on screen; let that finish.
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
   }
 
   Future<void> systemBack(WidgetTester tester) async {
@@ -148,9 +155,15 @@ void main() {
     await tap(tester, find.byType(Checkbox));
     await tap(tester, createAccount);
 
-    // The session lands past onboarding: straight into the main app.
+    // The session lands past onboarding — but a fresh sign-up on a device
+    // that has never shown it first meets the co-rider voice step.
     expect(auth.lastSignUp, isNotNull);
     expect(find.byType(OnboardingFlow), findsNothing);
+    expect(find.byType(VoiceOnboardingScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
+
+    await tap(tester, find.text('Continue'));
+    expect(find.byType(VoiceOnboardingScreen), findsNothing);
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(VoiceScreen), findsOneWidget);
   });
@@ -262,10 +275,14 @@ void main() {
     expect(sent.password, 'correct-horse');
     expect(sent.phone, '+2348012345678'); // E.164 for drivers.phone
 
-    // The session lands: onboarding is behind the driver, so the gate hands
-    // over to the main app.
-    expect(find.byType(MainShell), findsOneWidget);
+    // The session lands: onboarding is behind the driver, and a never-shown
+    // device meets the voice step before the gate hands over to the main app.
     expect(find.byType(SignUpScreen), findsNothing);
+    expect(find.byType(VoiceOnboardingScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
+
+    await tap(tester, find.text('Continue'));
+    expect(find.byType(MainShell), findsOneWidget);
     expect(auth.profileChecks, 1);
   });
 
@@ -282,7 +299,7 @@ void main() {
       tester.view.viewInsets = FakeViewPadding(bottom: 300 * 3 * i / 10);
       await tester.pump(const Duration(milliseconds: 16));
     }
-    await tester.pump(VoiceOpsMotion.slow);
+    await tester.pump(KoraMotion.slow);
     final box = find.byType(Checkbox);
     expect(
       tester.getRect(box).bottom,
@@ -407,7 +424,7 @@ void main() {
     expect(logs, contains(contains(failure.detail)));
 
     // Let the notice time out so no timer outlives the test.
-    await tester.pump(VoiceOpsMotion.notice);
+    await tester.pump(KoraMotion.notice);
     await settle(tester);
     expect(find.text(failure.message), findsNothing);
   });

@@ -29,12 +29,12 @@ class ActionChipsRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: VoiceOpsSize.control,
+      height: KoraSize.control,
       child: ListView.separated(
         key: const Key('quick-actions-rail'),
         scrollDirection: Axis.horizontal,
         itemCount: chips.length,
-        separatorBuilder: (_, _) => const SizedBox(width: VoiceOpsSpacing.sm),
+        separatorBuilder: (_, _) => const SizedBox(width: KoraSpacing.sm),
         itemBuilder: (context, i) => PillChip(
           icon: chips[i].icon,
           label: chips[i].label,

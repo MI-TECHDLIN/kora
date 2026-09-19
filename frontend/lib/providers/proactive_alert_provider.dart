@@ -24,7 +24,7 @@ class ProactiveAlertNotifier extends StateNotifier<ProactiveAlertEvent?> {
   void show(ProactiveAlertEvent alert) {
     _timer?.cancel();
     state = alert;
-    _timer = Timer(VoiceOpsMotion.proactiveAlert, dismiss);
+    _timer = Timer(KoraMotion.proactiveAlert, dismiss);
   }
 
   void dismiss() {

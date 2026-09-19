@@ -46,13 +46,13 @@ void main() {
       final mapPreview = find.byKey(const Key('map-preview'));
       expect(
         tester.getSize(mapPreview).height,
-        size.height < VoiceOpsMap.compactHeight
-            ? VoiceOpsSize.mapPreviewCompact
-            : VoiceOpsSize.mapPreview,
+        size.height < KoraMap.compactHeight
+            ? KoraSize.mapPreviewCompact
+            : KoraSize.mapPreview,
       );
       final mascot = find.byType(MascotDisplay);
       expect(tester.widget<MascotDisplay>(mascot).material, OrbMaterial.chrome);
-      expect(tester.getSize(mascot), const Size.square(VoiceOpsSize.orbVoice));
+      expect(tester.getSize(mascot), const Size.square(KoraSize.orbVoice));
       final mapRect = tester.getRect(mapPreview);
       final mascotRect = tester.getRect(mascot);
       expect(mapRect.contains(mascotRect.topLeft), isTrue);
@@ -162,7 +162,7 @@ void main() {
       container.read(agentStateProvider.notifier).setState(mood);
       // Through the orb's morph, so the new mood is fully blended in.
       await tester.pump();
-      await tester.pump(VoiceOpsMotion.orbMorph);
+      await tester.pump(KoraMotion.orbMorph);
       expect(tester.takeException(), isNull);
       expect(
         tester.widget<MascotDisplay>(find.byType(MascotDisplay)).state,

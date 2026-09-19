@@ -33,15 +33,15 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    final radius = BorderRadius.circular(VoiceOpsRadius.pill);
+    final radius = BorderRadius.circular(KoraRadius.pill);
     final white = tone == PrimaryButtonTone.white;
-    final ink = white ? VoiceOpsMood.ink : VoiceOpsColors.onPrimary;
+    final ink = white ? KoraMood.ink : KoraColors.onPrimary;
 
     Widget iconOf(IconData data) =>
-        Icon(data, size: VoiceOpsSize.iconMd, color: ink);
+        Icon(data, size: KoraSize.iconMd, color: ink);
     final text = Text(
       label,
-      style: VoiceOpsText.title.copyWith(color: ink),
+      style: KoraText.title.copyWith(color: ink),
       overflow: TextOverflow.ellipsis,
     );
 
@@ -49,26 +49,26 @@ class PrimaryButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       child: AnimatedOpacity(
-        duration: VoiceOpsMotion.fast,
+        duration: KoraMotion.fast,
         opacity: enabled ? 1 : 0.4,
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            color: white ? VoiceOpsMood.paper : null,
+            color: white ? KoraMood.paper : null,
             gradient: white
                 ? null
                 : const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      VoiceOpsColors.primary,
-                      VoiceOpsColors.primaryDark,
+                      KoraColors.primary,
+                      KoraColors.primaryDark,
                     ],
                   ),
             boxShadow: enabled && !white
                 ? const [
                     BoxShadow(
-                      color: VoiceOpsColors.primaryGlow,
+                      color: KoraColors.primaryGlow,
                       blurRadius: 20,
                       offset: Offset(0, 6),
                     ),
@@ -82,11 +82,11 @@ class PrimaryButton extends StatelessWidget {
               borderRadius: radius,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minHeight: VoiceOpsSize.control,
+                  minHeight: KoraSize.control,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: VoiceOpsSpacing.xl,
+                    horizontal: KoraSpacing.xl,
                   ),
                   child: Row(
                     mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
@@ -94,13 +94,13 @@ class PrimaryButton extends StatelessWidget {
                     children: [
                       if (icon != null) ...[
                         iconOf(icon!),
-                        const SizedBox(width: VoiceOpsSpacing.sm),
+                        const SizedBox(width: KoraSpacing.sm),
                       ],
                       // An expanded button always has a bounded width, so
                       // its label can ellipsize instead of overflowing.
                       if (expand) Flexible(child: text) else text,
                       if (trailingIcon != null) ...[
-                        const SizedBox(width: VoiceOpsSpacing.sm),
+                        const SizedBox(width: KoraSpacing.sm),
                         iconOf(trailingIcon!),
                       ],
                     ],

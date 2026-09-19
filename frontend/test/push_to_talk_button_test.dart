@@ -53,16 +53,16 @@ void main() {
     );
 
     final size = tester.getSize(find.byType(PushToTalkButton));
-    expect(size.width, greaterThanOrEqualTo(VoiceOpsSize.pushToTalkMin));
-    expect(size.height, greaterThanOrEqualTo(VoiceOpsSize.pushToTalkMin));
+    expect(size.width, greaterThanOrEqualTo(KoraSize.pushToTalkMin));
+    expect(size.height, greaterThanOrEqualTo(KoraSize.pushToTalkMin));
 
     final seen = <PushToTalkState, BoxDecoration>{};
     for (final state in PushToTalkState.values) {
       container.read(pushToTalkProvider.notifier).set(state);
-      await tester.pump(VoiceOpsMotion.slow);
+      await tester.pump(KoraMotion.slow);
       seen[state] = decorationOf(tester);
 
-      final isLive = seen[state]!.color == VoiceOpsColors.live;
+      final isLive = seen[state]!.color == KoraColors.live;
       expect(isLive, state == PushToTalkState.recording);
     }
     // Every state has its own treatment.
@@ -91,7 +91,7 @@ void main() {
     await tester.pump();
     expect(container.read(pushToTalkProvider), PushToTalkState.recording);
     expect(recorder.isRecording, isTrue);
-    expect(decorationOf(tester).color, VoiceOpsColors.live);
+    expect(decorationOf(tester).color, KoraColors.live);
     await tester.pumpWidget(const SizedBox.shrink());
     container.dispose();
   });
@@ -109,6 +109,6 @@ void main() {
       scheme.surfaceTint,
       scheme.inversePrimary,
     ];
-    expect(roles, isNot(contains(VoiceOpsColors.live)));
+    expect(roles, isNot(contains(KoraColors.live)));
   });
 }

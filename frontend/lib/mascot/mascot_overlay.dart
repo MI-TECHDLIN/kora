@@ -21,15 +21,15 @@ class MascotOverlay extends ConsumerWidget {
 
     final alignRight = tab == MainTab.settings;
     final size = alignRight
-        ? VoiceOpsSize.orbBubbleSmall
-        : VoiceOpsSize.orbBubble;
+        ? KoraSize.orbBubbleSmall
+        : KoraSize.orbBubble;
 
     return AnimatedPositioned(
-      duration: VoiceOpsMotion.slow,
-      curve: VoiceOpsMotion.emphasized,
-      top: MediaQuery.paddingOf(context).top + VoiceOpsSpacing.md,
-      left: alignRight ? null : VoiceOpsSpacing.gutter,
-      right: alignRight ? VoiceOpsSpacing.gutter : null,
+      duration: KoraMotion.slow,
+      curve: KoraMotion.emphasized,
+      top: MediaQuery.paddingOf(context).top + KoraSpacing.md,
+      left: alignRight ? null : KoraSpacing.gutter,
+      right: alignRight ? KoraSpacing.gutter : null,
       // The overlay sits above the router, outside the shell's scope, so
       // it names its material explicitly: main app = chrome.
       child: MascotDisplay(

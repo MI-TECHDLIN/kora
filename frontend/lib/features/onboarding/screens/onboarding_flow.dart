@@ -57,15 +57,15 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       : _index.toDouble();
 
   void _next() => _pages.nextPage(
-    duration: VoiceOpsMotion.slow,
-    curve: VoiceOpsMotion.emphasized,
+    duration: KoraMotion.slow,
+    curve: KoraMotion.emphasized,
   );
 
   void _complete() => ref.read(onboardingProvider.notifier).complete();
 
   void _back() => _pages.previousPage(
-    duration: VoiceOpsMotion.slow,
-    curve: VoiceOpsMotion.emphasized,
+    duration: KoraMotion.slow,
+    curve: KoraMotion.emphasized,
   );
 
   @override

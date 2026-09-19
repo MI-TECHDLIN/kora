@@ -50,7 +50,7 @@ class OrderOfferNotifier extends StateNotifier<OrderOfferState> {
     if (state.offer?.orderId != orderId) return;
     _noticeTimer?.cancel();
     state = OrderOfferState(notice: _noticeFor(outcome));
-    _noticeTimer = Timer(VoiceOpsMotion.notice, dismissNotice);
+    _noticeTimer = Timer(KoraMotion.notice, dismissNotice);
   }
 
   void dismissNotice() {

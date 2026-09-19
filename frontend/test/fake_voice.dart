@@ -20,6 +20,7 @@ import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
+import 'package:voiceops/providers/voice_onboarding_provider.dart';
 
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
@@ -371,6 +372,18 @@ class FakeOnboardingStore implements OnboardingStore {
       this.completed = completed;
 }
 
+class FakeVoiceOnboardingStore implements VoiceOnboardingStore {
+  FakeVoiceOnboardingStore({this.shown = false});
+
+  bool shown;
+
+  @override
+  Future<bool> load() async => shown;
+
+  @override
+  Future<void> save({required bool shown}) async => this.shown = shown;
+}
+
 /// Everything a pumped app or screen needs to stay offline. Pass the fakes
 /// a test wants to script; the rest are fresh defaults.
 List<Override> offlineOverrides({
@@ -385,6 +398,7 @@ List<Override> offlineOverrides({
   FakeNotificationPreferencesStore? notificationPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeOnboardingStore? onboardingStore,
+  FakeVoiceOnboardingStore? voiceOnboardingStore,
   FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
 }) {
@@ -414,6 +428,9 @@ List<Override> offlineOverrides({
     baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
+    ),
+    voiceOnboardingStoreProvider.overrideWithValue(
+      voiceOnboardingStore ?? FakeVoiceOnboardingStore(),
     ),
     companyConnectionStoreProvider.overrideWithValue(
       companyConnectionStore ?? FakeCompanyConnectionStore(),
