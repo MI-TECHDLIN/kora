@@ -150,6 +150,94 @@ void main() {
     });
   });
 
+  // Bug: a voice picked after the socket opened never reached the session.
+  // Trigger: `_connect` read the saved voice once and `_ensureConnected`
+  // reused the open socket. The provider value alone changes nothing on the
+  // live socket (the counterfactual below); a `change_voice` plus the
+  // backend's close-and-reconnect is what applies it.
+  test('a voice saved on a live session only shows up in the provider', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+      expect(socket.uri.queryParameters, {'voice': 'anna'});
+
+      container
+          .read(coRiderVoiceProvider.notifier)
+          .select(CoRiderVoice.michael);
+      flush();
+      async.elapse(const Duration(seconds: 30));
+      expect(container.read(coRiderVoiceProvider), CoRiderVoice.michael);
+      // The socket is still Anna's: nothing told it, nothing reconnected.
+      expect(connector.sockets, hasLength(1));
+      expect(socket.sentText, isEmpty);
+    });
+  });
+
+  test('applyVoice switches a live session: change_voice, then reconnect '
+      'with the new voice', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+      container
+          .read(coRiderVoiceProvider.notifier)
+          .select(CoRiderVoice.michael);
+      expect(session().applyVoice(CoRiderVoice.michael), isTrue);
+      expect(socket.sentText, [
+        {'event': 'change_voice', 'voice': 'michael'},
+      ]);
+
+      // The backend accepts, then closes the socket on purpose.
+      socket
+        ..emit({
+          'event': 'voice_change_accepted',
+          'voice': 'michael',
+          'message': 'Voice will change to michael. Reconnecting...',
+        })
+        ..drop();
+      flush();
+      // Straight back, without the "voice dropped" banner or a backoff wait.
+      async.elapse(Duration.zero);
+      flush();
+      expect(voice().issue, isNull);
+      expect(connector.sockets, hasLength(2));
+      expect(connector.last.uri.queryParameters, {'voice': 'michael'});
+      expect(voice().connection, VoiceConnection.connected);
+      expect(api.shiftCalls, 1); // the same shift, not a new one
+    });
+  });
+
+  test('voice_unchanged keeps the session as it is', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+      session().applyVoice(CoRiderVoice.anna);
+      socket.emit({
+        'event': 'voice_unchanged',
+        'voice': 'anna',
+        'message': 'Voice is already set to anna',
+      });
+      flush();
+      async.elapse(const Duration(seconds: 5));
+      expect(connector.sockets, hasLength(1));
+      expect(voice().connection, VoiceConnection.connected);
+    });
+  });
+
+  test('applyVoice with no live session does nothing; the next connect '
+      'uses the saved voice', () {
+    onFakeTime((async, flush) {
+      container.read(coRiderVoiceProvider.notifier).select(CoRiderVoice.paul);
+      expect(session().applyVoice(CoRiderVoice.paul), isFalse);
+      expect(connector.sockets, isEmpty);
+      session().onPushToTalk();
+      flush();
+      expect(connector.last.uri.queryParameters, {'voice': 'paul'});
+    });
+  });
+
   test('every server event reaches the provider that renders it', () {
     onFakeTime((async, flush) {
       session().onPushToTalk();
