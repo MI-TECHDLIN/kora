@@ -1,34 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rive/rive.dart' as rive;
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../providers/co_rider_voice_provider.dart';
-import '../../../providers/push_to_talk_provider.dart';
+import '../../../providers/co_rider_voice_save.dart';
 import '../../../providers/voice_onboarding_provider.dart';
-import '../../../providers/voice_session_provider.dart';
+import '../../../providers/voice_preview_provider.dart';
+import '../widgets/voice_character_rive.dart';
 
-/// The one-time step right after sign-up: pick a co-rider voice, try it,
-/// and move on. [CoRiderVoice.fallback] starts selected, so continuing
-/// without touching anything is a valid path — there is no separate skip
-/// button. Gated by `voiceOnboardingProvider`
+/// The one-time step right after sign-up: pick a co-rider voice, hear it,
+/// and move on. Tapping a voice only highlights it as a draft (previews use
+/// the draft); "Save" commits it (`saveCoRiderVoice`) and finishes the
+/// step. [CoRiderVoice.fallback] is the default, so continuing without
+/// touching anything is a valid path and completes the step too. Gated by
+/// `voiceOnboardingProvider`
 /// (frontend/lib/providers/voice_onboarding_provider.dart), never the
 /// pre-sign-up onboarding flag in `onboarding_provider.dart`. The Settings
 /// screen has its own smaller picker (`features/settings/widgets`) rather
 /// than sharing this one.
 ///
-/// Each voice gets its own small character slot (avatar-picker style)
-/// instead of one orb reacting to the selection — see
-/// [voiceCharacterAsset]. The single-orb `MascotDisplay`
+/// Each voice gets its own small character slot (avatar-picker style) —
+/// see [VoiceCharacterSlot]. The single-orb `MascotDisplay`
 /// (`frontend/lib/mascot/`) is untouched and unused here.
-class VoiceOnboardingScreen extends ConsumerWidget {
+class VoiceOnboardingScreen extends ConsumerStatefulWidget {
   const VoiceOnboardingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(coRiderVoiceProvider);
+  ConsumerState<VoiceOnboardingScreen> createState() =>
+      _VoiceOnboardingScreenState();
+}
+
+class _VoiceOnboardingScreenState extends ConsumerState<VoiceOnboardingScreen> {
+  /// The tapped, not-yet-saved voice; null while nothing has been tapped.
+  CoRiderVoice? _draft;
+
+  late final VoicePreviewController _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    _preview = ref.read(voicePreviewProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    // Leaving the screen ends the clip. Deferred: dispose can't change state.
+    Future.microtask(_preview.stop);
+    super.dispose();
+  }
+
+  void _pick(CoRiderVoice voice) {
+    if (voice == _draft) return;
+    _preview.stop();
+    setState(() => _draft = voice);
+  }
+
+  void _finish() {
+    final draft = _draft;
+    if (draft != null && draft != ref.read(coRiderVoiceProvider)) {
+      saveCoRiderVoice(ref, draft);
+    }
+    ref.read(voiceOnboardingProvider.notifier).complete();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saved = ref.watch(coRiderVoiceProvider);
+    final selected = _draft ?? saved;
+    final previewing = ref.watch(voicePreviewProvider).playing;
+    final hasChange = selected != saved;
 
     return SafeArea(
       child: Column(
@@ -72,9 +116,8 @@ class VoiceOnboardingScreen extends ConsumerWidget {
                             _VoiceCharacterOption(
                               voice: voice,
                               selected: voice == selected,
-                              onTap: () => ref
-                                  .read(coRiderVoiceProvider.notifier)
-                                  .select(voice),
+                              speaking: voice == previewing,
+                              onTap: () => _pick(voice),
                             ),
                       ],
                     ),
@@ -94,11 +137,12 @@ class VoiceOnboardingScreen extends ConsumerWidget {
               KoraSpacing.lg,
             ),
             child: PrimaryButton(
-              label: 'Continue',
+              key: const Key('voice-onboarding-save'),
+              label: hasChange ? 'Save' : 'Continue',
               expand: true,
-              trailingIcon: TablerIcons.arrowRight,
-              onPressed: () =>
-                  ref.read(voiceOnboardingProvider.notifier).complete(),
+              icon: hasChange ? TablerIcons.check : null,
+              trailingIcon: hasChange ? null : TablerIcons.arrowRight,
+              onPressed: _finish,
             ),
           ),
         ],
@@ -107,36 +151,89 @@ class VoiceOnboardingScreen extends ConsumerWidget {
   }
 }
 
-/// Where a voice's character art will live once one is designed in Rive
-/// Desktop (AGENTS.md reserves `.riv` authoring to the captain). Every voice
-/// returns null today, so [VoiceCharacterSlot] always shows its neutral
-/// placeholder; dropping a real asset path in here is the only change
-/// needed to show it — no widget above this needs to change.
-String? voiceCharacterAsset(CoRiderVoice voice) => null;
-
-/// One voice's character art, or a tinted-circle-with-initial placeholder
-/// when [voiceCharacterAsset] has nothing for it yet. Never the single
-/// reactive orb (`frontend/lib/mascot/mascot_display.dart`) — each voice
-/// gets its own distinct, static slot.
-class VoiceCharacterSlot extends StatelessWidget {
+/// Where a voice's character art comes from now: the Rive file described in
+/// `docs/kora-voice-characters-rive-spec.md`, drawn by
+/// [VoiceCharacterSlot] when [VoiceCharacterSlot.rive] is set. Until that
+/// file exists (or if any part of it is missing) every slot keeps its
+/// neutral placeholder.
+///
+/// One voice's character: Rive art when [rive] is on and the file loads
+/// with this voice's artboard, state machine and inputs; otherwise a
+/// tinted-circle-with-initial placeholder. [selected] and [speaking] drive
+/// the Rive inputs of the same names. Never the single reactive orb
+/// (`frontend/lib/mascot/mascot_display.dart`).
+class VoiceCharacterSlot extends ConsumerStatefulWidget {
   const VoiceCharacterSlot({
     super.key,
     required this.voice,
     this.selected = false,
+    this.speaking = false,
+    this.rive = false,
     this.size = _defaultSize,
   });
 
   final CoRiderVoice voice;
   final bool selected;
+
+  /// This voice's preview clip is playing.
+  final bool speaking;
+
+  /// Try the Rive art. Only the voice step turns this on, so Settings never
+  /// loads the file.
+  final bool rive;
   final double size;
 
   static const _defaultSize = 64.0;
 
   @override
-  Widget build(BuildContext context) {
-    final asset = voiceCharacterAsset(voice);
-    final initial = voice.label.isEmpty ? '?' : voice.label[0].toUpperCase();
+  ConsumerState<VoiceCharacterSlot> createState() => _VoiceCharacterSlotState();
+}
 
+class _VoiceCharacterSlotState extends ConsumerState<VoiceCharacterSlot> {
+  VoiceCharacterRive? _art;
+  rive.File? _artFile; // the file _art (or a failed attempt) was built from
+  bool _artFailed = false;
+
+  VoiceCharacterRive? _artFor(rive.File? file) {
+    if (file == null) return null;
+    if (!identical(file, _artFile)) {
+      _art?.dispose();
+      _art = null;
+      _artFailed = false;
+      _artFile = file;
+    }
+    if (_art == null && !_artFailed) {
+      _art = VoiceCharacterRive.tryCreate(
+        file,
+        widget.voice,
+        selected: widget.selected,
+        speaking: widget.speaking,
+      );
+      _artFailed = _art == null;
+    }
+    _art?.update(selected: widget.selected, speaking: widget.speaking);
+    return _art;
+  }
+
+  @override
+  void dispose() {
+    _art?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final voice = widget.voice;
+    final selected = widget.selected;
+    final size = widget.size;
+    final art = widget.rive
+        ? _artFor(ref.watch(voiceCharactersFileProvider).valueOrNull)
+        : null;
+    if (art != null) {
+      return SizedBox.square(dimension: size, child: art.build());
+    }
+
+    final initial = voice.label.isEmpty ? '?' : voice.label[0].toUpperCase();
     return AnimatedContainer(
       duration: KoraMotion.base,
       width: size,
@@ -146,32 +243,16 @@ class VoiceCharacterSlot extends StatelessWidget {
         shape: BoxShape.circle,
         color: selected ? KoraColors.primaryTint : KoraColors.elevated,
         border: Border.all(
-          color: selected
-              ? KoraColors.primaryLight
-              : KoraGlass.border,
-          width: selected
-              ? KoraGlass.borderWidth * 2
-              : KoraGlass.borderWidth,
+          color: selected ? KoraColors.primaryLight : KoraGlass.border,
+          width: selected ? KoraGlass.borderWidth * 2 : KoraGlass.borderWidth,
         ),
       ),
-      child: asset != null
-          ? ClipOval(
-              child: Image.asset(
-                asset,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-              ),
-            )
-          : Text(
-              initial,
-              style: KoraText.weight(KoraText.title, FontWeight.w700)
-                  .copyWith(
-                    color: selected
-                        ? KoraColors.primaryLight
-                        : KoraColors.textMuted,
-                  ),
-            ),
+      child: Text(
+        initial,
+        style: KoraText.weight(KoraText.title, FontWeight.w700).copyWith(
+          color: selected ? KoraColors.primaryLight : KoraColors.textMuted,
+        ),
+      ),
     );
   }
 }
@@ -182,11 +263,13 @@ class _VoiceCharacterOption extends StatelessWidget {
   const _VoiceCharacterOption({
     required this.voice,
     required this.selected,
+    required this.speaking,
     required this.onTap,
   });
 
   final CoRiderVoice voice;
   final bool selected;
+  final bool speaking;
   final VoidCallback onTap;
 
   @override
@@ -205,14 +288,17 @@ class _VoiceCharacterOption extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              VoiceCharacterSlot(voice: voice, selected: selected),
+              VoiceCharacterSlot(
+                voice: voice,
+                selected: selected,
+                speaking: speaking,
+                rive: true,
+              ),
               const SizedBox(height: KoraSpacing.xs),
               Text(
                 voice.label,
                 style: selected
-                    ? KoraText.label.copyWith(
-                        color: KoraColors.primaryLight,
-                      )
+                    ? KoraText.label.copyWith(color: KoraColors.primaryLight)
                     : KoraText.label,
               ),
             ],
@@ -223,10 +309,9 @@ class _VoiceCharacterOption extends StatelessWidget {
   }
 }
 
-/// The currently selected voice, larger, with the "test this voice"
-/// control: opens a preview through the app's existing voice-socket
-/// connection (`voiceSessionProvider`), the same mechanism the push-to-talk
-/// button uses — no separate audio pipeline.
+/// The chosen voice, larger, with the "hear this voice" control: plays the
+/// bundled clip through [voicePreviewProvider]. It never touches the mic,
+/// the voice socket or push-to-talk.
 class _SelectedVoicePreview extends ConsumerWidget {
   const _SelectedVoicePreview({required this.voice});
 
@@ -234,52 +319,55 @@ class _SelectedVoicePreview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(pushToTalkProvider);
-    final (icon, label) = switch (state) {
-      PushToTalkState.idle => (
-        TablerIcons.microphone,
-        "Test ${voice.label}'s voice",
-      ),
-      PushToTalkState.recording => (
-        TablerIcons.microphoneFilled,
-        'Listening. Tap to stop',
-      ),
-      PushToTalkState.processing => (TablerIcons.loader2, 'Working on it'),
-      PushToTalkState.speaking => (
-        TablerIcons.waveSine,
-        '${voice.label} speaking',
-      ),
-    };
+    final preview = ref.watch(voicePreviewProvider);
+    ref.watch(voicePreviewAvailabilityProvider);
+    final controller = ref.read(voicePreviewProvider.notifier);
+    final available = controller.canPlay(voice);
+    final playing = preview.playing == voice;
 
     return GlassCard(
       frosted: false,
       padding: const EdgeInsets.all(KoraSpacing.md),
       child: Row(
         children: [
-          VoiceCharacterSlot(voice: voice, selected: true, size: 48),
+          VoiceCharacterSlot(
+            voice: voice,
+            selected: true,
+            speaking: playing,
+            rive: true,
+            size: 48,
+          ),
           const SizedBox(width: KoraSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(voice.label, style: KoraText.title),
-                Text('Tap to hear a short preview', style: KoraText.bodyMuted),
+                Text(
+                  available
+                      ? 'Tap to hear a short preview'
+                      : 'Preview coming soon',
+                  style: KoraText.bodyMuted,
+                ),
               ],
             ),
           ),
           IconButton(
             key: Key('voice-onboarding-preview-${voice.name}'),
-            tooltip: label,
+            tooltip: !available
+                ? 'Preview coming soon'
+                : playing
+                ? 'Stop ${voice.label}'
+                : "Hear ${voice.label}'s voice",
             constraints: const BoxConstraints(
               minWidth: KoraSize.touchTarget,
               minHeight: KoraSize.touchTarget,
             ),
-            onPressed: () =>
-                ref.read(voiceSessionProvider.notifier).onPushToTalk(),
+            onPressed: available ? () => controller.toggle(voice) : null,
             icon: Icon(
-              icon,
+              playing ? TablerIcons.playerStop : TablerIcons.playerPlay,
               size: KoraSize.iconLg,
-              color: KoraColors.primaryLight,
+              color: available ? KoraColors.primaryLight : KoraColors.textMuted,
             ),
           ),
         ],
