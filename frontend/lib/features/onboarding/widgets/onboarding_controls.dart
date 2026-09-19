@@ -33,18 +33,18 @@ class OnboardingControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ink = Color.lerp(
-      VoiceOpsColors.textPrimary,
-      VoiceOpsMood.ink,
+      KoraColors.textPrimary,
+      KoraMood.ink,
       lavender,
     )!;
     final step = page.round().clamp(0, count - 1);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        VoiceOpsSpacing.gutter,
-        VoiceOpsSpacing.sm,
-        VoiceOpsSpacing.gutter,
-        VoiceOpsSpacing.lg,
+        KoraSpacing.gutter,
+        KoraSpacing.sm,
+        KoraSpacing.gutter,
+        KoraSpacing.lg,
       ),
       child: Row(
         children: [
@@ -80,12 +80,12 @@ class OnboardingControls extends StatelessWidget {
     final current = (1 - (page - i).abs()).clamp(0.0, 1.0);
     return Container(
       width:
-          VoiceOpsSize.progressDot +
-          (VoiceOpsSize.progressDotActive - VoiceOpsSize.progressDot) * current,
-      height: VoiceOpsSize.progressDot,
-      margin: const EdgeInsets.only(right: VoiceOpsSpacing.sm),
+          KoraSize.progressDot +
+          (KoraSize.progressDotActive - KoraSize.progressDot) * current,
+      height: KoraSize.progressDot,
+      margin: const EdgeInsets.only(right: KoraSpacing.sm),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+        borderRadius: BorderRadius.circular(KoraRadius.pill),
         color: ink.withValues(alpha: 0.25 + 0.75 * filled),
       ),
     );
@@ -103,8 +103,8 @@ class _NextButton extends StatelessWidget {
     // Inverted disc: light on the dark moods, dark on lavender.
     final fill = ink;
     final glyph = ink.computeLuminance() > 0.5
-        ? VoiceOpsMood.ink
-        : VoiceOpsMood.paper;
+        ? KoraMood.ink
+        : KoraMood.paper;
 
     return Semantics(
       container: true,
@@ -119,10 +119,10 @@ class _NextButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onPressed,
           child: SizedBox.square(
-            dimension: VoiceOpsSize.control,
+            dimension: KoraSize.control,
             child: Icon(
               TablerIcons.arrowRight,
-              size: VoiceOpsSize.iconLg,
+              size: KoraSize.iconLg,
               color: glyph,
             ),
           ),

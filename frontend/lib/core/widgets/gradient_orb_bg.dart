@@ -26,28 +26,28 @@ class _GradientOrbBackgroundState extends State<GradientOrbBackground>
   static const _glows = [
     // (colour, peak alpha, diameter, alignment, drift phase)
     (
-      color: VoiceOpsColors.primary,
+      color: KoraColors.primary,
       alpha: 0.26,
       size: 420.0,
       at: Alignment(-1.1, -1.0),
       phase: 0.0,
     ),
     (
-      color: VoiceOpsColors.primaryDark,
+      color: KoraColors.primaryDark,
       alpha: 0.45,
       size: 380.0,
       at: Alignment(1.2, -0.35),
       phase: 0.25,
     ),
     (
-      color: VoiceOpsColors.pink,
+      color: KoraColors.pink,
       alpha: 0.08,
       size: 300.0,
       at: Alignment(-1.1, 0.75),
       phase: 0.5,
     ),
     (
-      color: VoiceOpsColors.blue,
+      color: KoraColors.blue,
       alpha: 0.07,
       size: 280.0,
       at: Alignment(1.0, 1.1),
@@ -75,7 +75,7 @@ class _GradientOrbBackgroundState extends State<GradientOrbBackground>
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: VoiceOpsColors.canvas,
+      color: KoraColors.canvas,
       child: Stack(
         fit: StackFit.expand,
         children: [

@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 
 /// Restrained glass container — nav bar, input row, cards and chips build
-/// on this. The backdrop blur is capped at [VoiceOpsGlass.blur]; pass
+/// on this. The backdrop blur is capped at [KoraGlass.blur]; pass
 /// `frosted: false` for repeated items (chip grids, list rows) where a
 /// blur per item would cost frames on a mid-range Android.
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.borderRadius = VoiceOpsRadius.card,
+    this.borderRadius = KoraRadius.card,
     this.frosted = true,
-    this.fill = VoiceOpsGlass.fill,
+    this.fill = KoraGlass.fill,
     this.padding,
     this.margin,
     this.border,
@@ -39,8 +39,8 @@ class GlassCard extends StatelessWidget {
         border:
             border ??
             Border.all(
-              color: VoiceOpsGlass.border,
-              width: VoiceOpsGlass.borderWidth,
+              color: KoraGlass.border,
+              width: KoraGlass.borderWidth,
             ),
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
@@ -51,8 +51,8 @@ class GlassCard extends StatelessWidget {
         borderRadius: radius,
         child: BackdropFilter(
           filter: ImageFilter.blur(
-            sigmaX: VoiceOpsGlass.blur,
-            sigmaY: VoiceOpsGlass.blur,
+            sigmaX: KoraGlass.blur,
+            sigmaY: KoraGlass.blur,
           ),
           child: surface,
         ),
@@ -63,7 +63,7 @@ class GlassCard extends StatelessWidget {
     return Container(
       margin: margin,
       decoration: shadow
-          ? BoxDecoration(borderRadius: radius, boxShadow: VoiceOpsGlass.shadow)
+          ? BoxDecoration(borderRadius: radius, boxShadow: KoraGlass.shadow)
           : null,
       child: surface,
     );

@@ -44,13 +44,13 @@ class OnboardingPower extends StatelessWidget {
         statusBarColor: Colors.transparent,
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: VoiceOpsSpacing.gutter),
+        padding: const EdgeInsets.symmetric(horizontal: KoraSpacing.gutter),
         child: FillOrScroll(
           builder: (context, viewport) => Column(
             children: [
-              const SizedBox(height: VoiceOpsSpacing.lg),
+              const SizedBox(height: KoraSpacing.lg),
               _Greeting(driverName: driverName),
-              const SizedBox(height: VoiceOpsSpacing.sm),
+              const SizedBox(height: KoraSpacing.sm),
               Expanded(
                 child: _CardStack(
                   micAllowed: micAllowed,
@@ -59,18 +59,18 @@ class OnboardingPower extends StatelessWidget {
                   onAllowLocation: onAllowLocation,
                 ),
               ),
-              const SizedBox(height: VoiceOpsSpacing.lg),
+              const SizedBox(height: KoraSpacing.lg),
               Semantics(
                 header: true,
                 child: Text(
                   headline,
                   style: FillOrScroll.headlineFor(
                     viewport,
-                  ).copyWith(color: VoiceOpsMood.ink),
+                  ).copyWith(color: KoraMood.ink),
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: VoiceOpsSpacing.md),
+              const SizedBox(height: KoraSpacing.md),
             ],
           ),
         ),
@@ -97,8 +97,8 @@ class _Greeting extends StatelessWidget {
           children: [
             ExcludeSemantics(
               child: Container(
-                width: VoiceOpsSize.avatar,
-                height: VoiceOpsSize.avatar,
+                width: KoraSize.avatar,
+                height: KoraSize.avatar,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -106,44 +106,44 @@ class _Greeting extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      VoiceOpsColors.primary,
-                      VoiceOpsColors.primaryDark,
+                      KoraColors.primary,
+                      KoraColors.primaryDark,
                     ],
                   ),
                   border: Border.all(
-                    color: VoiceOpsMood.paper,
-                    width: VoiceOpsGlass.borderWidth * 2,
+                    color: KoraMood.paper,
+                    width: KoraGlass.borderWidth * 2,
                   ),
                 ),
                 child: Text(
                   initial,
-                  style: VoiceOpsText.title.copyWith(
-                    color: VoiceOpsColors.onPrimary,
+                  style: KoraText.title.copyWith(
+                    color: KoraColors.onPrimary,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: VoiceOpsSpacing.xs),
+            const SizedBox(width: KoraSpacing.xs),
             const MascotDisplay(
               state: AgentState.thinking,
-              size: VoiceOpsSize.avatar,
+              size: KoraSize.avatar,
             ),
           ],
         ),
-        const SizedBox(height: VoiceOpsSpacing.sm),
+        const SizedBox(height: KoraSpacing.sm),
         Text.rich(
           TextSpan(
             children: [
               TextSpan(
                 text: 'Hello, $driverName — ',
-                style: VoiceOpsText.headline.copyWith(color: VoiceOpsMood.ink),
+                style: KoraText.headline.copyWith(color: KoraMood.ink),
               ),
               TextSpan(
                 text: "here's what it caught already",
-                style: VoiceOpsText.weight(
-                  VoiceOpsText.headline,
+                style: KoraText.weight(
+                  KoraText.headline,
                   FontWeight.w400,
-                ).copyWith(color: VoiceOpsMood.inkMuted),
+                ).copyWith(color: KoraMood.inkMuted),
               ),
             ],
           ),
@@ -179,7 +179,7 @@ class _CardStackState extends State<_CardStack>
     with SingleTickerProviderStateMixin {
   late final AnimationController _entrance = AnimationController(
     vsync: this,
-    duration: VoiceOpsMotion.stagger,
+    duration: KoraMotion.stagger,
   );
 
   // Small tilts (radians) give the stack its layered, hand-dealt look.
@@ -196,8 +196,8 @@ class _CardStackState extends State<_CardStack>
   // stacks is what the screen paints: even at the tilt's lowest and highest
   // corners the seam stays open, and no card covers another's text or allow
   // button, at any text size.
-  static const _underNextStop = -VoiceOpsSpacing.xs;
-  static const _underMic = -VoiceOpsSpacing.xs;
+  static const _underNextStop = -KoraSpacing.xs;
+  static const _underMic = -KoraSpacing.xs;
 
   // The front cards claim the right edge at the top (next stop) and the
   // bottom (location), and the left edge in the middle (mic), leaving the
@@ -230,7 +230,7 @@ class _CardStackState extends State<_CardStack>
     final start = order * 0.4 / (_cardCount - 1);
     final curve = CurvedAnimation(
       parent: _entrance,
-      curve: Interval(start, start + 0.6, curve: VoiceOpsMotion.standard),
+      curve: Interval(start, start + 0.6, curve: KoraMotion.standard),
     );
     return FadeTransition(
       opacity: curve,
@@ -539,21 +539,21 @@ class _RenderTilted extends RenderShiftedBox {
 
 /// What every light card pads its content by, and so the budget a card has
 /// to spare when the next one slides under it (see [_Overlapped]).
-const _cardPadding = VoiceOpsSpacing.lg;
+const _cardPadding = KoraSpacing.lg;
 
 /// Frosted-white card surface shared by the light cards.
 BoxDecoration _paperCard({required bool front}) => BoxDecoration(
-  color: front ? VoiceOpsMood.paper : VoiceOpsMood.paperGlass,
-  borderRadius: BorderRadius.circular(VoiceOpsRadius.card),
+  color: front ? KoraMood.paper : KoraMood.paperGlass,
+  borderRadius: BorderRadius.circular(KoraRadius.card),
   border: Border.all(
-    color: VoiceOpsMood.paperBorder,
-    width: VoiceOpsGlass.borderWidth,
+    color: KoraMood.paperBorder,
+    width: KoraGlass.borderWidth,
   ),
-  boxShadow: VoiceOpsGlass.shadow,
+  boxShadow: KoraGlass.shadow,
 );
 
 TextStyle get _kicker =>
-    VoiceOpsText.caption.copyWith(color: VoiceOpsMood.inkMuted);
+    KoraText.caption.copyWith(color: KoraMood.inkMuted);
 
 class _NextStopCard extends StatelessWidget {
   const _NextStopCard();
@@ -571,10 +571,10 @@ class _NextStopCard extends StatelessWidget {
             children: [
               const Icon(
                 TablerIcons.mapPin,
-                size: VoiceOpsSize.iconSm,
-                color: VoiceOpsMood.inkMuted,
+                size: KoraSize.iconSm,
+                color: KoraMood.inkMuted,
               ),
-              const SizedBox(width: VoiceOpsSpacing.xs),
+              const SizedBox(width: KoraSpacing.xs),
               Expanded(
                 child: Text(
                   'NEXT STOP',
@@ -587,20 +587,20 @@ class _NextStopCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   '12 min',
-                  style: VoiceOpsText.label.copyWith(
-                    color: VoiceOpsMood.inkMuted,
+                  style: KoraText.label.copyWith(
+                    color: KoraMood.inkMuted,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          const SizedBox(height: KoraSpacing.sm),
           // Kept to two short rows: the front card covers the rest of this
           // one, and the stop itself must stay readable above it.
           Text(
             'Capitol Hill',
-            style: VoiceOpsText.title.copyWith(color: VoiceOpsMood.ink),
+            style: KoraText.title.copyWith(color: KoraMood.ink),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -617,39 +617,39 @@ class _LiveRouteTeaser extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(_cardPadding),
       decoration: BoxDecoration(
-        gradient: VoiceOpsMood.holographic,
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.card),
+        gradient: KoraMood.holographic,
+        borderRadius: BorderRadius.circular(KoraRadius.card),
         border: Border.all(
-          color: VoiceOpsMood.paperBorder,
-          width: VoiceOpsGlass.borderWidth,
+          color: KoraMood.paperBorder,
+          width: KoraGlass.borderWidth,
         ),
-        boxShadow: VoiceOpsGlass.shadow,
+        boxShadow: KoraGlass.shadow,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: VoiceOpsSize.iconXl,
-            height: VoiceOpsSize.iconXl,
+            width: KoraSize.iconXl,
+            height: KoraSize.iconXl,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: VoiceOpsMood.paperGlass,
+              color: KoraMood.paperGlass,
             ),
             child: const Icon(
               TablerIcons.route,
-              size: VoiceOpsSize.iconSm,
-              color: VoiceOpsMood.ink,
+              size: KoraSize.iconSm,
+              color: KoraMood.ink,
             ),
           ),
-          const SizedBox(height: VoiceOpsSpacing.md),
+          const SizedBox(height: KoraSpacing.md),
           Text(
             'Live route',
-            style: VoiceOpsText.title.copyWith(color: VoiceOpsMood.ink),
+            style: KoraText.title.copyWith(color: KoraMood.ink),
           ),
           Text(
             '3 stops · 18 min',
-            style: VoiceOpsText.label.copyWith(color: VoiceOpsMood.inkMuted),
+            style: KoraText.label.copyWith(color: KoraMood.inkMuted),
           ),
         ],
       ),
@@ -692,17 +692,17 @@ class _AccessCard extends StatelessWidget {
           Row(
             children: [
               AnimatedContainer(
-                duration: VoiceOpsMotion.base,
-                width: VoiceOpsSize.progressDot,
-                height: VoiceOpsSize.progressDot,
+                duration: KoraMotion.base,
+                width: KoraSize.progressDot,
+                height: KoraSize.progressDot,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: allowed
-                      ? VoiceOpsColors.success
-                      : VoiceOpsColors.danger,
+                      ? KoraColors.success
+                      : KoraColors.danger,
                 ),
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               Flexible(
                 child: Text(
                   allowed ? 'ALL SET' : 'ACTION REQUIRED',
@@ -712,43 +712,43 @@ class _AccessCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          const SizedBox(height: KoraSpacing.sm),
           Text(
             title,
-            style: VoiceOpsText.headline.copyWith(color: VoiceOpsMood.ink),
+            style: KoraText.headline.copyWith(color: KoraMood.ink),
           ),
-          const SizedBox(height: VoiceOpsSpacing.xs),
+          const SizedBox(height: KoraSpacing.xs),
           Text(
             reason,
-            style: VoiceOpsText.weight(
-              VoiceOpsText.label,
+            style: KoraText.weight(
+              KoraText.label,
               FontWeight.w400,
-            ).copyWith(color: VoiceOpsMood.inkMuted),
+            ).copyWith(color: KoraMood.inkMuted),
           ),
-          const SizedBox(height: VoiceOpsSpacing.md),
+          const SizedBox(height: KoraSpacing.md),
           AnimatedSwitcher(
-            duration: VoiceOpsMotion.base,
+            duration: KoraMotion.base,
             child: allowed
                 // As tall as the button it replaces, so the stack holds
                 // still when the OS answers.
                 ? ConstrainedBox(
                     key: const ValueKey('allowed'),
                     constraints: const BoxConstraints(
-                      minHeight: VoiceOpsSize.touchTarget,
+                      minHeight: KoraSize.touchTarget,
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           TablerIcons.circleCheck,
-                          size: VoiceOpsSize.iconMd,
-                          color: VoiceOpsMood.ink,
+                          size: KoraSize.iconMd,
+                          color: KoraMood.ink,
                         ),
-                        const SizedBox(width: VoiceOpsSpacing.xs),
+                        const SizedBox(width: KoraSpacing.xs),
                         Flexible(
                           child: Text(
                             allowedLabel,
-                            style: VoiceOpsText.label.copyWith(
-                              color: VoiceOpsMood.ink,
+                            style: KoraText.label.copyWith(
+                              color: KoraMood.ink,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -784,40 +784,40 @@ class _AllowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(VoiceOpsRadius.pill);
+    final radius = BorderRadius.circular(KoraRadius.pill);
     return Semantics(
       container: true,
       button: true,
       label: label,
       excludeSemantics: true,
       child: Material(
-        color: VoiceOpsMood.ink,
+        color: KoraMood.ink,
         borderRadius: radius,
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
           child: ConstrainedBox(
             constraints: const BoxConstraints(
-              minHeight: VoiceOpsSize.touchTarget,
+              minHeight: KoraSize.touchTarget,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: VoiceOpsSpacing.lg,
+                horizontal: KoraSpacing.lg,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     icon,
-                    size: VoiceOpsSize.iconSm,
-                    color: VoiceOpsMood.paper,
+                    size: KoraSize.iconSm,
+                    color: KoraMood.paper,
                   ),
-                  const SizedBox(width: VoiceOpsSpacing.sm),
+                  const SizedBox(width: KoraSpacing.sm),
                   Flexible(
                     child: Text(
                       label,
-                      style: VoiceOpsText.label.copyWith(
-                        color: VoiceOpsMood.paper,
+                      style: KoraText.label.copyWith(
+                        color: KoraMood.paper,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

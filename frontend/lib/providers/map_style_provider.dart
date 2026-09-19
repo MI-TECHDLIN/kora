@@ -10,13 +10,13 @@ import '../core/theme/tokens.dart';
 /// The OpenFreeMap style the driver picked in Settings. Separate from the app
 /// theme (always dark): a light map can read better in bright daylight.
 enum MapStyle {
-  dark('Dark', TablerIcons.moon, 'dark', VoiceOpsColors.mapGroundDark),
-  light('Light', TablerIcons.sun, 'positron', VoiceOpsColors.mapGroundLight),
+  dark('Dark', TablerIcons.moon, 'dark', KoraColors.mapGroundDark),
+  light('Light', TablerIcons.sun, 'positron', KoraColors.mapGroundLight),
   detailed(
     'Detailed',
     TablerIcons.buildingCommunity,
     'liberty',
-    VoiceOpsColors.mapGroundDetailed,
+    KoraColors.mapGroundDetailed,
   );
 
   const MapStyle(this.label, this.icon, this.openFreeMapName, this.ground);

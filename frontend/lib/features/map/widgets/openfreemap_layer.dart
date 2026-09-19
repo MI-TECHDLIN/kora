@@ -87,7 +87,7 @@ class OpenFreeMapLayer extends ConsumerWidget {
           error: (error, _) => Align(
             alignment: Alignment.center,
             child: Padding(
-              padding: const EdgeInsets.all(VoiceOpsSpacing.gutter),
+              padding: const EdgeInsets.all(KoraSpacing.gutter),
               child: MapChip(
                 icon: TablerIcons.map2,
                 message: "The map didn't load. Your route still works.",
@@ -133,18 +133,18 @@ class _StreetGridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final minor = Paint()
       ..color = dark
-          ? VoiceOpsColors.divider
-          : VoiceOpsColors.mapSkeletonLightRoad
-      ..strokeWidth = VoiceOpsMap.skeletonRoadWidth
+          ? KoraColors.divider
+          : KoraColors.mapSkeletonLightRoad
+      ..strokeWidth = KoraMap.skeletonRoadWidth
       ..style = PaintingStyle.stroke;
     final major = Paint()
-      ..color = VoiceOpsColors.primaryTint
-      ..strokeWidth = VoiceOpsMap.skeletonMainRoadWidth
+      ..color = KoraColors.primaryTint
+      ..strokeWidth = KoraMap.skeletonMainRoadWidth
       ..style = PaintingStyle.stroke;
     final buildings = Paint()
       ..color = dark
-          ? VoiceOpsColors.elevated
-          : VoiceOpsColors.mapSkeletonLightBlock
+          ? KoraColors.elevated
+          : KoraColors.mapSkeletonLightBlock
       ..style = PaintingStyle.fill;
 
     for (final rect in <Rect>[
@@ -176,7 +176,7 @@ class _StreetGridPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           rect,
-          const Radius.circular(VoiceOpsRadius.control),
+          const Radius.circular(KoraRadius.control),
         ),
         buildings,
       );

@@ -239,7 +239,7 @@ void main() {
         expect(container.read(mapFocusProvider).target, MapFocusTarget.route);
 
         // It clears itself: the driver answers by voice, not by tapping.
-        async.elapse(VoiceOpsMotion.proactiveAlert);
+        async.elapse(KoraMotion.proactiveAlert);
         flush();
         expect(container.read(proactiveAlertProvider), isNull);
         // The suggested line stays drawn; only the notice times out.
@@ -555,7 +555,7 @@ void main() {
       expect(find.byKey(const Key('proactive-alert-eta')), findsNothing);
 
       // It clears itself rather than sitting over the map.
-      await tester.pump(VoiceOpsMotion.proactiveAlert);
+      await tester.pump(KoraMotion.proactiveAlert);
       expect(find.byKey(const Key('proactive-alert')), findsNothing);
     });
 
@@ -568,9 +568,9 @@ void main() {
         for (final icon in tester.widgetList<Icon>(find.byType(Icon)))
           icon.color,
       ];
-      expect(colours, isNot(contains(VoiceOpsColors.live)));
+      expect(colours, isNot(contains(KoraColors.live)));
 
-      await tester.pump(VoiceOpsMotion.proactiveAlert);
+      await tester.pump(KoraMotion.proactiveAlert);
     });
   });
 }

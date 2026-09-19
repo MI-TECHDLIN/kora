@@ -12,9 +12,11 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/summary/screens/summary_screen.dart';
 import '../features/voice/screens/voice_screen.dart';
+import '../features/voice_onboarding/screens/voice_onboarding_screen.dart';
 import '../mascot/mascot_display.dart';
 import '../providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
+import '../providers/voice_onboarding_provider.dart';
 import 'main_shell.dart';
 
 /// Every route in the app is declared in this file (frontend rules).
@@ -27,6 +29,12 @@ abstract final class AppRoutes {
   static const signIn = '$welcome/$_signIn';
 
   static const onboarding = '/onboarding';
+
+  /// The post-sign-up co-rider voice step (gated on `voiceOnboardingProvider`,
+  /// never the pre-sign-up [onboarding] flag above). Only the sign-up
+  /// success path ever turns that flag on; a returning driver signing in
+  /// never lands here.
+  static const voiceOnboarding = '/onboarding/voice';
   static const voice = '/voice';
 
   /// Opened from the voice screen's top-right icon, not a bottom-nav tab.
@@ -65,6 +73,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     (_, next) => onboardingChanges.value = next,
   );
 
+  // …and whenever the post-sign-up voice step turns on or off.
+  final voiceOnboardingChanges = ValueNotifier<bool>(
+    ref.read(voiceOnboardingProvider),
+  );
+  ref.listen<bool>(
+    voiceOnboardingProvider,
+    (_, next) => voiceOnboardingChanges.value = next,
+  );
+
   // …and whenever the Supabase session changes: sign-in, sign-out, refresh.
   final auth = ref.watch(authRepositoryProvider);
   final authChanges = ValueNotifier<int>(0);
@@ -72,13 +89,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   final router = GoRouter(
     initialLocation: AppRoutes.voice,
-    refreshListenable: Listenable.merge([onboardingChanges, authChanges]),
+    refreshListenable: Listenable.merge([
+      onboardingChanges,
+      voiceOnboardingChanges,
+      authChanges,
+    ]),
     redirect: (context, state) {
       final location = state.matchedLocation;
       final atOnboarding = location == AppRoutes.onboarding;
       final atAuth =
           location == AppRoutes.welcome ||
           location.startsWith('${AppRoutes.welcome}/');
+      final atVoiceOnboarding = location == AppRoutes.voiceOnboarding;
 
       // Onboarding gate first: it introduces the app before sign-up.
       if (ref.read(onboardingProvider)) {
@@ -86,7 +108,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       // Auth gate: without a live session, only the auth screens are open.
       if (!auth.hasValidSession) return atAuth ? null : AppRoutes.welcome;
-      if (atOnboarding || atAuth) return AppRoutes.voice;
+      // A fresh sign-up whose device has never shown the voice step: one
+      // more screen before the main app. Never triggered by a plain sign-in.
+      if (ref.read(voiceOnboardingProvider)) {
+        return atVoiceOnboarding ? null : AppRoutes.voiceOnboarding;
+      }
+      if (atOnboarding || atAuth || atVoiceOnboarding) return AppRoutes.voice;
       return null;
     },
     routes: [
@@ -116,6 +143,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: Scaffold(
               backgroundColor: Colors.transparent,
               body: OnboardingFlow(),
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.voiceOnboarding,
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          const OrbMaterialScope(
+            material: OrbMaterial.holographic,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: VoiceOnboardingScreen(),
             ),
           ),
         ),
@@ -150,6 +190,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(() {
     router.dispose();
     onboardingChanges.dispose();
+    voiceOnboardingChanges.dispose();
     authSubscription.cancel();
     authChanges.dispose();
   });
@@ -180,7 +221,7 @@ Page<void> _fadePage(GoRouterState state, Widget child) =>
     CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
-      transitionDuration: VoiceOpsMotion.slow,
+      transitionDuration: KoraMotion.slow,
       transitionsBuilder: (context, animation, secondaryAnimation, child) =>
           FadeTransition(
             opacity: animation,

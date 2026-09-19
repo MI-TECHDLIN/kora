@@ -30,17 +30,17 @@ class RouteCard extends StatelessWidget {
     final route = this.route;
     return GlassCard(
       key: const Key('route-card'),
-      borderRadius: VoiceOpsRadius.sheet,
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.9),
+      borderRadius: KoraRadius.sheet,
+      fill: KoraColors.raised.withValues(alpha: 0.9),
       padding: const EdgeInsets.fromLTRB(
-        VoiceOpsSpacing.lg,
+        KoraSpacing.lg,
         0,
-        VoiceOpsSpacing.lg,
-        VoiceOpsSpacing.lg,
+        KoraSpacing.lg,
+        KoraSpacing.lg,
       ),
       child: AnimatedSize(
-        duration: VoiceOpsMotion.base,
-        curve: VoiceOpsMotion.standard,
+        duration: KoraMotion.base,
+        curve: KoraMotion.standard,
         alignment: Alignment.topCenter,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -68,15 +68,15 @@ class RouteCard extends StatelessWidget {
             ),
             if (expanded) ...[
               if (route != null) ...[
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 if (route.hasTripStats)
                   _TripStats(route: route)
                 else
                   const _NoRoadRoute(),
               ],
-              const SizedBox(height: VoiceOpsSpacing.lg),
-              const Divider(height: 1, color: VoiceOpsColors.divider),
-              const SizedBox(height: VoiceOpsSpacing.md),
+              const SizedBox(height: KoraSpacing.lg),
+              const Divider(height: 1, color: KoraColors.divider),
+              const SizedBox(height: KoraSpacing.md),
               const DriverVehicleRow(),
             ],
           ],
@@ -92,14 +92,14 @@ class _Handle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: VoiceOpsSpacing.xl,
+      height: KoraSpacing.xl,
       child: Center(
         child: Container(
-          width: VoiceOpsSpacing.xxl,
-          height: VoiceOpsSpacing.xs,
+          width: KoraSpacing.xxl,
+          height: KoraSpacing.xs,
           decoration: BoxDecoration(
-            color: VoiceOpsColors.textFaint,
-            borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+            color: KoraColors.textFaint,
+            borderRadius: BorderRadius.circular(KoraRadius.pill),
           ),
         ),
       ),
@@ -116,13 +116,13 @@ class _NoRoute extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('NO ROUTE YET', style: VoiceOpsText.caption),
-        const SizedBox(height: VoiceOpsSpacing.xs),
-        Text('Ask your co-rider for directions', style: VoiceOpsText.title),
-        const SizedBox(height: VoiceOpsSpacing.xs),
+        Text('NO ROUTE YET', style: KoraText.caption),
+        const SizedBox(height: KoraSpacing.xs),
+        Text('Ask your co-rider for directions', style: KoraText.title),
+        const SizedBox(height: KoraSpacing.xs),
         Text(
           'Say "take me to my next stop" and the route draws here.',
-          style: VoiceOpsText.bodyMuted,
+          style: KoraText.bodyMuted,
         ),
       ],
     );
@@ -150,22 +150,22 @@ class _StopHeadline extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text(eyebrow, style: VoiceOpsText.caption)),
+            Expanded(child: Text(eyebrow, style: KoraText.caption)),
             if (isTarget && eta != null)
               _Pill(icon: TablerIcons.clock, text: eta),
           ],
         ),
-        const SizedBox(height: VoiceOpsSpacing.xs),
+        const SizedBox(height: KoraSpacing.xs),
         Text(
           stop?.recipientName ?? stop?.address ?? 'Your next stop',
-          style: VoiceOpsText.headline,
+          style: KoraText.headline,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         if (stop?.recipientName != null && stop?.address != null)
           Text(
             stop!.address!,
-            style: VoiceOpsText.bodyMuted,
+            style: KoraText.bodyMuted,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -186,14 +186,14 @@ class _NoRoadRoute extends StatelessWidget {
       children: [
         const Icon(
           TablerIcons.routeOff,
-          size: VoiceOpsSize.iconSm,
-          color: VoiceOpsColors.textMuted,
+          size: KoraSize.iconSm,
+          color: KoraColors.textMuted,
         ),
-        const SizedBox(width: VoiceOpsSpacing.sm),
+        const SizedBox(width: KoraSpacing.sm),
         Expanded(
           child: Text(
             'No road route found. The pin marks your stop.',
-            style: VoiceOpsText.bodyMuted,
+            style: KoraText.bodyMuted,
           ),
         ),
       ],
@@ -222,7 +222,7 @@ class _TripStats extends StatelessWidget {
                 label: 'Distance',
               ),
             ),
-            const SizedBox(width: VoiceOpsSpacing.sm),
+            const SizedBox(width: KoraSpacing.sm),
             Expanded(
               child: _StatTile(
                 icon: TablerIcons.clock,
@@ -230,7 +230,7 @@ class _TripStats extends StatelessWidget {
                 label: 'Drive time',
               ),
             ),
-            const SizedBox(width: VoiceOpsSpacing.sm),
+            const SizedBox(width: KoraSpacing.sm),
             Expanded(
               child: _StatTile(
                 icon: TablerIcons.mapPins,
@@ -241,17 +241,17 @@ class _TripStats extends StatelessWidget {
           ],
         ),
         if (summary != null && summary.isNotEmpty) ...[
-          const SizedBox(height: VoiceOpsSpacing.md),
+          const SizedBox(height: KoraSpacing.md),
           Row(
             children: [
               const Icon(
                 TablerIcons.roadSign,
-                size: VoiceOpsSize.iconSm,
-                color: VoiceOpsColors.textMuted,
+                size: KoraSize.iconSm,
+                color: KoraColors.textMuted,
               ),
-              const SizedBox(width: VoiceOpsSpacing.sm),
+              const SizedBox(width: KoraSpacing.sm),
               Expanded(
-                child: Text('via $summary', style: VoiceOpsText.bodyMuted),
+                child: Text('via $summary', style: KoraText.bodyMuted),
               ),
             ],
           ),
@@ -280,26 +280,26 @@ class _StatTile extends StatelessWidget {
     return GlassCard(
       frosted: false,
       shadow: false,
-      borderRadius: VoiceOpsRadius.control,
-      padding: const EdgeInsets.all(VoiceOpsSpacing.md),
+      borderRadius: KoraRadius.control,
+      padding: const EdgeInsets.all(KoraSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
-            size: VoiceOpsSize.iconMd,
-            color: VoiceOpsColors.primaryLight,
+            size: KoraSize.iconMd,
+            color: KoraColors.primaryLight,
           ),
-          const SizedBox(height: VoiceOpsSpacing.sm),
+          const SizedBox(height: KoraSpacing.sm),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: VoiceOpsText.title),
+            child: Text(value, style: KoraText.title),
           ),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(label, style: VoiceOpsText.caption, maxLines: 1),
+            child: Text(label, style: KoraText.caption, maxLines: 1),
           ),
         ],
       ),
@@ -316,26 +316,26 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: VoiceOpsSpacing.md,
-        vertical: VoiceOpsSpacing.xs,
+        horizontal: KoraSpacing.md,
+        vertical: KoraSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: VoiceOpsColors.primaryTint,
-        borderRadius: BorderRadius.circular(VoiceOpsRadius.pill),
+        color: KoraColors.primaryTint,
+        borderRadius: BorderRadius.circular(KoraRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
-            size: VoiceOpsSize.iconSm,
-            color: VoiceOpsColors.primaryLight,
+            size: KoraSize.iconSm,
+            color: KoraColors.primaryLight,
           ),
-          const SizedBox(width: VoiceOpsSpacing.xs),
+          const SizedBox(width: KoraSpacing.xs),
           Text(
             text,
-            style: VoiceOpsText.label.copyWith(
-              color: VoiceOpsColors.primaryLight,
+            style: KoraText.label.copyWith(
+              color: KoraColors.primaryLight,
             ),
           ),
         ],

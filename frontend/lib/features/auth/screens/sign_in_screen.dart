@@ -73,7 +73,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                     autofillHints: const [AutofillHints.email],
                   ),
                 ),
-                const SizedBox(height: VoiceOpsSpacing.lg),
+                const SizedBox(height: KoraSpacing.lg),
                 arrive(
                   1,
                   AuthTextField(
@@ -93,10 +93,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
             ),
           ),
         ),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         if (error case final message?) ...[
           AuthErrorBanner(message: message),
-          const SizedBox(height: VoiceOpsSpacing.lg),
+          const SizedBox(height: KoraSpacing.lg),
         ],
         arrive(
           2,
@@ -106,13 +106,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
             onPressed: busy ? null : _signIn,
           ),
         ),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         const OrDivider(),
-        const SizedBox(height: VoiceOpsSpacing.xl),
+        const SizedBox(height: KoraSpacing.xl),
         GoogleButton(
           onPressed: busy ? null : () => attempt((a) => a.signInWithGoogle()),
         ),
-        const SizedBox(height: VoiceOpsSpacing.md),
+        const SizedBox(height: KoraSpacing.md),
         AuthSwitchLink(
           prompt: "Don't have an account?",
           action: 'Sign up',

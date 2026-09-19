@@ -22,11 +22,11 @@ class OnboardingHook extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: VoiceOpsSpacing.gutter),
+      padding: const EdgeInsets.symmetric(horizontal: KoraSpacing.gutter),
       child: FillOrScroll(
         builder: (context, viewport) => Column(
           children: [
-            const SizedBox(height: VoiceOpsSpacing.lg),
+            const SizedBox(height: KoraSpacing.lg),
             const PillChip(
               icon: TablerIcons.sparkles,
               label: 'Waking up your co-rider',
@@ -37,7 +37,7 @@ class OnboardingHook extends StatelessWidget {
                   child: MascotDisplay(
                     state: AgentState.idle,
                     size: math.min(
-                      VoiceOpsSize.orbOnboarding,
+                      KoraSize.orbOnboarding,
                       viewport.height * 0.36,
                     ),
                   ),
@@ -52,13 +52,13 @@ class OnboardingHook extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: VoiceOpsSpacing.md),
+            const SizedBox(height: KoraSpacing.md),
             Text(
               subtext,
-              style: VoiceOpsText.bodyMuted,
+              style: KoraText.bodyMuted,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: VoiceOpsSpacing.xl),
+            const SizedBox(height: KoraSpacing.xl),
           ],
         ),
       ),

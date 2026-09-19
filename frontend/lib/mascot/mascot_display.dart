@@ -41,7 +41,7 @@ class MascotDisplay extends StatefulWidget {
   const MascotDisplay({
     super.key,
     required this.state,
-    this.size = VoiceOpsSize.orbHero,
+    this.size = KoraSize.orbHero,
     this.material,
   });
 
@@ -238,7 +238,7 @@ class _CoRiderRig {
   /// Plays through the mood morph at once, so a paused orb rests on the new
   /// mood rather than the first frame of the blend.
   void _settle() => controller.stateMachine.advanceAndApply(
-    VoiceOpsMotion.orbMorph.inMicroseconds / Duration.microsecondsPerSecond,
+    KoraMotion.orbMorph.inMicroseconds / Duration.microsecondsPerSecond,
   );
 
   void dispose() {
@@ -307,13 +307,13 @@ class _PlaceholderOrbState extends State<_PlaceholderOrb>
 
     if (_morph < 1) {
       final span =
-          VoiceOpsMotion.orbMorph.inMicroseconds /
+          KoraMotion.orbMorph.inMicroseconds /
           Duration.microsecondsPerSecond;
       _morph = math.min(1, _morph + dt / span);
       _frame.mood = _OrbMood.lerp(
         _from,
         _to,
-        VoiceOpsMotion.emphasized.transform(_morph),
+        KoraMotion.emphasized.transform(_morph),
       );
     }
 
@@ -376,7 +376,7 @@ class _OrbMood {
   // and belongs to the push-to-talk button alone.
   static _OrbMood of(AgentState state) => switch (state) {
     AgentState.idle => const _OrbMood(
-      tint: VoiceOpsColors.primary,
+      tint: KoraColors.primary,
       tintStrength: 0,
       glow: 0.30,
       pulseHz: 0.22,
@@ -384,7 +384,7 @@ class _OrbMood {
       spin: 0.25,
     ),
     AgentState.thinking => const _OrbMood(
-      tint: VoiceOpsColors.primaryLight,
+      tint: KoraColors.primaryLight,
       tintStrength: 0.35,
       glow: 0.55,
       pulseHz: 0.8,
@@ -394,7 +394,7 @@ class _OrbMood {
     // Talking follows thinking, so it must read differently: lit up rather
     // than violet, a quick deep pulse like a speech cadence, and a slow spin.
     AgentState.speaking => const _OrbMood(
-      tint: VoiceOpsOrbColors.specular,
+      tint: KoraOrbColors.specular,
       tintStrength: 0.35,
       glow: 0.70,
       pulseHz: 1.4,
@@ -402,7 +402,7 @@ class _OrbMood {
       spin: 0.4,
     ),
     AgentState.calling => const _OrbMood(
-      tint: VoiceOpsColors.success,
+      tint: KoraColors.success,
       tintStrength: 0.40,
       glow: 0.60,
       pulseHz: 1.2,
@@ -410,7 +410,7 @@ class _OrbMood {
       spin: 0.6,
     ),
     AgentState.mapping => const _OrbMood(
-      tint: VoiceOpsColors.blue,
+      tint: KoraColors.blue,
       tintStrength: 0.40,
       glow: 0.55,
       pulseHz: 0.6,
@@ -418,7 +418,7 @@ class _OrbMood {
       spin: 1.0,
     ),
     AgentState.taskWorking => const _OrbMood(
-      tint: VoiceOpsColors.amber,
+      tint: KoraColors.amber,
       tintStrength: 0.35,
       glow: 0.55,
       pulseHz: 1.0,
@@ -426,7 +426,7 @@ class _OrbMood {
       spin: 1.2,
     ),
     AgentState.summarizing => const _OrbMood(
-      tint: VoiceOpsColors.amber,
+      tint: KoraColors.amber,
       tintStrength: 0.30,
       glow: 0.45,
       pulseHz: 0.4,
@@ -434,7 +434,7 @@ class _OrbMood {
       spin: 0.5,
     ),
     AgentState.celebrating => const _OrbMood(
-      tint: VoiceOpsColors.pink,
+      tint: KoraColors.pink,
       tintStrength: 0.45,
       glow: 0.80,
       pulseHz: 1.6,
@@ -488,13 +488,13 @@ class _OrbPainter extends CustomPainter {
 
     final palette = [
       for (final c
-          in _holo ? VoiceOpsOrbColors.holographic : VoiceOpsOrbColors.chrome)
+          in _holo ? KoraOrbColors.holographic : KoraOrbColors.chrome)
         Color.lerp(c, mood.tint, mood.tintStrength)!,
     ];
 
     // Halo — a radial fade, not a blur filter, to stay cheap per frame.
     final haloBase = Color.lerp(
-      _holo ? VoiceOpsColors.primaryLight : VoiceOpsColors.primary,
+      _holo ? KoraColors.primaryLight : KoraColors.primary,
       mood.tint,
       mood.tintStrength,
     )!;
@@ -562,8 +562,8 @@ class _OrbPainter extends CustomPainter {
         Paint()
           ..shader = RadialGradient(
             colors: [
-              VoiceOpsColors.primaryDark.withValues(alpha: 0.45),
-              VoiceOpsColors.primaryDark.withValues(alpha: 0),
+              KoraColors.primaryDark.withValues(alpha: 0.45),
+              KoraColors.primaryDark.withValues(alpha: 0),
             ],
             stops: const [0, 0.8],
           ).createShader(body),
@@ -579,8 +579,8 @@ class _OrbPainter extends CustomPainter {
           center: const Alignment(-0.35, -0.4),
           radius: 1.1,
           colors: [
-            VoiceOpsOrbColors.shade.withValues(alpha: 0),
-            VoiceOpsOrbColors.shade.withValues(alpha: _holo ? 0.35 : 0.65),
+            KoraOrbColors.shade.withValues(alpha: 0),
+            KoraOrbColors.shade.withValues(alpha: _holo ? 0.35 : 0.65),
           ],
           stops: const [0.5, 1],
         ).createShader(body),
@@ -597,8 +597,8 @@ class _OrbPainter extends CustomPainter {
       Paint()
         ..shader = RadialGradient(
           colors: [
-            VoiceOpsOrbColors.specular.withValues(alpha: _holo ? 0.6 : 0.9),
-            VoiceOpsOrbColors.specular.withValues(alpha: 0),
+            KoraOrbColors.specular.withValues(alpha: _holo ? 0.6 : 0.9),
+            KoraOrbColors.specular.withValues(alpha: 0),
           ],
         ).createShader(spec),
     );
@@ -613,7 +613,7 @@ class _OrbPainter extends CustomPainter {
         transform: GradientRotation(-frame.spin),
       ).createShader(body);
     } else {
-      rim.color = VoiceOpsOrbColors.specular.withValues(alpha: 0.3);
+      rim.color = KoraOrbColors.specular.withValues(alpha: 0.3);
     }
     canvas.drawCircle(center, r, rim);
   }

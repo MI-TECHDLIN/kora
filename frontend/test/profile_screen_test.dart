@@ -25,7 +25,7 @@ void main() {
   // The co-rider and background animate forever: step time, never settle.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow * 2);
+    await tester.pump(KoraMotion.slow * 2);
   }
 
   late FakeVoiceOpsApi api;
@@ -97,7 +97,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);

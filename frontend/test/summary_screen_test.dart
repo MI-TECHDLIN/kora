@@ -133,7 +133,7 @@ void main() {
     // The loading spinner animates forever, so step time explicitly.
     Future<void> settle(WidgetTester tester) async {
       await tester.pump();
-      await tester.pump(VoiceOpsMotion.slow * 2);
+      await tester.pump(KoraMotion.slow * 2);
     }
 
     Future<void> finishSummary(WidgetTester tester, String text) async {

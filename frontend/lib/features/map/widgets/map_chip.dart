@@ -12,7 +12,7 @@ class MapChip extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
-    this.tone = VoiceOpsColors.primaryLight,
+    this.tone = KoraColors.primaryLight,
   });
 
   final IconData icon;
@@ -26,33 +26,33 @@ class MapChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      borderRadius: VoiceOpsRadius.control,
-      fill: VoiceOpsColors.raised.withValues(alpha: 0.88),
+      borderRadius: KoraRadius.control,
+      fill: KoraColors.raised.withValues(alpha: 0.88),
       padding: const EdgeInsets.symmetric(
-        horizontal: VoiceOpsSpacing.md,
-        vertical: VoiceOpsSpacing.sm,
+        horizontal: KoraSpacing.md,
+        vertical: KoraSpacing.sm,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: VoiceOpsSize.iconSm, color: tone),
-          const SizedBox(width: VoiceOpsSpacing.sm),
-          Flexible(child: Text(message, style: VoiceOpsText.label)),
+          Icon(icon, size: KoraSize.iconSm, color: tone),
+          const SizedBox(width: KoraSpacing.sm),
+          Flexible(child: Text(message, style: KoraText.label)),
           if (actionLabel != null) ...[
-            const SizedBox(width: VoiceOpsSpacing.sm),
+            const SizedBox(width: KoraSpacing.sm),
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(
-                foregroundColor: VoiceOpsColors.primaryLight,
+                foregroundColor: KoraColors.primaryLight,
                 minimumSize: const Size(
-                  VoiceOpsSize.touchTarget,
-                  VoiceOpsSize.touchTarget,
+                  KoraSize.touchTarget,
+                  KoraSize.touchTarget,
                 ),
               ),
               child: Text(
                 actionLabel!,
-                style: VoiceOpsText.label.copyWith(
-                  color: VoiceOpsColors.primaryLight,
+                style: KoraText.label.copyWith(
+                  color: KoraColors.primaryLight,
                 ),
               ),
             ),

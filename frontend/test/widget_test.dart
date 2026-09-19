@@ -30,7 +30,7 @@ void main() {
   // instead of pumpAndSettle.
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(VoiceOpsMotion.slow * 2);
+    await tester.pump(KoraMotion.slow * 2);
   }
 
   testWidgets('renders dark, gates on onboarding, then navigates tabs', (
@@ -44,14 +44,14 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [...signedInOverrides(), ...offlineOverrides()],
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);
 
     final theme = Theme.of(tester.element(find.byType(Scaffold).first));
     expect(theme.brightness, Brightness.dark);
-    expect(theme.scaffoldBackgroundColor, VoiceOpsColors.canvas);
+    expect(theme.scaffoldBackgroundColor, KoraColors.canvas);
 
     // Onboarding redirect: holographic co-rider, no main shell yet.
     expect(find.byType(OnboardingFlow), findsOneWidget);
@@ -111,7 +111,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const VoiceOpsApp(),
+        child: const KoraApp(),
       ),
     );
     await settle(tester);
