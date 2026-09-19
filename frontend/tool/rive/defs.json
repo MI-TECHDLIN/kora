@@ -1,0 +1,5214 @@
+{
+ "AdvanceableState": {
+  "parent": "LayerState",
+  "typeKey": 145,
+  "props": {
+   "speed": {
+    "key": 292,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "animation\\advanceable_state_base.hpp"
+ },
+ "Animation": {
+  "parent": "Core",
+  "typeKey": 27,
+  "props": {
+   "name": {
+    "key": 55,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "animation\\animation_base.hpp"
+ },
+ "AnimationState": {
+  "parent": "AdvanceableState",
+  "typeKey": 61,
+  "props": {
+   "animationId": {
+    "key": 149,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\animation_state_base.hpp"
+ },
+ "AnyState": {
+  "parent": "LayerState",
+  "typeKey": 62,
+  "props": {},
+  "file": "animation\\any_state_base.hpp"
+ },
+ "BlendAnimation1D": {
+  "parent": "BlendAnimation",
+  "typeKey": 75,
+  "props": {
+   "value": {
+    "key": 166,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\blend_animation_1d_base.hpp"
+ },
+ "BlendAnimation": {
+  "parent": "Core",
+  "typeKey": 74,
+  "props": {
+   "animationId": {
+    "key": 165,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\blend_animation_base.hpp"
+ },
+ "BlendAnimationDirect": {
+  "parent": "BlendAnimation",
+  "typeKey": 77,
+  "props": {
+   "inputId": {
+    "key": 168,
+    "type": "uint",
+    "def": "-1"
+   },
+   "mixValue": {
+    "key": 297,
+    "type": "double",
+    "def": "100.0f"
+   },
+   "blendSource": {
+    "key": 298,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\blend_animation_direct_base.hpp"
+ },
+ "BlendState1D": {
+  "parent": "BlendState",
+  "typeKey": 527,
+  "props": {},
+  "file": "animation\\blend_state_1d_base.hpp"
+ },
+ "BlendState1DInput": {
+  "parent": "BlendState1D",
+  "typeKey": 76,
+  "props": {
+   "inputId": {
+    "key": 167,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\blend_state_1d_input_base.hpp"
+ },
+ "BlendState1DViewModel": {
+  "parent": "BlendState1D",
+  "typeKey": 528,
+  "props": {},
+  "file": "animation\\blend_state_1d_viewmodel_base.hpp"
+ },
+ "BlendState": {
+  "parent": "LayerState",
+  "typeKey": 72,
+  "props": {},
+  "file": "animation\\blend_state_base.hpp"
+ },
+ "BlendStateDirect": {
+  "parent": "BlendState",
+  "typeKey": 73,
+  "props": {},
+  "file": "animation\\blend_state_direct_base.hpp"
+ },
+ "BlendStateTransition": {
+  "parent": "StateTransition",
+  "typeKey": 78,
+  "props": {
+   "exitBlendAnimationId": {
+    "key": 171,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\blend_state_transition_base.hpp"
+ },
+ "CubicEaseInterpolator": {
+  "parent": "CubicInterpolator",
+  "typeKey": 28,
+  "props": {},
+  "file": "animation\\cubic_ease_interpolator_base.hpp"
+ },
+ "CubicInterpolator": {
+  "parent": "KeyFrameInterpolator",
+  "typeKey": 139,
+  "props": {
+   "x1": {
+    "key": 63,
+    "type": "double",
+    "def": "0.42f"
+   },
+   "y1": {
+    "key": 64,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "x2": {
+    "key": 65,
+    "type": "double",
+    "def": "0.58f"
+   },
+   "y2": {
+    "key": 66,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "animation\\cubic_interpolator_base.hpp"
+ },
+ "CubicInterpolatorComponent": {
+  "parent": "Component",
+  "typeKey": 163,
+  "props": {
+   "x1": {
+    "key": 337,
+    "type": "double",
+    "def": "0.42f"
+   },
+   "y1": {
+    "key": 338,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "x2": {
+    "key": 339,
+    "type": "double",
+    "def": "0.58f"
+   },
+   "y2": {
+    "key": 340,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "animation\\cubic_interpolator_component_base.hpp"
+ },
+ "CubicValueInterpolator": {
+  "parent": "CubicInterpolator",
+  "typeKey": 138,
+  "props": {},
+  "file": "animation\\cubic_value_interpolator_base.hpp"
+ },
+ "ElasticInterpolator": {
+  "parent": "KeyFrameInterpolator",
+  "typeKey": 174,
+  "props": {
+   "easingValue": {
+    "key": 405,
+    "type": "uint",
+    "def": "1"
+   },
+   "amplitude": {
+    "key": 406,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "period": {
+    "key": 407,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "animation\\elastic_interpolator_base.hpp"
+ },
+ "EntryState": {
+  "parent": "LayerState",
+  "typeKey": 63,
+  "props": {},
+  "file": "animation\\entry_state_base.hpp"
+ },
+ "ExitState": {
+  "parent": "LayerState",
+  "typeKey": 64,
+  "props": {},
+  "file": "animation\\exit_state_base.hpp"
+ },
+ "FocusAction": {
+  "parent": "ListenerAction",
+  "typeKey": 671,
+  "props": {},
+  "file": "animation\\focus_action_base.hpp"
+ },
+ "FocusActionClear": {
+  "parent": "FocusAction",
+  "typeKey": 1037,
+  "props": {},
+  "file": "animation\\focus_action_clear_base.hpp"
+ },
+ "FocusActionTarget": {
+  "parent": "FocusAction",
+  "typeKey": 652,
+  "props": {
+   "targetId": {
+    "key": 952,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\focus_action_target_base.hpp"
+ },
+ "FocusActionTraversal": {
+  "parent": "FocusAction",
+  "typeKey": 672,
+  "props": {
+   "traversalKind": {
+    "key": 1011,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\focus_action_traversal_base.hpp"
+ },
+ "InterpolatingKeyFrame": {
+  "parent": "KeyFrame",
+  "typeKey": 170,
+  "props": {
+   "interpolationType": {
+    "key": 68,
+    "type": "uint",
+    "def": "0"
+   },
+   "interpolatorId": {
+    "key": 69,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\interpolating_keyframe_base.hpp"
+ },
+ "KeyedObject": {
+  "parent": "Core",
+  "typeKey": 25,
+  "props": {
+   "objectId": {
+    "key": 51,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\keyed_object_base.hpp"
+ },
+ "KeyedProperty": {
+  "parent": "Core",
+  "typeKey": 26,
+  "props": {
+   "propertyKey": {
+    "key": 53,
+    "type": "uint",
+    "def": "Core::invalidPropertyKey"
+   }
+  },
+  "file": "animation\\keyed_property_base.hpp"
+ },
+ "KeyFrame": {
+  "parent": "Core",
+  "typeKey": 29,
+  "props": {
+   "frame": {
+    "key": 67,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\keyframe_base.hpp"
+ },
+ "KeyFrameBool": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 84,
+  "props": {
+   "value": {
+    "key": 181,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\keyframe_bool_base.hpp"
+ },
+ "KeyFrameCallback": {
+  "parent": "KeyFrame",
+  "typeKey": 171,
+  "props": {},
+  "file": "animation\\keyframe_callback_base.hpp"
+ },
+ "KeyFrameColor": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 37,
+  "props": {
+   "value": {
+    "key": 88,
+    "type": "color",
+    "def": "0"
+   }
+  },
+  "file": "animation\\keyframe_color_base.hpp"
+ },
+ "KeyFrameDouble": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 30,
+  "props": {
+   "value": {
+    "key": 70,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\keyframe_double_base.hpp"
+ },
+ "KeyFrameId": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 50,
+  "props": {
+   "value": {
+    "key": 122,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\keyframe_id_base.hpp"
+ },
+ "KeyFrameInterpolator": {
+  "parent": "Core",
+  "typeKey": 175,
+  "props": {},
+  "file": "animation\\keyframe_interpolator_base.hpp"
+ },
+ "KeyFrameInt": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 1067,
+  "props": {
+   "value": {
+    "key": 1068,
+    "type": "CoreIntType",
+    "def": "0"
+   }
+  },
+  "file": "animation\\keyframe_int_base.hpp"
+ },
+ "KeyFrameString": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 142,
+  "props": {
+   "value": {
+    "key": 280,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "animation\\keyframe_string_base.hpp"
+ },
+ "KeyFrameUint": {
+  "parent": "InterpolatingKeyFrame",
+  "typeKey": 450,
+  "props": {
+   "value": {
+    "key": 631,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\keyframe_uint_base.hpp"
+ },
+ "LayerState": {
+  "parent": "StateMachineLayerComponent",
+  "typeKey": 60,
+  "props": {
+   "flags": {
+    "key": 536,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\layer_state_base.hpp"
+ },
+ "LinearAnimation": {
+  "parent": "Animation",
+  "typeKey": 31,
+  "props": {
+   "fps": {
+    "key": 56,
+    "type": "uint",
+    "def": "60"
+   },
+   "duration": {
+    "key": 57,
+    "type": "uint",
+    "def": "60"
+   },
+   "speed": {
+    "key": 58,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "loopValue": {
+    "key": 59,
+    "type": "uint",
+    "def": "0"
+   },
+   "workStart": {
+    "key": 60,
+    "type": "uint",
+    "def": "-1"
+   },
+   "workEnd": {
+    "key": 61,
+    "type": "uint",
+    "def": "-1"
+   },
+   "enableWorkArea": {
+    "key": 62,
+    "type": "bool",
+    "def": "false"
+   },
+   "quantize": {
+    "key": 376,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\linear_animation_base.hpp"
+ },
+ "ListenerAction": {
+  "parent": "Core",
+  "typeKey": 125,
+  "props": {
+   "flags": {
+    "key": 980,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\listener_action_base.hpp"
+ },
+ "ListenerAlignTarget": {
+  "parent": "ListenerAction",
+  "typeKey": 126,
+  "props": {
+   "targetId": {
+    "key": 240,
+    "type": "uint",
+    "def": "-1"
+   },
+   "preserveOffset": {
+    "key": 541,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\listener_align_target_base.hpp"
+ },
+ "ListenerBoolChange": {
+  "parent": "ListenerInputChange",
+  "typeKey": 117,
+  "props": {
+   "value": {
+    "key": 228,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "animation\\listener_bool_change_base.hpp"
+ },
+ "ListenerFireEvent": {
+  "parent": "ListenerAction",
+  "typeKey": 168,
+  "props": {
+   "eventId": {
+    "key": 389,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\listener_fire_event_base.hpp"
+ },
+ "ListenerInputChange": {
+  "parent": "ListenerAction",
+  "typeKey": 116,
+  "props": {
+   "inputId": {
+    "key": 227,
+    "type": "uint",
+    "def": "-1"
+   },
+   "nestedInputId": {
+    "key": 400,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\listener_input_change_base.hpp"
+ },
+ "ListenerNumberChange": {
+  "parent": "ListenerInputChange",
+  "typeKey": 118,
+  "props": {
+   "value": {
+    "key": 229,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\listener_number_change_base.hpp"
+ },
+ "ListenerTriggerChange": {
+  "parent": "ListenerInputChange",
+  "typeKey": 115,
+  "props": {},
+  "file": "animation\\listener_trigger_change_base.hpp"
+ },
+ "ListenerInputType": {
+  "parent": "Core",
+  "typeKey": 658,
+  "props": {
+   "listenerTypeValue": {
+    "key": 965,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\listener_types\\listener_input_type_base.hpp"
+ },
+ "ListenerInputTypeEvent": {
+  "parent": "ListenerInputType",
+  "typeKey": 659,
+  "props": {
+   "eventId": {
+    "key": 962,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\listener_types\\listener_input_type_event_base.hpp"
+ },
+ "ListenerInputTypeGamepad": {
+  "parent": "ListenerInputType",
+  "typeKey": 973,
+  "props": {},
+  "file": "animation\\listener_types\\listener_input_type_gamepad_base.hpp"
+ },
+ "ListenerInputTypeKeyboard": {
+  "parent": "ListenerInputType",
+  "typeKey": 665,
+  "props": {},
+  "file": "animation\\listener_types\\listener_input_type_keyboard_base.hpp"
+ },
+ "ListenerInputTypeSemantic": {
+  "parent": "ListenerInputType",
+  "typeKey": 669,
+  "props": {},
+  "file": "animation\\listener_types\\listener_input_type_semantic_base.hpp"
+ },
+ "ListenerInputTypeText": {
+  "parent": "ListenerInputType",
+  "typeKey": 666,
+  "props": {},
+  "file": "animation\\listener_types\\listener_input_type_text_base.hpp"
+ },
+ "ListenerInputTypeViewModel": {
+  "parent": "ListenerInputType",
+  "typeKey": 660,
+  "props": {
+   "viewModelPathIds": {
+    "key": 963
+   }
+  },
+  "file": "animation\\listener_types\\listener_input_type_viewmodel_base.hpp"
+ },
+ "ListenerViewModelChange": {
+  "parent": "ListenerAction",
+  "typeKey": 487,
+  "props": {},
+  "file": "animation\\listener_viewmodel_change_base.hpp"
+ },
+ "NestedBool": {
+  "parent": "NestedInput",
+  "typeKey": 123,
+  "props": {
+   "nestedValue": {
+    "key": 238,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\nested_bool_base.hpp"
+ },
+ "NestedInput": {
+  "parent": "Component",
+  "typeKey": 121,
+  "props": {
+   "inputId": {
+    "key": 237,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\nested_input_base.hpp"
+ },
+ "NestedLinearAnimation": {
+  "parent": "NestedAnimation",
+  "typeKey": 97,
+  "props": {
+   "mix": {
+    "key": 200,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "animation\\nested_linear_animation_base.hpp"
+ },
+ "NestedNumber": {
+  "parent": "NestedInput",
+  "typeKey": 124,
+  "props": {
+   "nestedValue": {
+    "key": 239,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\nested_number_base.hpp"
+ },
+ "NestedRemapAnimation": {
+  "parent": "NestedLinearAnimation",
+  "typeKey": 98,
+  "props": {
+   "time": {
+    "key": 202,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\nested_remap_animation_base.hpp"
+ },
+ "NestedSimpleAnimation": {
+  "parent": "NestedLinearAnimation",
+  "typeKey": 96,
+  "props": {
+   "speed": {
+    "key": 199,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "isPlaying": {
+    "key": 201,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\nested_simple_animation_base.hpp"
+ },
+ "NestedStateMachine": {
+  "parent": "NestedAnimation",
+  "typeKey": 95,
+  "props": {},
+  "file": "animation\\nested_state_machine_base.hpp"
+ },
+ "NestedTrigger": {
+  "parent": "NestedInput",
+  "typeKey": 122,
+  "props": {
+   "fire": {
+    "key": 401
+   }
+  },
+  "file": "animation\\nested_trigger_base.hpp"
+ },
+ "ScriptedListenerAction": {
+  "parent": "ListenerAction",
+  "typeKey": 646,
+  "props": {
+   "scriptAssetId": {
+    "key": 930,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\scripted_listener_action_base.hpp"
+ },
+ "ScriptedTransitionCondition": {
+  "parent": "TransitionCondition",
+  "typeKey": 647,
+  "props": {
+   "scriptAssetId": {
+    "key": 931,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\scripted_transition_condition_base.hpp"
+ },
+ "StateMachine": {
+  "parent": "Animation",
+  "typeKey": 53,
+  "props": {},
+  "file": "animation\\state_machine_base.hpp"
+ },
+ "StateMachineBool": {
+  "parent": "StateMachineInput",
+  "typeKey": 59,
+  "props": {
+   "value": {
+    "key": 141,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\state_machine_bool_base.hpp"
+ },
+ "StateMachineComponent": {
+  "parent": "Core",
+  "typeKey": 54,
+  "props": {
+   "name": {
+    "key": 138,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "animation\\state_machine_component_base.hpp"
+ },
+ "StateMachineFireAction": {
+  "parent": "Core",
+  "typeKey": 615,
+  "props": {
+   "occursValue": {
+    "key": 393,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\state_machine_fire_action_base.hpp"
+ },
+ "StateMachineFireEvent": {
+  "parent": "StateMachineFireAction",
+  "typeKey": 169,
+  "props": {
+   "eventId": {
+    "key": 392,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\state_machine_fire_event_base.hpp"
+ },
+ "StateMachineFireTrigger": {
+  "parent": "StateMachineFireAction",
+  "typeKey": 614,
+  "props": {
+   "viewModelPathIds": {
+    "key": 871
+   }
+  },
+  "file": "animation\\state_machine_fire_trigger_base.hpp"
+ },
+ "StateMachineInput": {
+  "parent": "StateMachineComponent",
+  "typeKey": 55,
+  "props": {},
+  "file": "animation\\state_machine_input_base.hpp"
+ },
+ "StateMachineLayer": {
+  "parent": "StateMachineComponent",
+  "typeKey": 57,
+  "props": {},
+  "file": "animation\\state_machine_layer_base.hpp"
+ },
+ "StateMachineLayerComponent": {
+  "parent": "Core",
+  "typeKey": 66,
+  "props": {},
+  "file": "animation\\state_machine_layer_component_base.hpp"
+ },
+ "StateMachineListener": {
+  "parent": "StateMachineComponent",
+  "typeKey": 654,
+  "props": {
+   "targetId": {
+    "key": 224,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\state_machine_listener_base.hpp"
+ },
+ "StateMachineListenerSingle": {
+  "parent": "StateMachineListener",
+  "typeKey": 114,
+  "props": {
+   "listenerTypeValue": {
+    "key": 225,
+    "type": "uint",
+    "def": "0"
+   },
+   "eventId": {
+    "key": 399,
+    "type": "uint",
+    "def": "-1"
+   },
+   "viewModelPathIds": {
+    "key": 868
+   }
+  },
+  "file": "animation\\state_machine_listener_single_base.hpp"
+ },
+ "StateMachineNumber": {
+  "parent": "StateMachineInput",
+  "typeKey": 56,
+  "props": {
+   "value": {
+    "key": 140,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\state_machine_number_base.hpp"
+ },
+ "StateMachineTrigger": {
+  "parent": "StateMachineInput",
+  "typeKey": 58,
+  "props": {},
+  "file": "animation\\state_machine_trigger_base.hpp"
+ },
+ "StateTransition": {
+  "parent": "StateMachineLayerComponent",
+  "typeKey": 65,
+  "props": {
+   "stateToId": {
+    "key": 151,
+    "type": "uint",
+    "def": "-1"
+   },
+   "flags": {
+    "key": 152,
+    "type": "uint",
+    "def": "0"
+   },
+   "duration": {
+    "key": 158,
+    "type": "uint",
+    "def": "0"
+   },
+   "exitTime": {
+    "key": 160,
+    "type": "uint",
+    "def": "0"
+   },
+   "interpolationType": {
+    "key": 349,
+    "type": "uint",
+    "def": "1"
+   },
+   "interpolatorId": {
+    "key": 350,
+    "type": "uint",
+    "def": "-1"
+   },
+   "randomWeight": {
+    "key": 537,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "animation\\state_transition_base.hpp"
+ },
+ "TransitionArtboardCondition": {
+  "parent": "TransitionViewModelCondition",
+  "typeKey": 497,
+  "props": {},
+  "file": "animation\\transition_artboard_condition_base.hpp"
+ },
+ "TransitionBoolCondition": {
+  "parent": "TransitionValueCondition",
+  "typeKey": 71,
+  "props": {},
+  "file": "animation\\transition_bool_condition_base.hpp"
+ },
+ "TransitionComparator": {
+  "parent": "Core",
+  "typeKey": 477,
+  "props": {},
+  "file": "animation\\transition_comparator_base.hpp"
+ },
+ "TransitionCondition": {
+  "parent": "Core",
+  "typeKey": 476,
+  "props": {},
+  "file": "animation\\transition_condition_base.hpp"
+ },
+ "TransitionFocusCondition": {
+  "parent": "TransitionViewModelCondition",
+  "typeKey": 1038,
+  "props": {},
+  "file": "animation\\transition_focus_condition_base.hpp"
+ },
+ "TransitionInputCondition": {
+  "parent": "TransitionCondition",
+  "typeKey": 67,
+  "props": {
+   "inputId": {
+    "key": 155,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\transition_input_condition_base.hpp"
+ },
+ "TransitionNumberCondition": {
+  "parent": "TransitionValueCondition",
+  "typeKey": 70,
+  "props": {
+   "value": {
+    "key": 157,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\transition_number_condition_base.hpp"
+ },
+ "TransitionPropertyArtboardComparator": {
+  "parent": "TransitionPropertyComparator",
+  "typeKey": 496,
+  "props": {
+   "propertyType": {
+    "key": 677,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\transition_property_artboard_comparator_base.hpp"
+ },
+ "TransitionPropertyComparator": {
+  "parent": "TransitionComparator",
+  "typeKey": 478,
+  "props": {},
+  "file": "animation\\transition_property_comparator_base.hpp"
+ },
+ "TransitionPropertyComponentComparator": {
+  "parent": "TransitionPropertyComparator",
+  "typeKey": 667,
+  "props": {
+   "objectId": {
+    "key": 977,
+    "type": "uint",
+    "def": "0"
+   },
+   "propertyKey": {
+    "key": 978,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\transition_property_component_comparator_base.hpp"
+ },
+ "TransitionPropertyViewModelComparator": {
+  "parent": "TransitionPropertyComparator",
+  "typeKey": 479,
+  "props": {},
+  "file": "animation\\transition_property_viewmodel_comparator_base.hpp"
+ },
+ "TransitionSelfComparator": {
+  "parent": "TransitionComparator",
+  "typeKey": 593,
+  "props": {},
+  "file": "animation\\transition_self_comparator_base.hpp"
+ },
+ "TransitionTriggerCondition": {
+  "parent": "TransitionInputCondition",
+  "typeKey": 68,
+  "props": {},
+  "file": "animation\\transition_trigger_condition_base.hpp"
+ },
+ "TransitionValueArtboardComparator": {
+  "parent": "TransitionValueIdComparator",
+  "typeKey": 630,
+  "props": {},
+  "file": "animation\\transition_value_artboard_comparator_base.hpp"
+ },
+ "TransitionValueAssetComparator": {
+  "parent": "TransitionValueIdComparator",
+  "typeKey": 602,
+  "props": {},
+  "file": "animation\\transition_value_asset_comparator_base.hpp"
+ },
+ "TransitionValueBooleanComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 481,
+  "props": {
+   "value": {
+    "key": 647,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "animation\\transition_value_boolean_comparator_base.hpp"
+ },
+ "TransitionValueColorComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 483,
+  "props": {
+   "value": {
+    "key": 651,
+    "type": "color",
+    "def": "0xFF1D1D1D"
+   }
+  },
+  "file": "animation\\transition_value_color_comparator_base.hpp"
+ },
+ "TransitionValueComparator": {
+  "parent": "TransitionComparator",
+  "typeKey": 480,
+  "props": {},
+  "file": "animation\\transition_value_comparator_base.hpp"
+ },
+ "TransitionValueCondition": {
+  "parent": "TransitionInputCondition",
+  "typeKey": 69,
+  "props": {
+   "opValue": {
+    "key": 156,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\transition_value_condition_base.hpp"
+ },
+ "TransitionValueEnumComparator": {
+  "parent": "TransitionValueIdComparator",
+  "typeKey": 485,
+  "props": {},
+  "file": "animation\\transition_value_enum_comparator_base.hpp"
+ },
+ "TransitionValueIdComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 601,
+  "props": {
+   "value": {
+    "key": 653,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "animation\\transition_value_id_comparator_base.hpp"
+ },
+ "TransitionValueNumberComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 484,
+  "props": {
+   "value": {
+    "key": 652,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "animation\\transition_value_number_comparator_base.hpp"
+ },
+ "TransitionValueStringComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 486,
+  "props": {
+   "value": {
+    "key": 654,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "animation\\transition_value_string_comparator_base.hpp"
+ },
+ "TransitionValueTriggerComparator": {
+  "parent": "TransitionValueComparator",
+  "typeKey": 505,
+  "props": {
+   "value": {
+    "key": 689,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\transition_value_trigger_comparator_base.hpp"
+ },
+ "TransitionViewModelCondition": {
+  "parent": "TransitionCondition",
+  "typeKey": 482,
+  "props": {
+   "opValue": {
+    "key": 650,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "animation\\transition_viewmodel_condition_base.hpp"
+ },
+ "Artboard": {
+  "parent": "LayoutComponent",
+  "typeKey": 1,
+  "props": {
+   "originX": {
+    "key": 11,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originY": {
+    "key": 12,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "defaultStateMachineId": {
+    "key": 236,
+    "type": "uint",
+    "def": "-1"
+   },
+   "viewModelId": {
+    "key": 583,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "artboard_base.hpp"
+ },
+ "ArtboardComponentList": {
+  "parent": "Drawable",
+  "typeKey": 559,
+  "props": {
+   "listSource": {
+    "key": 800,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "artboard_component_list_base.hpp"
+ },
+ "ArtboardListMapRule": {
+  "parent": "Component",
+  "typeKey": 648,
+  "props": {
+   "artboardId": {
+    "key": 934,
+    "type": "uint",
+    "def": "-1"
+   },
+   "viewModelId": {
+    "key": 935,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "artboard_list_map_rule_base.hpp"
+ },
+ "Asset": {
+  "parent": "Core",
+  "typeKey": 99,
+  "props": {
+   "name": {
+    "key": 203,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "assets\\asset_base.hpp"
+ },
+ "AudioAsset": {
+  "parent": "ExportAudio",
+  "typeKey": 406,
+  "props": {},
+  "file": "assets\\audio_asset_base.hpp"
+ },
+ "BlobAsset": {
+  "parent": "FileAsset",
+  "typeKey": 649,
+  "props": {},
+  "file": "assets\\blob_asset_base.hpp"
+ },
+ "DrawableAsset": {
+  "parent": "FileAsset",
+  "typeKey": 104,
+  "props": {
+   "height": {
+    "key": 207,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "width": {
+    "key": 208,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "assets\\drawable_asset_base.hpp"
+ },
+ "ExportAudio": {
+  "parent": "FileAsset",
+  "typeKey": 422,
+  "props": {
+   "volume": {
+    "key": 530,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "assets\\export_audio_base.hpp"
+ },
+ "FileAsset": {
+  "parent": "Asset",
+  "typeKey": 103,
+  "props": {
+   "assetId": {
+    "key": 204,
+    "type": "uint",
+    "def": "0"
+   },
+   "cdnUuid": {
+    "key": 359
+   },
+   "cdnBaseUrl": {
+    "key": 362,
+    "type": "string",
+    "def": "\"https://public.rive.app/cdn/uuid\""
+   }
+  },
+  "file": "assets\\file_asset_base.hpp"
+ },
+ "FileAssetContents": {
+  "parent": "Core",
+  "typeKey": 106,
+  "props": {
+   "bytes": {
+    "key": 212
+   },
+   "signature": {
+    "key": 911
+   }
+  },
+  "file": "assets\\file_asset_contents_base.hpp"
+ },
+ "Folder": {
+  "parent": "Asset",
+  "typeKey": 102,
+  "props": {},
+  "file": "assets\\folder_base.hpp"
+ },
+ "FontAsset": {
+  "parent": "FileAsset",
+  "typeKey": 141,
+  "props": {},
+  "file": "assets\\font_asset_base.hpp"
+ },
+ "ImageAsset": {
+  "parent": "DrawableAsset",
+  "typeKey": 105,
+  "props": {},
+  "file": "assets\\image_asset_base.hpp"
+ },
+ "ManifestAsset": {
+  "parent": "FileAsset",
+  "typeKey": 642,
+  "props": {},
+  "file": "assets\\manifest_asset_base.hpp"
+ },
+ "ScriptAsset": {
+  "parent": "TextAsset",
+  "typeKey": 529,
+  "props": {
+   "generatorFunctionRef": {
+    "key": 893,
+    "type": "uint",
+    "def": "0"
+   },
+   "isModule": {
+    "key": 914,
+    "type": "bool",
+    "def": "false"
+   },
+   "serializedImplementedMethods": {
+    "key": 1022,
+    "def": "2097151"
+   }
+  },
+  "file": "assets\\script_asset_base.hpp"
+ },
+ "ShaderAsset": {
+  "parent": "TextAsset",
+  "typeKey": 970,
+  "props": {},
+  "file": "assets\\shader_asset_base.hpp"
+ },
+ "TextAsset": {
+  "parent": "FileAsset",
+  "typeKey": 971,
+  "props": {
+   "folderPath": {
+    "key": 926,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "assets\\text_asset_base.hpp"
+ },
+ "AudioEvent": {
+  "parent": "Event",
+  "typeKey": 407,
+  "props": {
+   "assetId": {
+    "key": 408,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "audio_event_base.hpp"
+ },
+ "Backboard": {
+  "parent": "Core",
+  "typeKey": 23,
+  "props": {},
+  "file": "backboard_base.hpp"
+ },
+ "Bone": {
+  "parent": "SkeletalComponent",
+  "typeKey": 40,
+  "props": {
+   "length": {
+    "key": 89,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "bones\\bone_base.hpp"
+ },
+ "CubicWeight": {
+  "parent": "Weight",
+  "typeKey": 46,
+  "props": {
+   "inValues": {
+    "key": 110,
+    "type": "uint",
+    "def": "255"
+   },
+   "inIndices": {
+    "key": 111,
+    "type": "uint",
+    "def": "1"
+   },
+   "outValues": {
+    "key": 112,
+    "type": "uint",
+    "def": "255"
+   },
+   "outIndices": {
+    "key": 113,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "bones\\cubic_weight_base.hpp"
+ },
+ "RootBone": {
+  "parent": "Bone",
+  "typeKey": 41,
+  "props": {
+   "x": {
+    "key": 90,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "y": {
+    "key": 91,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "bones\\root_bone_base.hpp"
+ },
+ "SkeletalComponent": {
+  "parent": "TransformComponent",
+  "typeKey": 39,
+  "props": {},
+  "file": "bones\\skeletal_component_base.hpp"
+ },
+ "Skin": {
+  "parent": "ContainerComponent",
+  "typeKey": 43,
+  "props": {
+   "xx": {
+    "key": 104,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "yx": {
+    "key": 105,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "xy": {
+    "key": 106,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "yy": {
+    "key": 107,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "tx": {
+    "key": 108,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "ty": {
+    "key": 109,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "bones\\skin_base.hpp"
+ },
+ "Tendon": {
+  "parent": "Component",
+  "typeKey": 44,
+  "props": {
+   "boneId": {
+    "key": 95,
+    "type": "uint",
+    "def": "-1"
+   },
+   "xx": {
+    "key": 96,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "yx": {
+    "key": 97,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "xy": {
+    "key": 98,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "yy": {
+    "key": 99,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "tx": {
+    "key": 100,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "ty": {
+    "key": 101,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "bones\\tendon_base.hpp"
+ },
+ "Weight": {
+  "parent": "Component",
+  "typeKey": 45,
+  "props": {
+   "values": {
+    "key": 102,
+    "type": "uint",
+    "def": "255"
+   },
+   "indices": {
+    "key": 103,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "bones\\weight_base.hpp"
+ },
+ "Component": {
+  "parent": "Core",
+  "typeKey": 10,
+  "props": {
+   "name": {
+    "key": 4,
+    "type": "string",
+    "def": "\"\""
+   },
+   "parentId": {
+    "key": 5,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "component_base.hpp"
+ },
+ "ComponentOrigin": {
+  "parent": "Component",
+  "typeKey": 1039,
+  "props": {
+   "originX": {
+    "key": 1040,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originY": {
+    "key": 1041,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "component_origin_base.hpp"
+ },
+ "Constraint": {
+  "parent": "Component",
+  "typeKey": 79,
+  "props": {
+   "strength": {
+    "key": 172,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "constraints\\constraint_base.hpp"
+ },
+ "DistanceConstraint": {
+  "parent": "TargetedConstraint",
+  "typeKey": 82,
+  "props": {
+   "distance": {
+    "key": 177,
+    "type": "double",
+    "def": "100.0f"
+   },
+   "modeValue": {
+    "key": 178,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "constraints\\distance_constraint_base.hpp"
+ },
+ "DraggableConstraint": {
+  "parent": "Constraint",
+  "typeKey": 520,
+  "props": {
+   "directionValue": {
+    "key": 722,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "constraints\\draggable_constraint_base.hpp"
+ },
+ "FollowPathConstraint": {
+  "parent": "TransformSpaceConstraint",
+  "typeKey": 165,
+  "props": {
+   "distance": {
+    "key": 363,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "orient": {
+    "key": 364,
+    "type": "bool",
+    "def": "true"
+   },
+   "offset": {
+    "key": 365,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "constraints\\follow_path_constraint_base.hpp"
+ },
+ "IKConstraint": {
+  "parent": "TargetedConstraint",
+  "typeKey": 81,
+  "props": {
+   "invertDirection": {
+    "key": 174,
+    "type": "bool",
+    "def": "false"
+   },
+   "parentBoneCount": {
+    "key": 175,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "constraints\\ik_constraint_base.hpp"
+ },
+ "ListFollowPathConstraint": {
+  "parent": "FollowPathConstraint",
+  "typeKey": 625,
+  "props": {
+   "distanceEnd": {
+    "key": 888,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "distanceOffset": {
+    "key": 889,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "constraints\\list_follow_path_constraint_base.hpp"
+ },
+ "RotationConstraint": {
+  "parent": "TransformComponentConstraint",
+  "typeKey": 89,
+  "props": {},
+  "file": "constraints\\rotation_constraint_base.hpp"
+ },
+ "ScaleConstraint": {
+  "parent": "TransformComponentConstraintY",
+  "typeKey": 88,
+  "props": {},
+  "file": "constraints\\scale_constraint_base.hpp"
+ },
+ "ClampedScrollPhysics": {
+  "parent": "ScrollPhysics",
+  "typeKey": 524,
+  "props": {},
+  "file": "constraints\\scrolling\\clamped_scroll_physics_base.hpp"
+ },
+ "ElasticScrollPhysics": {
+  "parent": "ScrollPhysics",
+  "typeKey": 525,
+  "props": {
+   "friction": {
+    "key": 728,
+    "type": "double",
+    "def": "8.0f"
+   },
+   "speedMultiplier": {
+    "key": 729,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "elasticFactor": {
+    "key": 730,
+    "type": "double",
+    "def": "0.66f"
+   }
+  },
+  "file": "constraints\\scrolling\\elastic_scroll_physics_base.hpp"
+ },
+ "ScrollBarConstraint": {
+  "parent": "DraggableConstraint",
+  "typeKey": 522,
+  "props": {
+   "scrollConstraintId": {
+    "key": 725,
+    "type": "uint",
+    "def": "-1"
+   },
+   "autoSize": {
+    "key": 734,
+    "type": "bool",
+    "def": "true"
+   }
+  },
+  "file": "constraints\\scrolling\\scroll_bar_constraint_base.hpp"
+ },
+ "ScrollConstraint": {
+  "parent": "DraggableConstraint",
+  "typeKey": 521,
+  "props": {
+   "scrollOffsetX": {
+    "key": 759,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "scrollOffsetY": {
+    "key": 760,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "scrollPercentX": {
+    "key": 761
+   },
+   "scrollPercentY": {
+    "key": 762
+   },
+   "scrollIndex": {
+    "key": 763
+   },
+   "snap": {
+    "key": 724,
+    "type": "bool",
+    "def": "false"
+   },
+   "physicsTypeValue": {
+    "key": 727,
+    "type": "uint",
+    "def": "0"
+   },
+   "physicsId": {
+    "key": 726,
+    "type": "uint",
+    "def": "-1"
+   },
+   "virtualize": {
+    "key": 850,
+    "type": "bool",
+    "def": "false"
+   },
+   "infinite": {
+    "key": 851,
+    "type": "bool",
+    "def": "false"
+   },
+   "interactive": {
+    "key": 891,
+    "type": "bool",
+    "def": "true"
+   },
+   "threshold": {
+    "key": 894,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "velocityX": {
+    "key": 1023
+   },
+   "velocityY": {
+    "key": 1024
+   },
+   "scrollActive": {
+    "key": 1025
+   },
+   "dragMultiplier": {
+    "key": 1029,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "constraints\\scrolling\\scroll_constraint_base.hpp"
+ },
+ "ScrollPhysics": {
+  "parent": "Component",
+  "typeKey": 523,
+  "props": {
+   "constraintId": {
+    "key": 731,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "constraints\\scrolling\\scroll_physics_base.hpp"
+ },
+ "TargetedConstraint": {
+  "parent": "Constraint",
+  "typeKey": 80,
+  "props": {
+   "targetId": {
+    "key": 173,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "constraints\\targeted_constraint_base.hpp"
+ },
+ "TransformComponentConstraint": {
+  "parent": "TransformSpaceConstraint",
+  "typeKey": 85,
+  "props": {
+   "minMaxSpaceValue": {
+    "key": 195,
+    "type": "uint",
+    "def": "0"
+   },
+   "copyFactor": {
+    "key": 182,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "minValue": {
+    "key": 183,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "maxValue": {
+    "key": 184,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "offset": {
+    "key": 188,
+    "type": "bool",
+    "def": "false"
+   },
+   "doesCopy": {
+    "key": 189,
+    "type": "bool",
+    "def": "true"
+   },
+   "min": {
+    "key": 190,
+    "type": "bool",
+    "def": "false"
+   },
+   "max": {
+    "key": 191,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "constraints\\transform_component_constraint_base.hpp"
+ },
+ "TransformComponentConstraintY": {
+  "parent": "TransformComponentConstraint",
+  "typeKey": 86,
+  "props": {
+   "copyFactorY": {
+    "key": 185,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "minValueY": {
+    "key": 186,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "maxValueY": {
+    "key": 187,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "doesCopyY": {
+    "key": 192,
+    "type": "bool",
+    "def": "true"
+   },
+   "minY": {
+    "key": 193,
+    "type": "bool",
+    "def": "false"
+   },
+   "maxY": {
+    "key": 194,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "constraints\\transform_component_constraint_y_base.hpp"
+ },
+ "TransformConstraint": {
+  "parent": "TransformSpaceConstraint",
+  "typeKey": 83,
+  "props": {
+   "originX": {
+    "key": 372,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originY": {
+    "key": 373,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "constraints\\transform_constraint_base.hpp"
+ },
+ "TransformSpaceConstraint": {
+  "parent": "TargetedConstraint",
+  "typeKey": 90,
+  "props": {
+   "sourceSpaceValue": {
+    "key": 179,
+    "type": "uint",
+    "def": "0"
+   },
+   "destSpaceValue": {
+    "key": 180,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "constraints\\transform_space_constraint_base.hpp"
+ },
+ "TranslationConstraint": {
+  "parent": "TransformComponentConstraintY",
+  "typeKey": 87,
+  "props": {},
+  "file": "constraints\\translation_constraint_base.hpp"
+ },
+ "ContainerComponent": {
+  "parent": "Component",
+  "typeKey": 11,
+  "props": {},
+  "file": "container_component_base.hpp"
+ },
+ "CustomProperty": {
+  "parent": "Component",
+  "typeKey": 167,
+  "props": {},
+  "file": "custom_property_base.hpp"
+ },
+ "CustomPropertyBoolean": {
+  "parent": "CustomProperty",
+  "typeKey": 129,
+  "props": {
+   "propertyValue": {
+    "key": 245,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "custom_property_boolean_base.hpp"
+ },
+ "CustomPropertyColor": {
+  "parent": "CustomProperty",
+  "typeKey": 592,
+  "props": {
+   "propertyValue": {
+    "key": 836,
+    "type": "color",
+    "def": "0xFF1D1D1D"
+   }
+  },
+  "file": "custom_property_color_base.hpp"
+ },
+ "CustomPropertyEnum": {
+  "parent": "CustomProperty",
+  "typeKey": 616,
+  "props": {
+   "propertyValue": {
+    "key": 872,
+    "type": "uint",
+    "def": "-1"
+   },
+   "enumId": {
+    "key": 873,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "custom_property_enum_base.hpp"
+ },
+ "CustomPropertyGroup": {
+  "parent": "ContainerComponent",
+  "typeKey": 548,
+  "props": {},
+  "file": "custom_property_group_base.hpp"
+ },
+ "CustomPropertyNumber": {
+  "parent": "CustomProperty",
+  "typeKey": 127,
+  "props": {
+   "propertyValue": {
+    "key": 243,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "custom_property_number_base.hpp"
+ },
+ "CustomPropertyString": {
+  "parent": "CustomProperty",
+  "typeKey": 130,
+  "props": {
+   "propertyValue": {
+    "key": 246,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "custom_property_string_base.hpp"
+ },
+ "CustomPropertyTrigger": {
+  "parent": "CustomProperty",
+  "typeKey": 613,
+  "props": {
+   "fire": {
+    "key": 869
+   },
+   "propertyValue": {
+    "key": 870,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "custom_property_trigger_base.hpp"
+ },
+ "BindablePropertyArtboard": {
+  "parent": "BindablePropertyId",
+  "typeKey": 597,
+  "props": {},
+  "file": "data_bind\\bindable_property_artboard_base.hpp"
+ },
+ "BindablePropertyAsset": {
+  "parent": "BindablePropertyId",
+  "typeKey": 588,
+  "props": {},
+  "file": "data_bind\\bindable_property_asset_base.hpp"
+ },
+ "BindableProperty": {
+  "parent": "Core",
+  "typeKey": 9,
+  "props": {},
+  "file": "data_bind\\bindable_property_base.hpp"
+ },
+ "BindablePropertyBoolean": {
+  "parent": "BindableProperty",
+  "typeKey": 472,
+  "props": {
+   "propertyValue": {
+    "key": 634,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "data_bind\\bindable_property_boolean_base.hpp"
+ },
+ "BindablePropertyColor": {
+  "parent": "BindableProperty",
+  "typeKey": 475,
+  "props": {
+   "propertyValue": {
+    "key": 638,
+    "type": "color",
+    "def": "0xFF1D1D1D"
+   }
+  },
+  "file": "data_bind\\bindable_property_color_base.hpp"
+ },
+ "BindablePropertyEnum": {
+  "parent": "BindableProperty",
+  "typeKey": 474,
+  "props": {
+   "propertyValue": {
+    "key": 637,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\bindable_property_enum_base.hpp"
+ },
+ "BindablePropertyId": {
+  "parent": "BindableProperty",
+  "typeKey": 596,
+  "props": {
+   "propertyValue": {
+    "key": 823,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\bindable_property_id_base.hpp"
+ },
+ "BindablePropertyInteger": {
+  "parent": "BindableProperty",
+  "typeKey": 567,
+  "props": {
+   "propertyValue": {
+    "key": 686,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\bindable_property_integer_base.hpp"
+ },
+ "BindablePropertyList": {
+  "parent": "BindableProperty",
+  "typeKey": 590,
+  "props": {
+   "propertyValue": {
+    "key": 835,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\bindable_property_list_base.hpp"
+ },
+ "BindablePropertyNumber": {
+  "parent": "BindableProperty",
+  "typeKey": 473,
+  "props": {
+   "propertyValue": {
+    "key": 636,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "data_bind\\bindable_property_number_base.hpp"
+ },
+ "BindablePropertyString": {
+  "parent": "BindableProperty",
+  "typeKey": 471,
+  "props": {
+   "propertyValue": {
+    "key": 635,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "data_bind\\bindable_property_string_base.hpp"
+ },
+ "BindablePropertyTrigger": {
+  "parent": "BindablePropertyInteger",
+  "typeKey": 503,
+  "props": {},
+  "file": "data_bind\\bindable_property_trigger_base.hpp"
+ },
+ "BindablePropertyViewModel": {
+  "parent": "BindablePropertyId",
+  "typeKey": 662,
+  "props": {},
+  "file": "data_bind\\bindable_property_viewmodel_base.hpp"
+ },
+ "DataConverter": {
+  "parent": "Core",
+  "typeKey": 488,
+  "props": {
+   "name": {
+    "key": 662,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_base.hpp"
+ },
+ "DataConverterBooleanNegate": {
+  "parent": "DataConverter",
+  "typeKey": 535,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_boolean_negate_base.hpp"
+ },
+ "DataConverterFormula": {
+  "parent": "DataConverter",
+  "typeKey": 536,
+  "props": {
+   "randomModeValue": {
+    "key": 887,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_formula_base.hpp"
+ },
+ "DataConverterGroup": {
+  "parent": "DataConverter",
+  "typeKey": 499,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_group_base.hpp"
+ },
+ "DataConverterGroupItem": {
+  "parent": "Core",
+  "typeKey": 498,
+  "props": {
+   "converterId": {
+    "key": 679,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_group_item_base.hpp"
+ },
+ "DataConverterInterpolator": {
+  "parent": "DataConverter",
+  "typeKey": 534,
+  "props": {
+   "interpolationType": {
+    "key": 757,
+    "type": "uint",
+    "def": "1"
+   },
+   "interpolatorId": {
+    "key": 758,
+    "type": "uint",
+    "def": "-1"
+   },
+   "duration": {
+    "key": 756,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_interpolator_base.hpp"
+ },
+ "DataConverterListToLength": {
+  "parent": "DataConverter",
+  "typeKey": 591,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_list_to_length_base.hpp"
+ },
+ "DataConverterNumberToList": {
+  "parent": "DataConverter",
+  "typeKey": 568,
+  "props": {
+   "viewModelId": {
+    "key": 816,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_number_to_list_base.hpp"
+ },
+ "DataConverterOperation": {
+  "parent": "DataConverter",
+  "typeKey": 516,
+  "props": {
+   "operationType": {
+    "key": 682,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_operation_base.hpp"
+ },
+ "DataConverterOperationValue": {
+  "parent": "DataConverterOperation",
+  "typeKey": 500,
+  "props": {
+   "operationValue": {
+    "key": 681,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_operation_value_base.hpp"
+ },
+ "DataConverterOperationViewModel": {
+  "parent": "DataConverterOperation",
+  "typeKey": 517,
+  "props": {
+   "sourcePathIds": {
+    "key": 711
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_operation_viewmodel_base.hpp"
+ },
+ "DataConverterRangeMapper": {
+  "parent": "DataConverter",
+  "typeKey": 519,
+  "props": {
+   "interpolationType": {
+    "key": 713,
+    "type": "uint",
+    "def": "1"
+   },
+   "interpolatorId": {
+    "key": 714,
+    "type": "uint",
+    "def": "-1"
+   },
+   "flags": {
+    "key": 715,
+    "type": "uint",
+    "def": "0"
+   },
+   "minInput": {
+    "key": 716,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "maxInput": {
+    "key": 717,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "minOutput": {
+    "key": 718,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "maxOutput": {
+    "key": 719,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_range_mapper_base.hpp"
+ },
+ "DataConverterRounder": {
+  "parent": "DataConverter",
+  "typeKey": 489,
+  "props": {
+   "decimals": {
+    "key": 669,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_rounder_base.hpp"
+ },
+ "DataConverterStringPad": {
+  "parent": "DataConverter",
+  "typeKey": 530,
+  "props": {
+   "length": {
+    "key": 743,
+    "type": "uint",
+    "def": "1"
+   },
+   "text": {
+    "key": 744,
+    "type": "string",
+    "def": "\"\""
+   },
+   "padType": {
+    "key": 745,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_string_pad_base.hpp"
+ },
+ "DataConverterStringRemoveZeros": {
+  "parent": "DataConverter",
+  "typeKey": 531,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_string_remove_zeros_base.hpp"
+ },
+ "DataConverterStringTrim": {
+  "parent": "DataConverter",
+  "typeKey": 532,
+  "props": {
+   "trimType": {
+    "key": 746,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_string_trim_base.hpp"
+ },
+ "DataConverterSystemDegsToRads": {
+  "parent": "DataConverterOperationValue",
+  "typeKey": 514,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_system_degs_to_rads_base.hpp"
+ },
+ "DataConverterSystemNormalizer": {
+  "parent": "DataConverterOperationValue",
+  "typeKey": 515,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_system_normalizer_base.hpp"
+ },
+ "DataConverterToNumber": {
+  "parent": "DataConverter",
+  "typeKey": 617,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_to_number_base.hpp"
+ },
+ "DataConverterToString": {
+  "parent": "DataConverter",
+  "typeKey": 490,
+  "props": {
+   "flags": {
+    "key": 764,
+    "type": "uint",
+    "def": "0"
+   },
+   "decimals": {
+    "key": 765,
+    "type": "uint",
+    "def": "0"
+   },
+   "colorFormat": {
+    "key": 766,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "data_bind\\converters\\data_converter_to_string_base.hpp"
+ },
+ "DataConverterTrigger": {
+  "parent": "DataConverter",
+  "typeKey": 504,
+  "props": {},
+  "file": "data_bind\\converters\\data_converter_trigger_base.hpp"
+ },
+ "FormulaTokenArgumentSeparator": {
+  "parent": "FormulaToken",
+  "typeKey": 538,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_argument_separator_base.hpp"
+ },
+ "FormulaToken": {
+  "parent": "Core",
+  "typeKey": 537,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_base.hpp"
+ },
+ "FormulaTokenFunction": {
+  "parent": "FormulaTokenParenthesis",
+  "typeKey": 542,
+  "props": {
+   "functionType": {
+    "key": 776,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\formula\\formula_token_function_base.hpp"
+ },
+ "FormulaTokenInput": {
+  "parent": "FormulaToken",
+  "typeKey": 545,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_input_base.hpp"
+ },
+ "FormulaTokenOperation": {
+  "parent": "FormulaToken",
+  "typeKey": 541,
+  "props": {
+   "operationType": {
+    "key": 775,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "data_bind\\converters\\formula\\formula_token_operation_base.hpp"
+ },
+ "FormulaTokenParenthesis": {
+  "parent": "FormulaToken",
+  "typeKey": 539,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_parenthesis_base.hpp"
+ },
+ "FormulaTokenParenthesisClose": {
+  "parent": "FormulaTokenParenthesis",
+  "typeKey": 540,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_parenthesis_close_base.hpp"
+ },
+ "FormulaTokenParenthesisOpen": {
+  "parent": "FormulaTokenParenthesis",
+  "typeKey": 544,
+  "props": {},
+  "file": "data_bind\\converters\\formula\\formula_token_parenthesis_open_base.hpp"
+ },
+ "FormulaTokenValue": {
+  "parent": "FormulaToken",
+  "typeKey": 543,
+  "props": {
+   "operationValue": {
+    "key": 777,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "data_bind\\converters\\formula\\formula_token_value_base.hpp"
+ },
+ "DataBind": {
+  "parent": "Core",
+  "typeKey": 446,
+  "props": {
+   "propertyKey": {
+    "key": 586,
+    "type": "uint",
+    "def": "Core::invalidPropertyKey"
+   },
+   "flags": {
+    "key": 587,
+    "type": "uint",
+    "def": "0"
+   },
+   "converterId": {
+    "key": 660,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "data_bind\\data_bind_base.hpp"
+ },
+ "DataBindContext": {
+  "parent": "DataBind",
+  "typeKey": 447,
+  "props": {
+   "sourcePathIds": {
+    "key": 588
+   }
+  },
+  "file": "data_bind\\data_bind_context_base.hpp"
+ },
+ "DataBindPath": {
+  "parent": "Core",
+  "typeKey": 643,
+  "props": {
+   "path": {
+    "key": 920
+   },
+   "isRelative": {
+    "key": 921,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "data_bind\\data_bind_path_base.hpp"
+ },
+ "Drawable": {
+  "parent": "Node",
+  "typeKey": 13,
+  "props": {
+   "blendModeValue": {
+    "key": 23,
+    "type": "uint",
+    "def": "3"
+   },
+   "drawableFlags": {
+    "key": 129,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "drawable_base.hpp"
+ },
+ "DrawRules": {
+  "parent": "ContainerComponent",
+  "typeKey": 49,
+  "props": {
+   "drawTargetId": {
+    "key": 121,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "draw_rules_base.hpp"
+ },
+ "DrawTarget": {
+  "parent": "Component",
+  "typeKey": 48,
+  "props": {
+   "drawableId": {
+    "key": 119,
+    "type": "uint",
+    "def": "-1"
+   },
+   "placementValue": {
+    "key": 120,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "draw_target_base.hpp"
+ },
+ "Event": {
+  "parent": "CustomPropertyGroup",
+  "typeKey": 128,
+  "props": {
+   "trigger": {
+    "key": 395
+   }
+  },
+  "file": "event_base.hpp"
+ },
+ "FocusData": {
+  "parent": "Component",
+  "typeKey": 653,
+  "props": {
+   "focusFlags": {
+    "key": 1033,
+    "type": "uint",
+    "def": "7"
+   },
+   "canFocus": {
+    "key": 953
+   },
+   "canTouch": {
+    "key": 954
+   },
+   "canTraverse": {
+    "key": 955
+   },
+   "edgeBehaviorValue": {
+    "key": 956,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "focus_data_base.hpp"
+ },
+ "ForegroundLayoutDrawable": {
+  "parent": "Drawable",
+  "typeKey": 513,
+  "props": {},
+  "file": "foreground_layout_drawable_base.hpp"
+ },
+ "GamepadInput": {
+  "parent": "UserInput",
+  "typeKey": 974,
+  "props": {
+   "kind": {
+    "key": 1021,
+    "type": "uint",
+    "def": "0"
+   },
+   "mapping": {
+    "key": 1018,
+    "type": "uint",
+    "def": "0"
+   },
+   "inputIndex": {
+    "key": 1019,
+    "type": "uint",
+    "def": "0"
+   },
+   "buttonPhase": {
+    "key": 1020,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "inputs\\gamepad_input_base.hpp"
+ },
+ "KeyboardInput": {
+  "parent": "UserInput",
+  "typeKey": 664,
+  "props": {
+   "keyType": {
+    "key": 971,
+    "type": "uint",
+    "def": "-1"
+   },
+   "keyPhase": {
+    "key": 972,
+    "type": "uint",
+    "def": "0"
+   },
+   "modifiers": {
+    "key": 973,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "inputs\\keyboard_input_base.hpp"
+ },
+ "SemanticInput": {
+  "parent": "UserInput",
+  "typeKey": 670,
+  "props": {
+   "actionType": {
+    "key": 1010,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "inputs\\semantic_input_base.hpp"
+ },
+ "UserInput": {
+  "parent": "Core",
+  "typeKey": 663,
+  "props": {},
+  "file": "inputs\\user_input_base.hpp"
+ },
+ "Joystick": {
+  "parent": "Component",
+  "typeKey": 148,
+  "props": {
+   "x": {
+    "key": 299,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "y": {
+    "key": 300,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "posX": {
+    "key": 303,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "posY": {
+    "key": 304,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originX": {
+    "key": 307,
+    "type": "double",
+    "def": "0.5f"
+   },
+   "originY": {
+    "key": 308,
+    "type": "double",
+    "def": "0.5f"
+   },
+   "width": {
+    "key": 305,
+    "type": "double",
+    "def": "100.0f"
+   },
+   "height": {
+    "key": 306,
+    "type": "double",
+    "def": "100.0f"
+   },
+   "xId": {
+    "key": 301,
+    "type": "uint",
+    "def": "-1"
+   },
+   "yId": {
+    "key": 302,
+    "type": "uint",
+    "def": "-1"
+   },
+   "joystickFlags": {
+    "key": 312,
+    "type": "uint",
+    "def": "0"
+   },
+   "handleSourceId": {
+    "key": 313,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "joystick_base.hpp"
+ },
+ "ArtboardComponentListOverride": {
+  "parent": "Component",
+  "typeKey": 606,
+  "props": {
+   "artboardId": {
+    "key": 858,
+    "type": "uint",
+    "def": "-1"
+   },
+   "instanceWidth": {
+    "key": 859,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "instanceHeight": {
+    "key": 860,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "instanceWidthUnitsValue": {
+    "key": 856,
+    "type": "uint",
+    "def": "1"
+   },
+   "instanceHeightUnitsValue": {
+    "key": 861,
+    "type": "uint",
+    "def": "1"
+   },
+   "instanceWidthScaleType": {
+    "key": 862,
+    "type": "uint",
+    "def": "0"
+   },
+   "instanceHeightScaleType": {
+    "key": 863,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "layout\\artboard_component_list_override_base.hpp"
+ },
+ "Axis": {
+  "parent": "Component",
+  "typeKey": 492,
+  "props": {
+   "offset": {
+    "key": 675,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "normalized": {
+    "key": 676,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "layout\\axis_base.hpp"
+ },
+ "AxisX": {
+  "parent": "Axis",
+  "typeKey": 495,
+  "props": {},
+  "file": "layout\\axis_x_base.hpp"
+ },
+ "AxisY": {
+  "parent": "Axis",
+  "typeKey": 494,
+  "props": {},
+  "file": "layout\\axis_y_base.hpp"
+ },
+ "GridItemPlacement": {
+  "parent": "Component",
+  "typeKey": 1068,
+  "props": {
+   "gridColumn": {
+    "key": 1047,
+    "type": "CoreIntType",
+    "def": "0"
+   },
+   "gridRow": {
+    "key": 1048,
+    "type": "CoreIntType",
+    "def": "0"
+   },
+   "gridColumnSpan": {
+    "key": 1049,
+    "type": "uint",
+    "def": "1"
+   },
+   "gridRowSpan": {
+    "key": 1050,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "layout\\grid_item_placement_base.hpp"
+ },
+ "GridTrack": {
+  "parent": "Component",
+  "typeKey": 1058,
+  "props": {
+   "trackValue": {
+    "key": 1063,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "trackMaxValue": {
+    "key": 1065,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "collection": {
+    "key": 1061,
+    "type": "uint",
+    "def": "0"
+   },
+   "trackType": {
+    "key": 1062,
+    "type": "uint",
+    "def": "0"
+   },
+   "trackMaxType": {
+    "key": 1064,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "layout\\grid_track_base.hpp"
+ },
+ "LayoutComponentStyle": {
+  "parent": "LayoutSizingStyle",
+  "typeKey": 420,
+  "props": {
+   "gapHorizontal": {
+    "key": 498,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "gapVertical": {
+    "key": 499,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "borderLeft": {
+    "key": 504,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "borderRight": {
+    "key": 505,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "borderTop": {
+    "key": 506,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "borderBottom": {
+    "key": 507,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "marginLeft": {
+    "key": 508,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "marginRight": {
+    "key": 509,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "marginTop": {
+    "key": 510,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "marginBottom": {
+    "key": 511,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "paddingLeft": {
+    "key": 512,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "paddingRight": {
+    "key": 513,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "paddingTop": {
+    "key": 514,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "paddingBottom": {
+    "key": 515,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "positionLeft": {
+    "key": 516,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "positionRight": {
+    "key": 517,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "positionTop": {
+    "key": 518,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "positionBottom": {
+    "key": 519,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "flexBasis": {
+    "key": 523,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "aspectRatio": {
+    "key": 524,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "interpolatorId": {
+    "key": 591,
+    "type": "uint",
+    "def": "-1"
+   },
+   "interpolationTime": {
+    "key": 592,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "flexBasisUnitsValue": {
+    "key": 705,
+    "type": "uint",
+    "def": "3"
+   },
+   "layoutAlignmentType": {
+    "key": 632,
+    "type": "uint",
+    "def": "0"
+   },
+   "animationStyleType": {
+    "key": 589,
+    "type": "uint",
+    "def": "0"
+   },
+   "interpolationType": {
+    "key": 590,
+    "type": "uint",
+    "def": "0"
+   },
+   "positionTypeValue": {
+    "key": 597,
+    "type": "uint",
+    "def": "1"
+   },
+   "flexDirectionValue": {
+    "key": 598,
+    "type": "uint",
+    "def": "2"
+   },
+   "directionValue": {
+    "key": 599,
+    "type": "uint",
+    "def": "0"
+   },
+   "flexWrapValue": {
+    "key": 604,
+    "type": "uint",
+    "def": "0"
+   },
+   "overflowValue": {
+    "key": 605,
+    "type": "uint",
+    "def": "0"
+   },
+   "intrinsicallySizedValue": {
+    "key": 606,
+    "type": "bool",
+    "def": "false"
+   },
+   "borderLeftUnitsValue": {
+    "key": 609,
+    "type": "uint",
+    "def": "0"
+   },
+   "borderRightUnitsValue": {
+    "key": 610,
+    "type": "uint",
+    "def": "0"
+   },
+   "borderTopUnitsValue": {
+    "key": 611,
+    "type": "uint",
+    "def": "0"
+   },
+   "borderBottomUnitsValue": {
+    "key": 612,
+    "type": "uint",
+    "def": "0"
+   },
+   "marginLeftUnitsValue": {
+    "key": 613,
+    "type": "uint",
+    "def": "0"
+   },
+   "marginRightUnitsValue": {
+    "key": 614,
+    "type": "uint",
+    "def": "0"
+   },
+   "marginTopUnitsValue": {
+    "key": 615,
+    "type": "uint",
+    "def": "0"
+   },
+   "marginBottomUnitsValue": {
+    "key": 616,
+    "type": "uint",
+    "def": "0"
+   },
+   "paddingLeftUnitsValue": {
+    "key": 617,
+    "type": "uint",
+    "def": "0"
+   },
+   "paddingRightUnitsValue": {
+    "key": 618,
+    "type": "uint",
+    "def": "0"
+   },
+   "paddingTopUnitsValue": {
+    "key": 619,
+    "type": "uint",
+    "def": "0"
+   },
+   "paddingBottomUnitsValue": {
+    "key": 620,
+    "type": "uint",
+    "def": "0"
+   },
+   "positionLeftUnitsValue": {
+    "key": 621,
+    "type": "uint",
+    "def": "0"
+   },
+   "positionRightUnitsValue": {
+    "key": 622,
+    "type": "uint",
+    "def": "0"
+   },
+   "positionTopUnitsValue": {
+    "key": 623,
+    "type": "uint",
+    "def": "0"
+   },
+   "positionBottomUnitsValue": {
+    "key": 624,
+    "type": "uint",
+    "def": "0"
+   },
+   "gapHorizontalUnitsValue": {
+    "key": 625,
+    "type": "uint",
+    "def": "0"
+   },
+   "gapVerticalUnitsValue": {
+    "key": 626,
+    "type": "uint",
+    "def": "0"
+   },
+   "linkCornerRadius": {
+    "key": 639,
+    "type": "bool",
+    "def": "true"
+   },
+   "justifyItemsValue": {
+    "key": 1045,
+    "type": "uint",
+    "def": "7"
+   },
+   "layoutTypeValue": {
+    "key": 1059,
+    "type": "uint",
+    "def": "0"
+   },
+   "cornerRadiusTL": {
+    "key": 640,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusTR": {
+    "key": 641,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusBL": {
+    "key": 642,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusBR": {
+    "key": 643,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "layout\\layout_component_style_base.hpp"
+ },
+ "LayoutNodeStyle": {
+  "parent": "LayoutSizingStyle",
+  "typeKey": 1057,
+  "props": {
+   "width": {
+    "key": 1066,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "height": {
+    "key": 1067,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "fractionalWidth": {
+    "key": 1057,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "fractionalHeight": {
+    "key": 1058,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "layout\\layout_node_style_base.hpp"
+ },
+ "LayoutParticipant": {
+  "parent": "LayoutNodeStyle",
+  "typeKey": 1066,
+  "props": {},
+  "file": "layout\\layout_participant_base.hpp"
+ },
+ "LayoutSizingStyle": {
+  "parent": "Component",
+  "typeKey": 1056,
+  "props": {
+   "minWidth": {
+    "key": 502,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "maxWidth": {
+    "key": 500,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "minHeight": {
+    "key": 503,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "maxHeight": {
+    "key": 501,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "layoutWidthScaleType": {
+    "key": 655,
+    "type": "uint",
+    "def": "0"
+   },
+   "layoutHeightScaleType": {
+    "key": 656,
+    "type": "uint",
+    "def": "0"
+   },
+   "widthUnitsValue": {
+    "key": 607,
+    "type": "uint",
+    "def": "1"
+   },
+   "heightUnitsValue": {
+    "key": 608,
+    "type": "uint",
+    "def": "1"
+   },
+   "minWidthUnitsValue": {
+    "key": 627,
+    "type": "uint",
+    "def": "0"
+   },
+   "maxWidthUnitsValue": {
+    "key": 629,
+    "type": "uint",
+    "def": "0"
+   },
+   "minHeightUnitsValue": {
+    "key": 628,
+    "type": "uint",
+    "def": "0"
+   },
+   "maxHeightUnitsValue": {
+    "key": 630,
+    "type": "uint",
+    "def": "0"
+   },
+   "justifySelfValue": {
+    "key": 1046,
+    "type": "uint",
+    "def": "6"
+   },
+   "displayValue": {
+    "key": 596,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "layout\\layout_sizing_style_base.hpp"
+ },
+ "NSlicedNode": {
+  "parent": "Node",
+  "typeKey": 508,
+  "props": {
+   "initialWidth": {
+    "key": 697,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "initialHeight": {
+    "key": 698,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "width": {
+    "key": 699,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "height": {
+    "key": 700,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "layout\\n_sliced_node_base.hpp"
+ },
+ "NSlicer": {
+  "parent": "ContainerComponent",
+  "typeKey": 493,
+  "props": {},
+  "file": "layout\\n_slicer_base.hpp"
+ },
+ "NSlicerTileMode": {
+  "parent": "Component",
+  "typeKey": 491,
+  "props": {
+   "patchIndex": {
+    "key": 672,
+    "type": "uint",
+    "def": "0"
+   },
+   "style": {
+    "key": 673,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "layout\\n_slicer_tile_mode_base.hpp"
+ },
+ "LayoutComponent": {
+  "parent": "Drawable",
+  "typeKey": 409,
+  "props": {
+   "clip": {
+    "key": 196,
+    "type": "bool",
+    "def": "false"
+   },
+   "width": {
+    "key": 7,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "height": {
+    "key": 8,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "styleId": {
+    "key": 494,
+    "type": "uint",
+    "def": "-1"
+   },
+   "fractionalWidth": {
+    "key": 706,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "fractionalHeight": {
+    "key": 707,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "layout_component_base.hpp"
+ },
+ "NestedAnimation": {
+  "parent": "ContainerComponent",
+  "typeKey": 93,
+  "props": {
+   "animationId": {
+    "key": 198,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "nested_animation_base.hpp"
+ },
+ "NestedArtboard": {
+  "parent": "Drawable",
+  "typeKey": 92,
+  "props": {
+   "artboardId": {
+    "key": 197,
+    "type": "uint",
+    "def": "-1"
+   },
+   "dataBindPathIds": {
+    "key": 582
+   },
+   "isPaused": {
+    "key": 895,
+    "type": "bool",
+    "def": "false"
+   },
+   "speed": {
+    "key": 907,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "quantize": {
+    "key": 908,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "isStateful": {
+    "key": 1014,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "nested_artboard_base.hpp"
+ },
+ "NestedArtboardLayout": {
+  "parent": "NestedArtboard",
+  "typeKey": 452,
+  "props": {
+   "instanceWidth": {
+    "key": 663,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "instanceHeight": {
+    "key": 664,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "instanceWidthUnitsValue": {
+    "key": 665,
+    "type": "uint",
+    "def": "1"
+   },
+   "instanceHeightUnitsValue": {
+    "key": 666,
+    "type": "uint",
+    "def": "1"
+   },
+   "instanceWidthScaleType": {
+    "key": 667,
+    "type": "uint",
+    "def": "0"
+   },
+   "instanceHeightScaleType": {
+    "key": 668,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "nested_artboard_layout_base.hpp"
+ },
+ "NestedArtboardLeaf": {
+  "parent": "NestedArtboard",
+  "typeKey": 451,
+  "props": {
+   "fit": {
+    "key": 538,
+    "type": "uint",
+    "def": "0"
+   },
+   "alignmentX": {
+    "key": 644,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "alignmentY": {
+    "key": 645,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "nested_artboard_leaf_base.hpp"
+ },
+ "Node": {
+  "parent": "TransformComponent",
+  "typeKey": 2,
+  "props": {
+   "x": {
+    "key": 13,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "xArtboard": {
+    "key": 9
+   },
+   "y": {
+    "key": 14,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "yArtboard": {
+    "key": 10
+   },
+   "computedLocalX": {
+    "key": 806
+   },
+   "computedLocalY": {
+    "key": 807
+   },
+   "computedWorldX": {
+    "key": 808
+   },
+   "computedWorldY": {
+    "key": 809
+   },
+   "computedRootX": {
+    "key": 864
+   },
+   "computedRootY": {
+    "key": 865
+   },
+   "computedWidth": {
+    "key": 810
+   },
+   "computedHeight": {
+    "key": 811
+   }
+  },
+  "file": "node_base.hpp"
+ },
+ "OpenUrlEvent": {
+  "parent": "Event",
+  "typeKey": 131,
+  "props": {
+   "url": {
+    "key": 248,
+    "type": "string",
+    "def": "\"\""
+   },
+   "targetValue": {
+    "key": 249,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "open_url_event_base.hpp"
+ },
+ "ScriptedDataConverter": {
+  "parent": "DataConverter",
+  "typeKey": 629,
+  "props": {
+   "scriptAssetId": {
+    "key": 892,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "scripted\\scripted_data_converter_base.hpp"
+ },
+ "ScriptedDrawable": {
+  "parent": "Drawable",
+  "typeKey": 603,
+  "props": {
+   "scriptAssetId": {
+    "key": 848,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "scripted\\scripted_drawable_base.hpp"
+ },
+ "ScriptedInterpolator": {
+  "parent": "KeyFrameInterpolator",
+  "typeKey": 972,
+  "props": {
+   "scriptAssetId": {
+    "key": 1015,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "scripted\\scripted_interpolator_base.hpp"
+ },
+ "ScriptedLayout": {
+  "parent": "ScriptedDrawable",
+  "typeKey": 637,
+  "props": {},
+  "file": "scripted\\scripted_layout_base.hpp"
+ },
+ "ScriptedPathEffect": {
+  "parent": "ContainerComponent",
+  "typeKey": 640,
+  "props": {
+   "scriptAssetId": {
+    "key": 912,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "scripted\\scripted_path_effect_base.hpp"
+ },
+ "ScriptInputArtboard": {
+  "parent": "CustomProperty",
+  "typeKey": 621,
+  "props": {
+   "artboardId": {
+    "key": 876,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "script_input_artboard_base.hpp"
+ },
+ "ScriptInputBoolean": {
+  "parent": "CustomPropertyBoolean",
+  "typeKey": 631,
+  "props": {},
+  "file": "script_input_boolean_base.hpp"
+ },
+ "ScriptInputColor": {
+  "parent": "CustomPropertyColor",
+  "typeKey": 626,
+  "props": {},
+  "file": "script_input_color_base.hpp"
+ },
+ "ScriptInputNumber": {
+  "parent": "CustomPropertyNumber",
+  "typeKey": 611,
+  "props": {},
+  "file": "script_input_number_base.hpp"
+ },
+ "ScriptInputString": {
+  "parent": "CustomPropertyString",
+  "typeKey": 627,
+  "props": {},
+  "file": "script_input_string_base.hpp"
+ },
+ "ScriptInputTrigger": {
+  "parent": "CustomPropertyTrigger",
+  "typeKey": 618,
+  "props": {},
+  "file": "script_input_trigger_base.hpp"
+ },
+ "ScriptInputViewModelProperty": {
+  "parent": "CustomProperty",
+  "typeKey": 612,
+  "props": {
+   "dataBindPathIds": {
+    "key": 866
+   }
+  },
+  "file": "script_input_viewmodel_property_base.hpp"
+ },
+ "SemanticData": {
+  "parent": "Component",
+  "typeKey": 668,
+  "props": {
+   "role": {
+    "key": 982,
+    "type": "uint",
+    "def": "0"
+   },
+   "label": {
+    "key": 983,
+    "type": "string",
+    "def": "\"\""
+   },
+   "value": {
+    "key": 984,
+    "type": "string",
+    "def": "\"\""
+   },
+   "hint": {
+    "key": 985,
+    "type": "string",
+    "def": "\"\""
+   },
+   "headingLevel": {
+    "key": 986,
+    "type": "uint",
+    "def": "0"
+   },
+   "traitFlags": {
+    "key": 987,
+    "type": "uint",
+    "def": "0"
+   },
+   "stateFlags": {
+    "key": 988,
+    "type": "uint",
+    "def": "0"
+   },
+   "isExpandable": {
+    "key": 989
+   },
+   "isSelectable": {
+    "key": 990
+   },
+   "isCheckable": {
+    "key": 991
+   },
+   "isToggleable": {
+    "key": 992
+   },
+   "isRequirable": {
+    "key": 993
+   },
+   "isEnablable": {
+    "key": 994
+   },
+   "isFocusable": {
+    "key": 995
+   },
+   "isExpanded": {
+    "key": 996
+   },
+   "isSelected": {
+    "key": 997
+   },
+   "isChecked": {
+    "key": 998
+   },
+   "isMixed": {
+    "key": 999
+   },
+   "isToggled": {
+    "key": 1000
+   },
+   "isRequired": {
+    "key": 1001
+   },
+   "isDisabled": {
+    "key": 1002
+   },
+   "isFocused": {
+    "key": 1003
+   },
+   "isHidden": {
+    "key": 1004
+   },
+   "isLiveRegion": {
+    "key": 1005
+   },
+   "isReadOnly": {
+    "key": 1006
+   },
+   "isModal": {
+    "key": 1007
+   },
+   "isObscured": {
+    "key": 1008
+   },
+   "isMultiline": {
+    "key": 1009
+   }
+  },
+  "file": "semantic\\semantic_data_base.hpp"
+ },
+ "ClippingShape": {
+  "parent": "Component",
+  "typeKey": 42,
+  "props": {
+   "sourceId": {
+    "key": 92,
+    "type": "uint",
+    "def": "-1"
+   },
+   "fillRule": {
+    "key": 93,
+    "type": "uint",
+    "def": "0"
+   },
+   "isVisible": {
+    "key": 94,
+    "type": "bool",
+    "def": "true"
+   }
+  },
+  "file": "shapes\\clipping_shape_base.hpp"
+ },
+ "ContourMeshVertex": {
+  "parent": "MeshVertex",
+  "typeKey": 111,
+  "props": {},
+  "file": "shapes\\contour_mesh_vertex_base.hpp"
+ },
+ "CubicAsymmetricVertex": {
+  "parent": "CubicVertex",
+  "typeKey": 34,
+  "props": {
+   "rotation": {
+    "key": 79,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "inDistance": {
+    "key": 80,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "outDistance": {
+    "key": 81,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\cubic_asymmetric_vertex_base.hpp"
+ },
+ "CubicDetachedVertex": {
+  "parent": "CubicVertex",
+  "typeKey": 6,
+  "props": {
+   "inRotation": {
+    "key": 84,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "inDistance": {
+    "key": 85,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "outRotation": {
+    "key": 86,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "outDistance": {
+    "key": 87,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\cubic_detached_vertex_base.hpp"
+ },
+ "CubicMirroredVertex": {
+  "parent": "CubicVertex",
+  "typeKey": 35,
+  "props": {
+   "rotation": {
+    "key": 82,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "distance": {
+    "key": 83,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\cubic_mirrored_vertex_base.hpp"
+ },
+ "CubicVertex": {
+  "parent": "PathVertex",
+  "typeKey": 36,
+  "props": {},
+  "file": "shapes\\cubic_vertex_base.hpp"
+ },
+ "Ellipse": {
+  "parent": "ParametricPath",
+  "typeKey": 4,
+  "props": {},
+  "file": "shapes\\ellipse_base.hpp"
+ },
+ "Image": {
+  "parent": "Drawable",
+  "typeKey": 100,
+  "props": {
+   "assetId": {
+    "key": 206,
+    "type": "uint",
+    "def": "-1"
+   },
+   "originX": {
+    "key": 380,
+    "type": "double",
+    "def": "0.5f"
+   },
+   "originY": {
+    "key": 381,
+    "type": "double",
+    "def": "0.5f"
+   },
+   "fit": {
+    "key": 974,
+    "type": "uint",
+    "def": "0"
+   },
+   "alignmentX": {
+    "key": 975,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "alignmentY": {
+    "key": 976,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\image_base.hpp"
+ },
+ "ListPath": {
+  "parent": "PointsCommonPath",
+  "typeKey": 619,
+  "props": {
+   "listSource": {
+    "key": 874,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "shapes\\list_path_base.hpp"
+ },
+ "Mesh": {
+  "parent": "ContainerComponent",
+  "typeKey": 109,
+  "props": {
+   "triangleIndexBytes": {
+    "key": 223
+   }
+  },
+  "file": "shapes\\mesh_base.hpp"
+ },
+ "MeshVertex": {
+  "parent": "Vertex",
+  "typeKey": 108,
+  "props": {
+   "u": {
+    "key": 215,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "v": {
+    "key": 216,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\mesh_vertex_base.hpp"
+ },
+ "Dash": {
+  "parent": "Component",
+  "typeKey": 507,
+  "props": {
+   "length": {
+    "key": 692,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "lengthIsPercentage": {
+    "key": 693,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "shapes\\paint\\dash_base.hpp"
+ },
+ "DashPath": {
+  "parent": "ContainerComponent",
+  "typeKey": 506,
+  "props": {
+   "offset": {
+    "key": 690,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "offsetIsPercentage": {
+    "key": 691,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "shapes\\paint\\dash_path_base.hpp"
+ },
+ "Feather": {
+  "parent": "ContainerComponent",
+  "typeKey": 533,
+  "props": {
+   "spaceValue": {
+    "key": 748,
+    "type": "uint",
+    "def": "0"
+   },
+   "strength": {
+    "key": 749,
+    "type": "double",
+    "def": "12.0f"
+   },
+   "offsetX": {
+    "key": 750,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "offsetY": {
+    "key": 751,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "inner": {
+    "key": 752,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "shapes\\paint\\feather_base.hpp"
+ },
+ "Fill": {
+  "parent": "ShapePaint",
+  "typeKey": 20,
+  "props": {
+   "fillRule": {
+    "key": 40,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "shapes\\paint\\fill_base.hpp"
+ },
+ "GradientStop": {
+  "parent": "Component",
+  "typeKey": 19,
+  "props": {
+   "colorValue": {
+    "key": 38,
+    "type": "color",
+    "def": "0xFFFFFFFF"
+   },
+   "position": {
+    "key": 39,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\paint\\gradient_stop_base.hpp"
+ },
+ "GroupEffect": {
+  "parent": "ContainerComponent",
+  "typeKey": 645,
+  "props": {},
+  "file": "shapes\\paint\\group_effect_base.hpp"
+ },
+ "LinearGradient": {
+  "parent": "ContainerComponent",
+  "typeKey": 22,
+  "props": {
+   "startX": {
+    "key": 42,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "startY": {
+    "key": 33,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "endX": {
+    "key": 34,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "endY": {
+    "key": 35,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "opacity": {
+    "key": 46,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "shapes\\paint\\linear_gradient_base.hpp"
+ },
+ "RadialGradient": {
+  "parent": "LinearGradient",
+  "typeKey": 17,
+  "props": {},
+  "file": "shapes\\paint\\radial_gradient_base.hpp"
+ },
+ "ShapePaint": {
+  "parent": "ContainerComponent",
+  "typeKey": 21,
+  "props": {
+   "isVisible": {
+    "key": 41,
+    "type": "bool",
+    "def": "true"
+   },
+   "blendModeValue": {
+    "key": 747,
+    "type": "uint",
+    "def": "127"
+   }
+  },
+  "file": "shapes\\paint\\shape_paint_base.hpp"
+ },
+ "SolidColor": {
+  "parent": "Component",
+  "typeKey": 18,
+  "props": {
+   "colorValue": {
+    "key": 37,
+    "type": "color",
+    "def": "0xFF747474"
+   }
+  },
+  "file": "shapes\\paint\\solid_color_base.hpp"
+ },
+ "Stroke": {
+  "parent": "ShapePaint",
+  "typeKey": 24,
+  "props": {
+   "thickness": {
+    "key": 47,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "cap": {
+    "key": 48,
+    "type": "uint",
+    "def": "0"
+   },
+   "join": {
+    "key": 49,
+    "type": "uint",
+    "def": "0"
+   },
+   "transformAffectsStroke": {
+    "key": 50,
+    "type": "bool",
+    "def": "true"
+   }
+  },
+  "file": "shapes\\paint\\stroke_base.hpp"
+ },
+ "TargetEffect": {
+  "parent": "Component",
+  "typeKey": 644,
+  "props": {
+   "targetId": {
+    "key": 922,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "shapes\\paint\\target_effect_base.hpp"
+ },
+ "TrimPath": {
+  "parent": "Component",
+  "typeKey": 47,
+  "props": {
+   "start": {
+    "key": 114,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "end": {
+    "key": 115,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "offset": {
+    "key": 116,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "modeValue": {
+    "key": 117,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "shapes\\paint\\trim_path_base.hpp"
+ },
+ "ParametricPath": {
+  "parent": "Path",
+  "typeKey": 15,
+  "props": {
+   "width": {
+    "key": 20,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "height": {
+    "key": 21,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originX": {
+    "key": 123,
+    "type": "double",
+    "def": "0.5f"
+   },
+   "originY": {
+    "key": 124,
+    "type": "double",
+    "def": "0.5f"
+   }
+  },
+  "file": "shapes\\parametric_path_base.hpp"
+ },
+ "Path": {
+  "parent": "Node",
+  "typeKey": 12,
+  "props": {
+   "pathFlags": {
+    "key": 128,
+    "type": "uint",
+    "def": "0"
+   },
+   "isHole": {
+    "key": 770,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "shapes\\path_base.hpp"
+ },
+ "PathVertex": {
+  "parent": "Vertex",
+  "typeKey": 14,
+  "props": {},
+  "file": "shapes\\path_vertex_base.hpp"
+ },
+ "PointsCommonPath": {
+  "parent": "Path",
+  "typeKey": 620,
+  "props": {
+   "isClosed": {
+    "key": 32,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "shapes\\points_common_path_base.hpp"
+ },
+ "PointsPath": {
+  "parent": "PointsCommonPath",
+  "typeKey": 16,
+  "props": {},
+  "file": "shapes\\points_path_base.hpp"
+ },
+ "Polygon": {
+  "parent": "ParametricPath",
+  "typeKey": 51,
+  "props": {
+   "points": {
+    "key": 125,
+    "type": "uint",
+    "def": "5"
+   },
+   "cornerRadius": {
+    "key": 126,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\polygon_base.hpp"
+ },
+ "Rectangle": {
+  "parent": "ParametricPath",
+  "typeKey": 7,
+  "props": {
+   "linkCornerRadius": {
+    "key": 164,
+    "type": "bool",
+    "def": "true"
+   },
+   "cornerRadiusTL": {
+    "key": 31,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusTR": {
+    "key": 161,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusBL": {
+    "key": 162,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "cornerRadiusBR": {
+    "key": 163,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\rectangle_base.hpp"
+ },
+ "Shape": {
+  "parent": "Drawable",
+  "typeKey": 3,
+  "props": {
+   "length": {
+    "key": 781
+   }
+  },
+  "file": "shapes\\shape_base.hpp"
+ },
+ "Star": {
+  "parent": "Polygon",
+  "typeKey": 52,
+  "props": {
+   "innerRadius": {
+    "key": 127,
+    "type": "double",
+    "def": "0.5f"
+   }
+  },
+  "file": "shapes\\star_base.hpp"
+ },
+ "StraightVertex": {
+  "parent": "PathVertex",
+  "typeKey": 5,
+  "props": {
+   "radius": {
+    "key": 26,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\straight_vertex_base.hpp"
+ },
+ "Triangle": {
+  "parent": "ParametricPath",
+  "typeKey": 8,
+  "props": {},
+  "file": "shapes\\triangle_base.hpp"
+ },
+ "Vertex": {
+  "parent": "ContainerComponent",
+  "typeKey": 107,
+  "props": {
+   "x": {
+    "key": 24,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "y": {
+    "key": 25,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "shapes\\vertex_base.hpp"
+ },
+ "Solo": {
+  "parent": "Node",
+  "typeKey": 147,
+  "props": {
+   "activeComponentId": {
+    "key": 296,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "solo_base.hpp"
+ },
+ "Text": {
+  "parent": "Drawable",
+  "typeKey": 134,
+  "props": {
+   "alignValue": {
+    "key": 281,
+    "type": "uint",
+    "def": "0"
+   },
+   "sizingValue": {
+    "key": 284,
+    "type": "uint",
+    "def": "0"
+   },
+   "overflowValue": {
+    "key": 287,
+    "type": "uint",
+    "def": "0"
+   },
+   "width": {
+    "key": 285,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "height": {
+    "key": 286,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originX": {
+    "key": 366,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originY": {
+    "key": 367,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "paragraphSpacing": {
+    "key": 371,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originValue": {
+    "key": 377,
+    "type": "uint",
+    "def": "0"
+   },
+   "wrapValue": {
+    "key": 683,
+    "type": "uint",
+    "def": "0"
+   },
+   "verticalAlignValue": {
+    "key": 685,
+    "type": "uint",
+    "def": "0"
+   },
+   "fitFromBaseline": {
+    "key": 703,
+    "type": "bool",
+    "def": "true"
+   },
+   "textRunListSource": {
+    "key": 932,
+    "type": "uint",
+    "def": "-1"
+   },
+   "verticalTrimValue": {
+    "key": 1026,
+    "type": "uint",
+    "def": "0"
+   },
+   "verticalTrimTopValue": {
+    "key": 1027
+   },
+   "verticalTrimBottomValue": {
+    "key": 1028
+   }
+  },
+  "file": "text\\text_base.hpp"
+ },
+ "TextFollowPathModifier": {
+  "parent": "TextTargetModifier",
+  "typeKey": 547,
+  "props": {
+   "radial": {
+    "key": 779,
+    "type": "bool",
+    "def": "false"
+   },
+   "orient": {
+    "key": 782,
+    "type": "bool",
+    "def": "true"
+   },
+   "start": {
+    "key": 783,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "end": {
+    "key": 784,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "strength": {
+    "key": 785,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "offset": {
+    "key": 786,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "text\\text_follow_path_modifier_base.hpp"
+ },
+ "TextInput": {
+  "parent": "Drawable",
+  "typeKey": 569,
+  "props": {
+   "text": {
+    "key": 817,
+    "type": "string",
+    "def": "\"\""
+   },
+   "selectionRadius": {
+    "key": 818,
+    "type": "double",
+    "def": "5.0f"
+   },
+   "multiline": {
+    "key": 979,
+    "type": "bool",
+    "def": "true"
+   }
+  },
+  "file": "text\\text_input_base.hpp"
+ },
+ "TextInputCursor": {
+  "parent": "TextInputDrawable",
+  "typeKey": 571,
+  "props": {},
+  "file": "text\\text_input_cursor_base.hpp"
+ },
+ "TextInputDrawable": {
+  "parent": "Drawable",
+  "typeKey": 570,
+  "props": {},
+  "file": "text\\text_input_drawable_base.hpp"
+ },
+ "TextInputSelectedText": {
+  "parent": "TextInputDrawable",
+  "typeKey": 575,
+  "props": {},
+  "file": "text\\text_input_selected_text_base.hpp"
+ },
+ "TextInputSelection": {
+  "parent": "TextInputDrawable",
+  "typeKey": 574,
+  "props": {},
+  "file": "text\\text_input_selection_base.hpp"
+ },
+ "TextInputText": {
+  "parent": "TextInputDrawable",
+  "typeKey": 572,
+  "props": {},
+  "file": "text\\text_input_text_base.hpp"
+ },
+ "TextModifier": {
+  "parent": "Component",
+  "typeKey": 160,
+  "props": {},
+  "file": "text\\text_modifier_base.hpp"
+ },
+ "TextModifierGroup": {
+  "parent": "ContainerComponent",
+  "typeKey": 159,
+  "props": {
+   "modifierFlags": {
+    "key": 335,
+    "type": "uint",
+    "def": "0"
+   },
+   "originX": {
+    "key": 328,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "originY": {
+    "key": 329,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "opacity": {
+    "key": 324,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "x": {
+    "key": 322,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "y": {
+    "key": 323,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "rotation": {
+    "key": 332,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "scaleX": {
+    "key": 330,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "scaleY": {
+    "key": 331,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "text\\text_modifier_group_base.hpp"
+ },
+ "TextModifierRange": {
+  "parent": "ContainerComponent",
+  "typeKey": 158,
+  "props": {
+   "modifyFrom": {
+    "key": 327,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "modifyTo": {
+    "key": 336,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "strength": {
+    "key": 334,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "unitsValue": {
+    "key": 316,
+    "type": "uint",
+    "def": "0"
+   },
+   "typeValue": {
+    "key": 325,
+    "type": "uint",
+    "def": "0"
+   },
+   "modeValue": {
+    "key": 326,
+    "type": "uint",
+    "def": "0"
+   },
+   "clamp": {
+    "key": 333,
+    "type": "bool",
+    "def": "false"
+   },
+   "falloffFrom": {
+    "key": 317,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "falloffTo": {
+    "key": 318,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "offset": {
+    "key": 319,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "runId": {
+    "key": 378,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "text\\text_modifier_range_base.hpp"
+ },
+ "TextShapeModifier": {
+  "parent": "TextModifier",
+  "typeKey": 161,
+  "props": {},
+  "file": "text\\text_shape_modifier_base.hpp"
+ },
+ "TextStyleAxis": {
+  "parent": "Component",
+  "typeKey": 144,
+  "props": {
+   "tag": {
+    "key": 289,
+    "type": "uint",
+    "def": "0"
+   },
+   "axisValue": {
+    "key": 288,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "text\\text_style_axis_base.hpp"
+ },
+ "TextStyle": {
+  "parent": "ContainerComponent",
+  "typeKey": 573,
+  "props": {
+   "fontSize": {
+    "key": 274,
+    "type": "double",
+    "def": "12.0f"
+   },
+   "lineHeight": {
+    "key": 370,
+    "type": "double",
+    "def": "-1.0f"
+   },
+   "letterSpacing": {
+    "key": 390,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "fontAssetId": {
+    "key": 279,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "text\\text_style_base.hpp"
+ },
+ "TextStyleFeature": {
+  "parent": "Component",
+  "typeKey": 164,
+  "props": {
+   "tag": {
+    "key": 356,
+    "type": "uint",
+    "def": "0"
+   },
+   "featureValue": {
+    "key": 357,
+    "type": "uint",
+    "def": "1"
+   }
+  },
+  "file": "text\\text_style_feature_base.hpp"
+ },
+ "TextStylePaint": {
+  "parent": "TextStyle",
+  "typeKey": 137,
+  "props": {},
+  "file": "text\\text_style_paint_base.hpp"
+ },
+ "TextTargetModifier": {
+  "parent": "TextModifier",
+  "typeKey": 546,
+  "props": {
+   "targetId": {
+    "key": 778,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "text\\text_target_modifier_base.hpp"
+ },
+ "TextValueRun": {
+  "parent": "Component",
+  "typeKey": 135,
+  "props": {
+   "styleId": {
+    "key": 272,
+    "type": "uint",
+    "def": "-1"
+   },
+   "text": {
+    "key": 268,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "text\\text_value_run_base.hpp"
+ },
+ "TextVariationModifier": {
+  "parent": "TextShapeModifier",
+  "typeKey": 162,
+  "props": {
+   "axisTag": {
+    "key": 320,
+    "type": "uint",
+    "def": "0"
+   },
+   "axisValue": {
+    "key": 321,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "text\\text_variation_modifier_base.hpp"
+ },
+ "TransformComponent": {
+  "parent": "WorldTransformComponent",
+  "typeKey": 38,
+  "props": {
+   "rotation": {
+    "key": 15,
+    "type": "double",
+    "def": "0.0f"
+   },
+   "scaleX": {
+    "key": 16,
+    "type": "double",
+    "def": "1.0f"
+   },
+   "scaleY": {
+    "key": 17,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "transform_component_base.hpp"
+ },
+ "DataEnum": {
+  "parent": "Core",
+  "typeKey": 510,
+  "props": {},
+  "file": "viewmodel\\data_enum_base.hpp"
+ },
+ "DataEnumCustom": {
+  "parent": "DataEnum",
+  "typeKey": 438,
+  "props": {
+   "name": {
+    "key": 572,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "viewmodel\\data_enum_custom_base.hpp"
+ },
+ "DataEnumSystem": {
+  "parent": "DataEnum",
+  "typeKey": 512,
+  "props": {
+   "enumType": {
+    "key": 709,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\data_enum_system_base.hpp"
+ },
+ "DataEnumValue": {
+  "parent": "Core",
+  "typeKey": 445,
+  "props": {
+   "key": {
+    "key": 578,
+    "type": "string",
+    "def": "\"\""
+   },
+   "value": {
+    "key": 579,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "viewmodel\\data_enum_value_base.hpp"
+ },
+ "ViewModel": {
+  "parent": "ViewModelComponent",
+  "typeKey": 435,
+  "props": {
+   "viewModelType": {
+    "key": 981,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_base.hpp"
+ },
+ "ViewModelComponent": {
+  "parent": "Core",
+  "typeKey": 429,
+  "props": {
+   "name": {
+    "key": 557,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "viewmodel\\viewmodel_component_base.hpp"
+ },
+ "ViewModelInstanceArtboard": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 599,
+  "props": {
+   "propertyValue": {
+    "key": 846,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_artboard_base.hpp"
+ },
+ "ViewModelInstanceAsset": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 586,
+  "props": {
+   "propertyValue": {
+    "key": 824,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_asset_base.hpp"
+ },
+ "ViewModelInstanceAssetFont": {
+  "parent": "ViewModelInstanceAsset",
+  "typeKey": 1035,
+  "props": {},
+  "file": "viewmodel\\viewmodel_instance_asset_font_base.hpp"
+ },
+ "ViewModelInstanceAssetImage": {
+  "parent": "ViewModelInstanceAsset",
+  "typeKey": 587,
+  "props": {},
+  "file": "viewmodel\\viewmodel_instance_asset_image_base.hpp"
+ },
+ "ViewModelInstance": {
+  "parent": "ContainerComponent",
+  "typeKey": 437,
+  "props": {
+   "viewModelId": {
+    "key": 566,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_base.hpp"
+ },
+ "ViewModelInstanceBoolean": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 449,
+  "props": {
+   "propertyValue": {
+    "key": 593,
+    "type": "bool",
+    "def": "false"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_boolean_base.hpp"
+ },
+ "ViewModelInstanceColor": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 426,
+  "props": {
+   "propertyValue": {
+    "key": 555,
+    "type": "color",
+    "def": "0xFF000000"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_color_base.hpp"
+ },
+ "ViewModelInstanceEnum": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 432,
+  "props": {
+   "propertyValue": {
+    "key": 560,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_enum_base.hpp"
+ },
+ "ViewModelInstanceList": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 441,
+  "props": {
+   "listSource": {
+    "key": 966,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_list_base.hpp"
+ },
+ "ViewModelInstanceListItem": {
+  "parent": "Core",
+  "typeKey": 427,
+  "props": {
+   "viewModelId": {
+    "key": 549,
+    "type": "uint",
+    "def": "-1"
+   },
+   "viewModelInstanceId": {
+    "key": 550,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_list_item_base.hpp"
+ },
+ "ViewModelInstanceNumber": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 442,
+  "props": {
+   "propertyValue": {
+    "key": 575,
+    "type": "double",
+    "def": "0.0f"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_number_base.hpp"
+ },
+ "ViewModelInstanceString": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 433,
+  "props": {
+   "propertyValue": {
+    "key": 561,
+    "type": "string",
+    "def": "\"\""
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_string_base.hpp"
+ },
+ "ViewModelInstanceSymbol": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 565,
+  "props": {},
+  "file": "viewmodel\\viewmodel_instance_symbol_base.hpp"
+ },
+ "ViewModelInstanceSymbolListIndex": {
+  "parent": "ViewModelInstanceSymbol",
+  "typeKey": 566,
+  "props": {
+   "propertyValue": {
+    "key": 814,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_symbol_list_index_base.hpp"
+ },
+ "ViewModelInstanceTrigger": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 501,
+  "props": {
+   "propertyValue": {
+    "key": 687,
+    "type": "uint",
+    "def": "0"
+   },
+   "fire": {
+    "key": 1016
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_trigger_base.hpp"
+ },
+ "ViewModelInstanceValue": {
+  "parent": "Component",
+  "typeKey": 428,
+  "props": {
+   "viewModelPropertyId": {
+    "key": 554,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_value_base.hpp"
+ },
+ "ViewModelInstanceViewModel": {
+  "parent": "ViewModelInstanceValue",
+  "typeKey": 444,
+  "props": {
+   "propertyValue": {
+    "key": 577,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_instance_viewmodel_base.hpp"
+ },
+ "ViewModelPropertyArtboard": {
+  "parent": "ViewModelProperty",
+  "typeKey": 598,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_artboard_base.hpp"
+ },
+ "ViewModelPropertyAsset": {
+  "parent": "ViewModelProperty",
+  "typeKey": 584,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_asset_base.hpp"
+ },
+ "ViewModelPropertyAssetFont": {
+  "parent": "ViewModelPropertyAsset",
+  "typeKey": 1034,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_asset_font_base.hpp"
+ },
+ "ViewModelPropertyAssetImage": {
+  "parent": "ViewModelPropertyAsset",
+  "typeKey": 585,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_asset_image_base.hpp"
+ },
+ "ViewModelProperty": {
+  "parent": "ViewModelComponent",
+  "typeKey": 430,
+  "props": {
+   "symbolTypeValue": {
+    "key": 875,
+    "type": "uint",
+    "def": "0"
+   },
+   "componentProps": {
+    "key": 957,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_property_base.hpp"
+ },
+ "ViewModelPropertyBoolean": {
+  "parent": "ViewModelProperty",
+  "typeKey": 448,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_boolean_base.hpp"
+ },
+ "ViewModelPropertyColor": {
+  "parent": "ViewModelProperty",
+  "typeKey": 440,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_color_base.hpp"
+ },
+ "ViewModelPropertyEnum": {
+  "parent": "ViewModelProperty",
+  "typeKey": 509,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_enum_base.hpp"
+ },
+ "ViewModelPropertyEnumCustom": {
+  "parent": "ViewModelPropertyEnum",
+  "typeKey": 439,
+  "props": {
+   "enumId": {
+    "key": 574,
+    "type": "uint",
+    "def": "-1"
+   }
+  },
+  "file": "viewmodel\\viewmodel_property_enum_custom_base.hpp"
+ },
+ "ViewModelPropertyEnumSystem": {
+  "parent": "ViewModelPropertyEnum",
+  "typeKey": 511,
+  "props": {
+   "enumType": {
+    "key": 708,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_property_enum_system_base.hpp"
+ },
+ "ViewModelPropertyList": {
+  "parent": "ViewModelProperty",
+  "typeKey": 434,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_list_base.hpp"
+ },
+ "ViewModelPropertyNumber": {
+  "parent": "ViewModelProperty",
+  "typeKey": 431,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_number_base.hpp"
+ },
+ "ViewModelPropertyString": {
+  "parent": "ViewModelProperty",
+  "typeKey": 443,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_string_base.hpp"
+ },
+ "ViewModelPropertySymbol": {
+  "parent": "ViewModelProperty",
+  "typeKey": 563,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_symbol_base.hpp"
+ },
+ "ViewModelPropertySymbolListIndex": {
+  "parent": "ViewModelPropertySymbol",
+  "typeKey": 564,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_symbol_list_index_base.hpp"
+ },
+ "ViewModelPropertyTrigger": {
+  "parent": "ViewModelProperty",
+  "typeKey": 502,
+  "props": {},
+  "file": "viewmodel\\viewmodel_property_trigger_base.hpp"
+ },
+ "ViewModelPropertyViewModel": {
+  "parent": "ViewModelProperty",
+  "typeKey": 436,
+  "props": {
+   "viewModelReferenceId": {
+    "key": 565,
+    "type": "uint",
+    "def": "0"
+   }
+  },
+  "file": "viewmodel\\viewmodel_property_viewmodel_base.hpp"
+ },
+ "WorldTransformComponent": {
+  "parent": "ContainerComponent",
+  "typeKey": 91,
+  "props": {
+   "opacity": {
+    "key": 18,
+    "type": "double",
+    "def": "1.0f"
+   }
+  },
+  "file": "world_transform_component_base.hpp"
+ }
+}
