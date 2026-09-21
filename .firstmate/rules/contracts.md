@@ -18,7 +18,7 @@ by either layer's tests.
 
 The authoritative definitions live in **`docs/contracts/interface.md`**
 (WebSocket catalogue, REST endpoints, delivery-status enum, JWT header)
-and **`docs/VoiceOps_Agent_Tools_Reference.md`** (the 13 tool shapes).
+and **`docs/VoiceOps_Agent_Tools_Reference.md`** (the tool shapes; it lags the 15-tool registry, see AGENTS.md).
 Those two documents are the source of truth, not whatever a given file
 happens to contain. The SDD's old event list (§7) is historical.
 
@@ -80,7 +80,7 @@ shift yet (`interface.md` §3). The app never receives them.
 
 ## Tool Shapes
 
-The 13 agent tools have exact input and output JSON shapes defined in the
+The agent tools have exact input and output JSON shapes defined in the
 **Agent Tools Reference**. The agent's tool-calling behaviour depends on
 these being stable.
 

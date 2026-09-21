@@ -6,8 +6,13 @@ carry the detail for each layer. Claude Code loads this file through
 file, so the two can't drift apart.
 
 **Which doc wins.** This file, `.firstmate/rules/*`, `docs/product/VoiceOps_PRD_v4.0.md`,
-`docs/contracts/interface.md`, and `docs/VoiceOps_Agent_Tools_Reference.md` are current. The
-SDD, TechFeasibility, and Synopsis (all v2) are historical and marked superseded. Where they
+`docs/contracts/interface.md`, `docs/VoiceOps_Agent_Tools_Reference.md`, and these handoff
+notes are current: `docs/frontend-voice-change-guide.md`, `docs/voiceops-corider-orb-rive-spec-v2.md`,
+`docs/kora-voice-characters-rive-spec.md`, `docs/brand/README.md`, and `docs/backend-handoff/*.md`.
+The handoff notes are proposals and fix write-ups to the backend owner. Each carries its own status
+line, and `exception-management.md`, `real-sentiment-analysis.md` and `traffic-parking-intelligence.md`
+are now mostly implemented. `docs/KNOWN_ISSUES.md` lists gotchas that already bit once.
+The SDD, TechFeasibility, and Synopsis (all v2) are historical and marked superseded. Where they
 disagree with the current docs, the current docs win.
 
 ---
@@ -32,20 +37,20 @@ Two distinct value layers:
 ## Repo Structure (Monorepo)
 
 ```
-voiceops/
+kora/
 ├── frontend/          Flutter app
-├── backend/           Python FastAPI + asyncio (not imported yet, see below)
+├── voiceops-backend/  Python FastAPI + asyncio
 ├── docs/              PRD, SDD, TechFeasibility, Synopsis, Agent Tools Reference,
-│                      contracts/interface.md, inspiration/
+│                      contracts/interface.md, backend-handoff/, brand/, inspiration/
 ├── AGENTS.md          this file (agent context, all harnesses)
 ├── CLAUDE.md          @AGENTS.md import pointer for Claude Code
 └── .firstmate/rules/  layer-specific rules (frontend, backend, contracts)
 ```
 
-Frontend and backend live in ONE repo. Do not split them. The backend
-prototype currently lives only on `features/backend/assemblyai-voice-agent`,
-an orphan branch with no shared history. Bringing it under `backend/` is
-the backend owner's call.
+Frontend and backend live in ONE repo. Do not split them. The backend has
+been on `main` under `voiceops-backend/` since commit `3aa31ac`
+(2026-09-12). The directory keeps its pre-rebrand name for now, so do not
+rename it as a drive-by (see What NOT to Do).
 
 ---
 
@@ -58,7 +63,7 @@ Flutter
   → FastAPI WebSocket
     → AssemblyAI Voice Agent API   (STT + LLM + tool calling + TTS)
       → FastAPI Tool Orchestrator  (asyncio.gather — parallel)
-        → Logistics / Maps / LiveKit / Vonage
+        → Logistics / Maps / Twilio
       → AssemblyAI TTS
   → Driver
 ```
@@ -72,9 +77,12 @@ Three rules that must never be broken:
 
 2. **Tool calls execute in parallel via `asyncio.gather()`.**
    One voice command can trigger several tools at once. Never rewrite
-   parallel execution as sequential awaits. **Not built yet.** The
-   prototype dispatches one tool per call. The orchestrator is an open
-   backend task.
+   parallel execution as sequential awaits. Built: `ToolOrchestrator`
+   (`voiceops-backend/app/agents/orchestrator.py`) has `execute_parallel`
+   (`asyncio.gather`, used by `app/api/routes/tools.py`) and
+   `execute_single_tool`, which the voice paths call per tool. The relay
+   (`app/api/websocket/voice.py`) runs a turn's tool calls concurrently and
+   gathers them on `reply.done`.
 
 3. **AssemblyAI Voice Agent API is a single WebSocket** carrying STT, LLM,
    tool calling, and TTS together. Do not split these into separate services.
@@ -93,7 +101,7 @@ Both layers must remain in the codebase.
 
 ---
 
-## The 13 Agent Tools
+## The 15 Agent Tools
 
 | Tool | What it does | Platform |
 |---|---|---|
@@ -102,18 +110,22 @@ Both layers must remain in the codebase.
 | `log_exception` | Record a delivery exception | Supabase |
 | `get_best_route` | Compute optimal route (also routes `start_navigation`) | OSRM, public demo or `OSRM_BASE_URL` |
 | `start_navigation` | Push route to the Flutter map (in-app, never a deep link) | internal |
-| `call_customer` | Outbound voice call | LiveKit SIP/PSTN |
-| `notify_customer` | Outbound SMS | Vonage |
+| `accept_reroute` | Accept a suggested traffic reroute as the active navigation route | internal |
+| `call_customer` | Outbound voice call. `DEMO_SIMULATED_CUSTOMER` swaps in a pretend call, no carrier | Twilio Voice |
+| `notify_customer` | Outbound SMS | Twilio SMS |
 | `get_next_order` | The new order offered to the driver, else the nearest unassigned one | order dispatcher / MockAdapter |
 | `accept_order` | Take the offered order as the last stop on the shift | order dispatcher / MockAdapter |
 | `decline_order` | Pass the offered order to the next-nearest driver | order dispatcher |
 | `get_shift_summary` | Summarise current shift stats | Supabase |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
+| `end_conversation` | Close the driver's voice conversation when they're done | internal |
 
 Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.4, generated from the running
-code). The WebSocket, REST, status-enum, and auth contract is
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.5, generated from the running
+code). Its "13 Tools" heading and proactive-behaviours note lag the registry
+(`app/agents/tool_registry.py`, 15 tools), and it has no `end_conversation`
+entry, so check the registry when in doubt. The WebSocket, REST, status-enum, and auth contract is
 `docs/contracts/interface.md`. Those two docs are the contract. Do not
 invent tool shapes.
 
@@ -137,17 +149,22 @@ out), `record` (audio in), and `geolocator` (live position).
 `google_maps_flutter` was dropped for billing and must not come back.
 
 **Backend:** Python FastAPI + asyncio, Supabase (PostgreSQL + auth +
-storage), Railway hosting, Firebase FCM.
+storage), Render hosting, Firebase FCM.
 
-**Comms:** LiveKit SIP/PSTN for outbound calls (free Build tier,
-1,000 agent mins/mo). Vonage for global SMS.
+**Comms:** Twilio for both outbound calls and SMS
+(`voiceops-backend/app/integrations/twilio_client.py`), or a simulated
+customer call when `DEMO_SIMULATED_CUSTOMER` is set
+(`docs/backend-handoff/simulated-customer-demo.md`). LiveKit and Vonage are
+not in the code. Twilio is not available in the team's home country and a
+replacement is being sourced, so keep the calls behind `twilio_client.py`.
 
 **External APIs:** AssemblyAI (Voice Agent + Speech Understanding),
-OSRM (routing, no key; `OSRM_BASE_URL` for self-hosting), OpenFreeMap (app
-map tiles), Onfleet, n8n.
+OSRM (routing, no key; `OSRM_BASE_URL` for self-hosting), TomTom
+(traffic-aware ETAs and proactive reroute alerts, `TOMTOM_API_KEY`,
+`app/integrations/traffic_routing.py`), OpenFreeMap (app map tiles),
+Onfleet, n8n.
 
-Dropped and must not be reintroduced: **Twilio** (too expensive),
-**Africa's Talking** (VoiceOps is global, not Africa-specific).
+Dropped and must not be reintroduced: **Africa's Talking** (VoiceOps is global, not Africa-specific).
 
 ---
 
@@ -204,13 +221,19 @@ summaries, driver welcome SMS.
 ## Design System
 
 - **Dark-mode-first** for the main app. Tokens live in
-  `frontend/lib/core/theme/tokens.dart` (summarised in SDD §8). Lime
-  `#C8F250` is reserved for the mic-hot state
-- Mascot is called the **"co-rider"** — never "co-pilot" or "assistant"
+  `frontend/lib/core/theme/tokens.dart` (summarised in SDD §8). Violet is
+  the brand accent. Lime `#C8F250` is reserved for the mic-hot state only,
+  never a general accent, because a driver must see at a glance that the
+  mic is live
+- Mascot is called the **"co-rider"** — never "co-pilot" or "assistant".
+  The prompt in `voiceops-backend/app/agents/agent_config.py` names it Kora
 - Two orb materials: **holographic bubble** orb for onboarding,
   **chrome/mercury** orb for the main app
-- The mascot is an orb placeholder (`MascotDisplay`) for now. A Rive `.riv`
-  swap-in comes later per SDD §6.1 and touches only that widget
+- Glass surfaces are restrained: capped blur, readability and 60fps on
+  mid-range Android first
+- `MascotDisplay` plays `frontend/assets/rive/corider.riv` and falls back to
+  a Flutter-drawn orb if the file cannot load. The `.riv` files are authored
+  by Ez in Rive Desktop, so wire around them and do not edit the assets
 - Typography: **Plus Jakarta Sans** (substitute for Circular Std /
   Sofia Pro until a licence is secured)
 - Icons: **Tabler Icons** via `tabler_icons_plus` — no emoji icons
@@ -276,7 +299,11 @@ endpoints, delivery status enum, JWT auth header. They are defined in
 
 - Do not put n8n anywhere in the real-time WebSocket path
 - Do not convert parallel tool calls into sequential awaits
-- Do not reintroduce Twilio or Africa's Talking
+- Do not reintroduce Africa's Talking
+- Do not rename `voiceops-backend/` or the `X-VoiceOps-Signature` webhook
+  header on their own. Every call site (backend, tests, the n8n workflow JSON
+  under `voiceops-backend/n8n/workflows/`) must change together, so leave
+  both if unsure
 - Do not change the WebSocket message contract without updating both
   frontend and backend in the same change
 - Do not modify `LogisticsAdapter` without updating `MockAdapter`
@@ -291,10 +318,15 @@ endpoints, delivery status enum, JWT auth header. They are defined in
 ## Team
 
 - **Ez** — Flutter frontend, assists on the agentic layer
-- **Teammate** — FastAPI backend and agentic workflows (primary backend owner)
+- **Maria** (git author `maria2469`) — FastAPI backend and agentic
+  workflows (primary backend owner). Frontend hands her written proposals in
+  `docs/backend-handoff/` rather than editing backend code
 
 Working remotely. Keep changes scoped to one layer so parallel work
-does not collide.
+does not collide. Backend work has landed straight on `main` before,
+bypassing `staging`, so check both directions (`git log origin/main..origin/staging`
+and the reverse) before assuming one branch contains the other. See
+`docs/KNOWN_ISSUES.md`.
 
 ---
 
