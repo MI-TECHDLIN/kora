@@ -292,14 +292,32 @@ async def accept_order(parameters: dict, context: dict) -> dict:
 
     Trigger phrases: "yes, I'll take it", "accept", "add it to my run"
     """
+    order_id = parameters.get("order_id")
+    shift_id = context.get("shift_id")
     try:
-        if not context.get("driver_id") or not context.get("shift_id"):
+        if not context.get("driver_id") or not shift_id:
+            logger.warning(
+                "[Tool:accept_order] accept_failed order_id=%s shift_id=%s "
+                "reason=missing_active_shift",
+                order_id or "-", shift_id or "-",
+            )
             return {"success": False, "error": "No active shift to add the order to."}
-        return await get_order_dispatcher().accept(
-            context["driver_id"], context["shift_id"], parameters.get("order_id"))
+        result = await get_order_dispatcher().accept(
+            context["driver_id"], shift_id, order_id)
+        if not result.get("success"):
+            logger.warning(
+                "[Tool:accept_order] accept_failed order_id=%s shift_id=%s "
+                "reason=dispatcher_rejected detail=%r",
+                order_id or "-", shift_id, result.get("error") or "unknown",
+            )
+        return result
 
     except Exception as e:
-        logger.error(f"[Tool:accept_order] {e}")
+        logger.error(
+            "[Tool:accept_order] accept_failed order_id=%s shift_id=%s "
+            "reason=unexpected_exception error_type=%s",
+            order_id or "-", shift_id or "-", type(e).__name__,
+        )
         return {"success": False, "error": str(e)}
 
 
@@ -314,7 +332,8 @@ async def decline_order(parameters: dict, context: dict) -> dict:
         if not context.get("driver_id"):
             return {"success": False, "error": "No driver on this session."}
         return await get_order_dispatcher().decline(
-            context["driver_id"], parameters.get("order_id"), parameters.get("reason"))
+            context["driver_id"], parameters.get("order_id"), parameters.get("reason"),
+            shift_id=context.get("shift_id"))
 
     except Exception as e:
         logger.error(f"[Tool:decline_order] {e}")

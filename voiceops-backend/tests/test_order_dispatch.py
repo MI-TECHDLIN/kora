@@ -6,12 +6,14 @@ Supabase is an in-memory table store that runs the real queries in app/db/querie
 AssemblyAI is test_voice_ws.py's scripted fake upstream.
 """
 import asyncio
+import os
 import itertools
 import json
 import random
 import re
 import time
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -189,6 +191,37 @@ def dispatcher_with(adapter, hub, **kwargs):
 
 def run(coro):
     return asyncio.run(coro)
+
+
+# ---------------------------------------------------------------------------- deployment boundary
+
+
+def test_production_uses_one_worker_for_process_local_dispatch_state():
+    """The offer queue and voice-session hub cannot be split across Uvicorn workers."""
+    procfile = (Path(__file__).parents[1] / "Procfile").read_text()
+    assert re.search(r"(?:^|\s)--workers(?:=|\s+)1(?:\s|$)", procfile), (
+        "OrderDispatcher._orders and the voice-session registry are process-local; "
+        "multiple workers can retain competing copies of an open order."
+    )
+
+
+def test_offer_state_is_per_dispatcher_so_a_second_worker_cannot_accept_it(store, adapter):
+    """Two dispatchers stand in for two uvicorn workers: each has its own offer queue."""
+    store.add_driver(REAL)
+    worker_a = dispatcher_with(adapter, online(REAL))
+    worker_b = dispatcher_with(adapter, FakeHub())
+
+    async def scenario():
+        placed = await worker_a.ingest(make_order())
+        on_b = await worker_b.accept(REAL["driver_id"], REAL["shift_id"], placed["order_id"])
+        on_a = await worker_a.accept(REAL["driver_id"], REAL["shift_id"], placed["order_id"])
+        await worker_a.stop()
+        await worker_b.stop()
+        return on_b, on_a
+
+    on_b, on_a = run(scenario())
+    assert on_b["success"] is False and "No order is waiting" in on_b["error"]
+    assert on_a["success"] is True
 
 
 # ---------------------------------------------------------------------------- mock order feed
@@ -469,6 +502,34 @@ def test_only_the_offered_driver_can_accept(store, adapter):
     assert store.delivery(placed["order_id"])["shift_id"] is None
 
 
+def test_accept_failure_logs_order_shift_and_reason(store, adapter, caplog):
+    dispatcher = dispatcher_with(adapter, FakeHub())
+
+    with caplog.at_level("WARNING", logger="app.dispatch.order_dispatch"):
+        result = run(dispatcher.accept(REAL["driver_id"], REAL["shift_id"], "missing-order"))
+
+    assert result["success"] is False
+    assert (
+        f"[Dispatch] accept_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        f"reason=no_matching_order pid={os.getpid()}"
+    ) in caplog.messages
+
+
+def test_decline_failure_logs_order_shift_and_reason(store, adapter, caplog):
+    dispatcher = dispatcher_with(adapter, FakeHub())
+
+    with caplog.at_level("WARNING", logger="app.dispatch.order_dispatch"):
+        result = run(dispatcher.decline(
+            REAL["driver_id"], "missing-order", shift_id=REAL["shift_id"]
+        ))
+
+    assert result["success"] is False
+    assert (
+        f"[Dispatch] decline_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        f"reason=no_matching_offer pid={os.getpid()}"
+    ) in caplog.messages
+
+
 def test_decline_cascades_to_the_next_nearest_then_parks(store, adapter):
     for driver in (REAL, MARIA, BEN):
         store.add_driver(driver)
@@ -611,6 +672,19 @@ def test_get_next_order_reads_the_live_queue(store, adapter, monkeypatch):
 def test_order_tools_need_a_driver_session():
     assert run(execute_tool("accept_order", {}, {}))["success"] is False
     assert run(execute_tool("decline_order", {}, {}))["success"] is False
+
+
+def test_accept_tool_failure_logs_order_shift_and_reason(caplog):
+    context = {"driver_id": REAL["driver_id"], "shift_id": REAL["shift_id"]}
+
+    with caplog.at_level("WARNING", logger="app.agents.tools.delivery"):
+        result = run(execute_tool("accept_order", {"order_id": "missing-order"}, context))
+
+    assert result["success"] is False
+    assert (
+        f"[Tool:accept_order] accept_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        "reason=dispatcher_rejected detail='No order is waiting for you right now.'"
+    ) in caplog.messages
 
 
 # ---------------------------------------------------------------------------- voice relay
