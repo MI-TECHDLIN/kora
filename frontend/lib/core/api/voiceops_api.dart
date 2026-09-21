@@ -147,13 +147,17 @@ abstract interface class VoiceOpsApi {
 /// The backend base URL ([BackendConfig.baseUri]); production by default.
 final backendUriProvider = Provider<Uri?>((ref) => BackendConfig.baseUri);
 
-final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
+final _voiceOpsHttpClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
+  return client;
+});
+
+final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
   return HttpVoiceOpsApi(
     baseUri: ref.watch(backendUriProvider),
     auth: ref.watch(authRepositoryProvider),
-    client: client,
+    client: ref.watch(_voiceOpsHttpClientProvider),
   );
 });
 
@@ -263,7 +267,7 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
         await _client.send(request).timeout(_timeout),
       );
     } on TimeoutException {
-      throw const ApiException(_offlineMessage);
+      throw const ApiException(_timeoutMessage);
     } on http.ClientException {
       throw const ApiException(_offlineMessage);
     }
@@ -285,5 +289,7 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
 
   static const _offlineMessage =
       "Can't reach VoiceOps right now. Check your connection and try again.";
+  static const _timeoutMessage =
+      'VoiceOps is taking longer than usual. Try again in a moment.';
   static const _serverMessage = 'VoiceOps had a problem. Try again.';
 }
