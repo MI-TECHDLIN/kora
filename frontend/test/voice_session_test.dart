@@ -251,6 +251,7 @@ void main() {
           'event': 'task_step',
           'step': 'Checking delivery route',
           'status': 'active',
+          'reasoning': '  Traffic is lighter on the eastern route.  ',
         })
         ..emit(sampleMapRoute())
         ..emit({
@@ -286,6 +287,10 @@ void main() {
       expect(
         container.read(taskProgressProvider).single.status,
         TaskStepStatus.active,
+      );
+      expect(
+        container.read(taskProgressProvider).single.reasoning,
+        'Traffic is lighter on the eastern route.',
       );
       expect(
         container.read(mapRouteProvider)!.target!.recipientName,
