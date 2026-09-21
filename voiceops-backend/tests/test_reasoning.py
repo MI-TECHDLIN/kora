@@ -26,17 +26,8 @@ def test_task_step_without_reasoning():
 
 
 def test_task_step_active_no_reasoning():
-    """Test task_step with active status can include reasoning when provided."""
+    """Test task_step with active status never includes reasoning."""
     result = events.task_step("Checking delivery route", "active", "Some reasoning")
-    assert result["event"] == "task_step"
-    assert result["step"] == "Checking delivery route"
-    assert result["status"] == "active"
-    assert result["reasoning"] == "Some reasoning"
-
-
-def test_task_step_active_without_reasoning():
-    """Test task_step with active status works without reasoning."""
-    result = events.task_step("Checking delivery route", "active")
     assert result["event"] == "task_step"
     assert result["step"] == "Checking delivery route"
     assert result["status"] == "active"
@@ -401,73 +392,3 @@ def test_reasoning_no_pii_leakage():
     assert formatted == "The call request was created for this stop."
     assert "+1234567890" not in formatted
     assert "John Doe" not in formatted
-
-
-def test_format_active_reasoning_all_tools():
-    """Test that all tools have active reasoning text."""
-    tools_with_active_reasoning = [
-        "get_next_delivery", "update_delivery_status", "log_exception",
-        "get_best_route", "start_navigation", "call_customer",
-        "notify_customer", "get_next_order", "accept_order",
-        "decline_order", "get_shift_summary", "alert_dispatcher", "show_screen"
-    ]
-    
-    for tool_name in tools_with_active_reasoning:
-        formatted = reasoning_formatter.format_reasoning(tool_name, {}, status="active")
-        assert formatted is not None, f"Tool {tool_name} should have active reasoning"
-        assert len(formatted) <= 140, f"Active reasoning for {tool_name} exceeds 140 chars"
-        # Active reasoning should be about what the agent is doing
-        assert "ing" in formatted.lower() or "finding" in formatted.lower() or "checking" in formatted.lower() or "setting" in formatted.lower()
-
-
-def test_format_active_reasoning_get_next_delivery():
-    """Test active reasoning for get_next_delivery."""
-    formatted = reasoning_formatter.format_reasoning("get_next_delivery", {}, status="active")
-    assert formatted == "Finding your next delivery stop from the route."
-    assert len(formatted) <= 140
-
-
-def test_format_active_reasoning_get_best_route():
-    """Test active reasoning for get_best_route."""
-    formatted = reasoning_formatter.format_reasoning("get_best_route", {}, status="active")
-    assert formatted == "Checking traffic and calculating the fastest route."
-    assert len(formatted) <= 140
-
-
-def test_format_active_reasoning_call_customer():
-    """Test active reasoning for call_customer."""
-    formatted = reasoning_formatter.format_reasoning("call_customer", {}, status="active")
-    assert formatted == "Initiating a call to the customer."
-    assert len(formatted) <= 140
-
-
-def test_format_active_reasoning_unknown_tool():
-    """Test active reasoning returns None for unknown tools."""
-    formatted = reasoning_formatter.format_reasoning("unknown_tool", {}, status="active")
-    assert formatted is None
-
-
-def test_format_active_reasoning_with_done_status():
-    """Test that active reasoning is separate from done reasoning."""
-    result = {"success": True, "call_sid": "CA123456789"}
-    
-    active = reasoning_formatter.format_reasoning("call_customer", result, status="active")
-    done = reasoning_formatter.format_reasoning("call_customer", result, status="done")
-    
-    assert active == "Initiating a call to the customer."
-    assert done == "The call request was created for this stop."
-    assert active != done
-
-
-def test_parallel_tasks_each_have_active_reasoning():
-    """Test that parallel tasks each get their own active reasoning."""
-    parallel_tools = ["get_next_delivery", "get_best_route", "call_customer"]
-    
-    for tool_name in parallel_tools:
-        active = reasoning_formatter.format_reasoning(tool_name, {}, status="active")
-        assert active is not None, f"Tool {tool_name} should have active reasoning for parallel execution"
-        assert len(active) <= 140, f"Active reasoning for {tool_name} exceeds 140 chars"
-    
-    # Each tool should have different active reasoning
-    reasonings = [reasoning_formatter.format_reasoning(tool, {}, status="active") for tool in parallel_tools]
-    assert len(set(reasonings)) == len(parallel_tools), "Each tool should have unique active reasoning"

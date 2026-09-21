@@ -773,9 +773,7 @@ class VoiceSession:
         silent = name == "end_conversation"
         if not silent:
             await self.emit(events.agent_state(events.mood_for_tool(name)))
-            # Generate real-time reasoning for active status
-            active_reasoning = reasoning.format_reasoning(name, {}, status="active")
-            await self.emit(events.task_step(step, "active", active_reasoning))
+            await self.emit(events.task_step(step, "active"))
 
         if name in ROUTING_TOOLS:
             ping = await _try_db(get_latest_location, self.shift_id)
@@ -807,7 +805,7 @@ class VoiceSession:
             # Generate reasoning for successful tool results
             reasoning_text = None
             if outcome["parsed_result"].get("success"):
-                reasoning_text = reasoning.format_reasoning(name, outcome["parsed_result"], status="done")
+                reasoning_text = reasoning.format_reasoning(name, outcome["parsed_result"])
             await self.emit(events.task_step(step, "done", reasoning_text))
         return outcome
 
