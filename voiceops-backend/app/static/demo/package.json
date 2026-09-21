@@ -1,0 +1,10 @@
+{
+  "name": "kora-customer-call-demo",
+  "private": true,
+  "type": "module",
+  "description": "Static customer page for the Kora customer-call demo. No build step; package.json only marks the JS as ES modules for node --test.",
+  "scripts": {
+    "test": "node --test \"dev/*.test.mjs\"",
+    "mock": "node dev/mock_server.mjs"
+  }
+}

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07060B">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex">
+  <title>Kora – customer call</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238B5CF6'/%3E%3Ccircle cx='12' cy='11' r='4' fill='%23F4F1FF' opacity='.7'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="customer.css">
+</head>
+<body data-phase="pairing">
+
+<!-- Icon sprite: inline SVG only, no emoji, no external assets. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-hangup" viewBox="0 0 24 24"><path d="M3 15.5c5-4.7 13-4.7 18 0l-1.2 2.6a1.6 1.6 0 0 1-2 .8l-2.3-.9a1.6 1.6 0 0 1-1-1.5V15a11 11 0 0 0-4.6 0v1.5a1.6 1.6 0 0 1-1 1.5l-2.3.9a1.6 1.6 0 0 1-2-.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M9 9V6a3 3 0 0 1 5.6-1.5M15 10v2a3 3 0 0 1-4.5 2.6M5 11a7 7 0 0 0 11.2 5.6M19 11a7 7 0 0 1-.6 2.8M12 18v3M3 3l18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="backdrop" aria-hidden="true"></div>
+
+<!-- The orb is one persistent canvas that glides between layouts as the phase changes. -->
+<div class="orb-host" id="orbHost" aria-hidden="true"><canvas id="orb"></canvas></div>
+
+<main class="app" id="app">
+
+  <!-- 1. Pairing -->
+  <section class="screen" data-screen="pairing" aria-labelledby="t-pairing">
+    <div class="stack stack--bottom">
+      <p class="eyebrow">Kora demo</p>
+      <h1 id="t-pairing" class="display">Answer Kora’s call</h1>
+      <p class="lede">Enter the demo code to wait for a call from a driver’s co-rider.</p>
+      <form id="pairForm" class="pair" autocomplete="off" novalidate>
+        <label class="field">
+          <span class="field__label">Demo code</span>
+          <input id="codeInput" name="code" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="48" aria-describedby="codeError" placeholder="e.g. KORA-2026">
+        </label>
+        <p id="codeError" class="field__error" role="alert" hidden></p>
+        <button class="btn btn--primary" type="submit">Wait for the call</button>
+      </form>
+      <p class="fine">Your microphone is only used after you tap Answer.</p>
+    </div>
+  </section>
+
+  <!-- 2. Waiting -->
+  <section class="screen" data-screen="waiting" aria-labelledby="t-waiting">
+    <div class="stack stack--bottom">
+      <p class="pill" id="linkPill"><span class="pill__dot"></span><span id="linkText">Connected</span></p>
+      <h1 id="t-waiting" class="display display--sm">Waiting for Kora’s call</h1>
+      <p class="lede">Keep this page open. When the driver says “call the customer”, your phone rings.</p>
+      <button class="btn btn--glass" id="soundHint" type="button" hidden>
+        <svg class="ico" aria-hidden="true"><use href="#i-volume"/></svg>Tap to enable ringtone
+      </button>
+      <button class="link" id="leaveBtn" type="button">Use a different code</button>
+    </div>
+  </section>
+
+  <!-- 3. Incoming call -->
+  <section class="screen" data-screen="ringing" aria-labelledby="t-ringing">
+    <div class="stack stack--bottom stack--call">
+      <p class="eyebrow eyebrow--pulse">Incoming call</p>
+      <h1 id="t-ringing" class="display">Kora</h1>
+      <p class="lede" id="ringSub">Calling on behalf of your driver</p>
+      <div class="ring-actions">
+        <div class="ring-action">
+          <button class="round round--decline" id="declineBtn" type="button" aria-label="Decline call"><svg class="ico ico--lg" aria-hidden="true"><use href="#i-hangup"/></svg></button>
+          <span class="ring-action__label" aria-hidden="true">Decline</span>
+        </div>
+        <div class="ring-action">
+          <button class="round round--answer" id="answerBtn" type="button" aria-label="Answer call"><svg class="ico ico--lg" aria-hidden="true"><use href="#i-phone"/></svg></button>
+          <span class="ring-action__label" aria-hidden="true">Answer</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. In call -->
+  <section class="screen" data-screen="incall" aria-labelledby="t-incall">
+    <header class="callbar">
+      <div>
+        <h1 id="t-incall" class="callbar__name">Kora</h1>
+        <p class="callbar__state" id="callState">Connecting…</p>
+      </div>
+      <p class="callbar__timer" id="timer" aria-label="Call length">0:00</p>
+    </header>
+    <div class="captions" id="captions" role="log" aria-live="off" aria-label="Live captions" tabindex="0">
+      <p class="captions__empty" id="captionsEmpty">Captions appear here as you talk.</p>
+    </div>
+    <div class="controls">
+      <div class="meter" aria-hidden="true"><span class="meter__bar" id="meterBar"></span></div>
+      <div class="controls__row">
+        <button class="round round--glass" id="muteBtn" type="button" aria-pressed="false" aria-label="Mute microphone">
+          <svg class="ico ico--lg" aria-hidden="true"><use id="muteIcon" href="#i-mic"/></svg>
+        </button>
+        <button class="round round--decline round--wide" id="hangupBtn" type="button" aria-label="End call">
+          <svg class="ico ico--lg" aria-hidden="true"><use href="#i-hangup"/></svg>
+        </button>
+      </div>
+      <p class="fine" id="muteHint" aria-live="polite">Microphone on</p>
+    </div>
+  </section>
+
+  <!-- 5. Summary -->
+  <section class="screen" data-screen="summary" aria-labelledby="t-summary">
+    <div class="stack stack--bottom">
+      <p class="chip" id="endChip">Call ended</p>
+      <h1 id="t-summary" class="display display--sm">Call finished</h1>
+      <ul class="points" id="points"></ul>
+      <p class="fine" id="summaryNote"></p>
+      <button class="btn btn--primary" id="againBtn" type="button">Call again</button>
+    </div>
+  </section>
+
+  <!-- 6. Error -->
+  <section class="screen" data-screen="error" aria-labelledby="t-error">
+    <div class="stack stack--bottom">
+      <div class="badge" aria-hidden="true"><svg class="ico ico--lg"><use href="#i-alert"/></svg></div>
+      <h1 id="t-error" class="display display--sm">Something’s off</h1>
+      <p class="lede" id="errorText"></p>
+      <ol class="steps" id="errorSteps" hidden></ol>
+      <button class="btn btn--primary" id="retryBtn" type="button">Try again</button>
+      <button class="link" id="errorLeaveBtn" type="button" hidden>Use a different code</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
+
+<noscript><p class="noscript">This page needs JavaScript to take a call.</p></noscript>
+<script type="module" src="customer.js"></script>
+</body>
+</html>
