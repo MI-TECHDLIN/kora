@@ -604,10 +604,21 @@ class VoiceSession:
         outcome = await self._run_tool(action, f"tap-{action}-{order_id}", {"order_id": order_id})
         result = outcome.get("parsed_result")
         if isinstance(result, dict) and result.get("success"):
-            await self.close_offer(order_id, action)
+            closed_outcome = "accepted" if action == "accept_order" else "declined"
+            if order_id in self.offers:
+                await self.close_offer(order_id, closed_outcome)
             if spoken:
                 # If the offer was already spoken, the co-rider confirms the answer
-                self._announce("order-response", f"The driver {'accepted' if action == 'accept_order' else 'declined'} the order.")
+                where = f" at {result['address']}" if result.get("address") else ""
+                self._announce(
+                    "order-response",
+                    f"The driver {closed_outcome} the order{where} by tapping the card. "
+                    "Confirm it in one short sentence.",
+                )
+            return
+        if isinstance(result, dict):
+            await self.emit(events.error(
+                "internal", result.get("error") or "The order response failed. Try again."))
 
     async def _handle_voice_change(self, data: dict) -> None:
         """Handle voice change request from client."""

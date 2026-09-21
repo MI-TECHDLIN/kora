@@ -653,9 +653,13 @@ def reply_creates(upstream):
 
 
 def offer_and_announce(ws, upstream, dispatcher, order=None):
+    seen_announcements = len(reply_creates(upstream))
     placed = ws.portal.call(dispatcher.ingest, order or make_order())
     offer = next(f for f in collect_until(ws, is_event("order_offer")) if is_event("order_offer")(f))
-    upstream.wait_sent(lambda m: m["type"] == "reply.create")
+    deadline = time.monotonic() + 3
+    while len(reply_creates(upstream)) <= seen_announcements and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert len(reply_creates(upstream)) > seen_announcements
     return placed, offer
 
 
@@ -735,6 +739,26 @@ def test_driver_accepts_the_offer_by_voice(upstream, live_dispatch, store):
     assert len(reply_creates(upstream)) == 1  # nothing more announced
 
 
+def test_driver_accepts_second_offer_by_voice_after_finishing_first(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        first, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
+        first_result = finish_turn(ws, upstream, "c1")
+        store.delivery(first["order_id"])["status"] = "delivered"
+
+        second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c2", "name": "accept_order", "arguments": {}})
+        second_result = finish_turn(ws, upstream, "c2")
+        ws.portal.call(live_dispatch.stop)
+
+    assert first_result["success"] is True
+    assert second_result["success"] is True and second_result["delivery_id"] == second["order_id"]
+    assert store.delivery(second["order_id"])["sequence_order"] == 2
+
+
 def test_accepted_order_can_be_navigated_to(upstream, live_dispatch, backend):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
@@ -789,6 +813,31 @@ def test_driver_accepts_the_offer_by_tap(upstream, live_dispatch, store):
     assert (row["shift_id"], row["status"]) == (SHIFT_ID, "pending")
     assert "accepted" in confirm["instructions"] and "812 Lavaca St" in confirm["instructions"]
     assert upstream.sent_of("tool.result") == []  # FastAPI ran the handler; no LLM tool call
+
+
+def test_driver_accepts_second_offer_by_tap_after_finishing_first(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        first, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
+        first_result = finish_turn(ws, upstream, "c1")
+        store.delivery(first["order_id"])["status"] = "delivered"
+
+        second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
+        upstream.push({"type": "reply.done", "status": "completed"})
+        collect_until(ws, is_event("reply_done"))
+        ws.send_json({"event": "accept_order", "order_id": second["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        upstream.wait_sent(lambda m: m["type"] == "reply.create" and "accepted" in m["instructions"])
+        ws.portal.call(live_dispatch.stop)
+
+    assert first_result["success"] is True
+    assert events.order_offer_closed(second["order_id"], "accepted") in frames
+    assert store.delivery(second["order_id"])["sequence_order"] == 2
+    assert upstream.sent_of("tool.result") == [
+        m for m in upstream.sent_of("tool.result") if m["call_id"] == "c1"
+    ]
 
 
 def test_driver_declines_the_offer_by_tap_and_it_moves_on(upstream, live_dispatch, store):
