@@ -323,6 +323,12 @@ class KoraMotion {
   /// Keep a completed task visible long enough for a quick confirmation.
   static const taskCompleteHold = Duration(seconds: 2);
 
+  /// Keep completed reasoning visible long enough to notice and inspect.
+  static const taskReasoningCompleteHold = Duration(seconds: 8);
+
+  /// Return task reasoning to its glanceable one-line state.
+  static const taskReasoningExpanded = Duration(seconds: 30);
+
   /// Order-offer countdown refresh. The server remains authoritative for
   /// closing an offer; this only keeps the displayed seconds moving.
   static const countdownTick = Duration(seconds: 1);
