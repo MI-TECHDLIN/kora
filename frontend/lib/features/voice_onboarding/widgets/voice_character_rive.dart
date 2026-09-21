@@ -43,9 +43,41 @@ final voiceCharactersFileProvider = FutureProvider<rive.File?>((ref) async {
   }
 });
 
+/// One live character, as the slot sees it. [VoiceCharacterRive] is the real
+/// one; tests inject fakes through [voiceArtFactoryProvider].
+abstract class VoiceArt {
+  void update({required bool selected, required bool speaking});
+  void dispose();
+  Widget build();
+}
+
+/// Builds the art for one voice, or null to keep the placeholder.
+typedef VoiceArtFactory =
+    VoiceArt? Function(
+      CoRiderVoice voice, {
+      required bool selected,
+      required bool speaking,
+    });
+
+/// How a slot gets a voice's art: null until the .riv loads (or forever if
+/// it is missing), then [VoiceCharacterRive.tryCreate] on the loaded file.
+/// Only slots with `rive: true` watch it, so Settings never loads the file.
+/// Tests override this to avoid the native Rive runtime.
+final voiceArtFactoryProvider = Provider<VoiceArtFactory?>((ref) {
+  final file = ref.watch(voiceCharactersFileProvider).valueOrNull;
+  if (file == null) return null;
+  return (voice, {required selected, required speaking}) =>
+      VoiceCharacterRive.tryCreate(
+        file,
+        voice,
+        selected: selected,
+        speaking: speaking,
+      );
+});
+
 /// One live character: [voice]'s artboard, its `Voice` state machine, and
 /// the two inputs.
-class VoiceCharacterRive {
+class VoiceCharacterRive implements VoiceArt {
   VoiceCharacterRive._(this.controller, this._selected, this._speaking);
 
   final rive.RiveWidgetController controller;
@@ -89,14 +121,17 @@ class VoiceCharacterRive {
     }
   }
 
+  @override
   void update({required bool selected, required bool speaking}) {
     if (_selected.value != selected) _selected.value = selected;
     if (_speaking.value != speaking) _speaking.value = speaking;
     controller.scheduleRepaint();
   }
 
+  @override
   void dispose() => controller.dispose();
 
+  @override
   Widget build() =>
       rive.RiveWidget(controller: controller, fit: rive.Fit.contain);
 }
