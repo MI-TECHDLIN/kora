@@ -10,12 +10,12 @@ orphan branch `features/backend/assemblyai-voice-agent`.
 
 - **Framework:** Python FastAPI, async throughout
 - **DB / auth / storage:** Supabase (PostgreSQL)
-- **Hosting:** Railway
+- **Hosting:** Render (the app's production URL in `backend_config.dart`; `Procfile` runs one uvicorn worker)
 - **Push:** Firebase FCM
 - **Voice:** AssemblyAI Voice Agent API (real-time),
   AssemblyAI Speech Understanding API (post-shift)
-- **Calls:** LiveKit SIP/PSTN
-- **SMS:** Vonage
+- **Calls and SMS:** Twilio (`app/integrations/twilio_client.py`); a simulated customer call for demos via `DEMO_SIMULATED_CUSTOMER`
+- **Traffic-aware ETA:** TomTom (`TOMTOM_API_KEY`)
 - **Async pipeline:** n8n (post-shift only)
 
 ---
@@ -66,7 +66,7 @@ Flutter
   → FastAPI WebSocket
     → AssemblyAI Voice Agent API   (STT + LLM + tool calling + TTS)
       → Tool Orchestrator          (asyncio.gather)
-        → Onfleet / Maps / LiveKit / Vonage / Supabase
+        → Onfleet / Maps / Twilio / Supabase
       → AssemblyAI TTS
   → Driver
 ```
@@ -76,15 +76,15 @@ calling, and TTS. Do not decompose it into separate service calls.
 
 ---
 
-## The 13 Tools
+## The 15 Tools
 
 `get_next_delivery`, `update_delivery_status`, `log_exception`,
-`get_best_route`, `start_navigation`, `call_customer`, `notify_customer`,
+`get_best_route`, `start_navigation`, `accept_reroute`, `call_customer`, `notify_customer`,
 `get_next_order`, `accept_order`, `decline_order`, `get_shift_summary`,
-`alert_dispatcher`, `show_screen`
+`alert_dispatcher`, `show_screen`, `end_conversation`
 
 Exact input/output JSON shapes and handler signatures are defined in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.4, generated from the
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.5, generated from the
 running code). The Flutter-facing WebSocket, REST, status-enum, and auth
 contract is `docs/contracts/interface.md`. Those documents are the
 contract. Do not invent or alter a tool shape — if the reference is
@@ -163,7 +163,7 @@ because driver and agent turns are stored separately (`voice_sessions`).
 - External API calls need timeouts — none may block the voice loop
   indefinitely
 - Failures return structured errors the agent can speak, not stack traces
-- Respect rate limits on Onfleet, OSRM (the public demo server is shared), LiveKit, Vonage
+- Respect rate limits on Onfleet, OSRM (the public demo server is shared), TomTom, Twilio
 - On a tool failure, the driver should hear what failed and what to do
   next
 
@@ -195,8 +195,6 @@ backend-owner review session.
   return inline mocks
 - **REST harness** `POST /v1/voice-agent` still hardcodes its tool context and
   sends each `tool.result` before `reply.done`. The WS relay is the real path
-- **System prompt and greeting** say "voice assistant" / "VoiceOps
-  assistant". The locked term is **co-rider** (`agent_config.py`)
 
 ## Scope Discipline
 
