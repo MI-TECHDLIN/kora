@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Kora mark</title>
+  <!-- Master Kora mark. Two shapes, one flat colour (#C4B5FD, KoraColors.primaryLight).
+       Stem: 58 x 280 pill. Orb: circle r140 (path r130 + 10 round stroke) with a
+       76-degree mouth cut toward the stem, so the orb's two lobes read as the K's arms.
+       The generator (frontend/tool/brand/generate_assets.py) recolours this file. -->
+  <g id="mark" transform="translate(49 0)" fill="#C4B5FD" stroke="#C4B5FD" stroke-width="20" stroke-linejoin="round">
+    <rect x="76" y="116" width="58" height="280" rx="29" stroke="none"/>
+    <path d="M327.45 129.86A130 130 0 1 0 327.45 382.14L166 256Z"/>
+  </g>
+</svg>

@@ -26,6 +26,7 @@ not during candidate ranking to avoid excessive API calls).
 """
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -184,6 +185,7 @@ class OrderDispatcher:
     # ------------------------------------------------------------------ lifecycle
 
     async def start(self) -> None:
+        logger.info(f"[Dispatch] started pid={os.getpid()}")
         await self._recover()
         if self.feed_enabled:
             await self.adapter.start_order_feed(
@@ -210,7 +212,7 @@ class OrderDispatcher:
             self._orders[open_order.delivery_id] = open_order
             await self._set_status(open_order, UNASSIGNED)
         if rows:
-            logger.info(f"[Dispatch] Reloaded {len(self._orders)} open orders")
+            logger.info(f"[Dispatch] Reloaded {len(self._orders)} open orders pid={os.getpid()}")
 
     def should_generate(self) -> bool:
         """
@@ -482,14 +484,26 @@ class OrderDispatcher:
         async with self._lock:
             open_order = self._find(driver_id, order_id)
             if open_order is None:
+                logger.warning(
+                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=no_matching_order pid=%s",
+                    order_id or "-", shift_id or "-", os.getpid(),
+                )
                 return {"success": False, "error": "No order is waiting for you right now."}
             holder = open_order.offered_to
             if holder and holder.driver_id != driver_id:
+                logger.warning(
+                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=offered_to_other_driver pid=%s",
+                    open_order.delivery_id, shift_id or "-", os.getpid(),
+                )
                 return {"success": False, "error": "That order is offered to another driver right now."}
             try:
                 row = await _db(assign_order_to_shift, open_order.delivery_id, shift_id)
             except Exception as e:
-                logger.warning(f"[Dispatch] Assigning {open_order.delivery_id} failed: {e!r}")
+                logger.warning(
+                    "[Dispatch] accept_failed order_id=%s shift_id=%s "
+                    "reason=database_error error_type=%s pid=%s",
+                    open_order.delivery_id, shift_id or "-", type(e).__name__, os.getpid(),
+                )
                 return {"success": False, "error": "Couldn't reach the order system. Try accepting again."}
 
             self._release(open_order)
@@ -498,6 +512,10 @@ class OrderDispatcher:
                 await self.hub.close_offer(holder.shift_id, open_order.delivery_id,
                                            "accepted" if row else "withdrawn")
             if row is None:
+                logger.warning(
+                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=already_assigned pid=%s",
+                    open_order.delivery_id, shift_id or "-", os.getpid(),
+                )
                 return {"success": False, "error": "Someone else already took that order."}
             try:
                 await self.adapter.order_assigned(open_order.order, open_order.delivery_id, driver_id)
@@ -527,11 +545,21 @@ class OrderDispatcher:
         }
 
     async def decline(self, driver_id: str, order_id: Optional[str] = None,
-                      reason: Optional[str] = None) -> Dict[str, Any]:
+                      reason: Optional[str] = None, shift_id: Optional[str] = None) -> Dict[str, Any]:
         """The driver passes: the next-nearest free driver gets the offer."""
         async with self._lock:
             open_order = self._find(driver_id, order_id)
             if open_order is None or not open_order.offered_to or open_order.offered_to.driver_id != driver_id:
+                offered_shift = (
+                    open_order.offered_to.shift_id
+                    if open_order is not None and open_order.offered_to is not None
+                    else None
+                )
+                logger.warning(
+                    "[Dispatch] decline_failed order_id=%s shift_id=%s reason=no_matching_offer pid=%s",
+                    open_order.delivery_id if open_order is not None else order_id or "-",
+                    shift_id or offered_shift or "-", os.getpid(),
+                )
                 return {"success": False, "error": "No order is offered to you right now."}
             holder = self._release(open_order)
             open_order.passed_over.add(driver_id)

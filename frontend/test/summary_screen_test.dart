@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/features/summary/data/shift_report.dart';
 import 'package:voiceops/features/summary/screens/summary_screen.dart';
 import 'package:voiceops/features/summary/widgets/shift_report_view.dart';
+import 'package:voiceops/providers/shift_report_provider.dart';
 import 'package:voiceops/providers/shift_provider.dart';
 import 'package:voiceops/providers/summary_stream_provider.dart';
 
@@ -105,6 +107,25 @@ void main() {
         isNull,
       );
     });
+
+    test('distinguishes a slow report request from an offline request', () {
+      final api = HttpVoiceOpsApi(
+        baseUri: Uri.parse('https://api.voiceops.test'),
+        auth: FakeAuthRepository(signedIn: true),
+        client: MockClient((_) async => throw TimeoutException('too slow')),
+      );
+
+      expect(
+        api.fetchShiftReport('shift-1'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'VoiceOps is taking longer than usual. Try again in a moment.',
+          ),
+        ),
+      );
+    });
   });
 
   group('SummaryScreen', () {
@@ -113,11 +134,21 @@ void main() {
 
     setUp(() => api = FakeVoiceOpsApi());
 
-    Future<void> pump(WidgetTester tester) async {
+    Future<void> pump(
+      WidgetTester tester, {
+      List<Duration> reportRetryDelays = const [],
+    }) async {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
-      container = ProviderContainer(overrides: offlineOverrides(api: api));
+      container = ProviderContainer(
+        overrides: [
+          ...offlineOverrides(api: api),
+          shiftReportPollingConfigProvider.overrideWithValue(
+            ShiftReportPollingConfig(processingRetryDelays: reportRetryDelays),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -262,6 +293,24 @@ void main() {
 
       expect(api.reportRequests, ['shift-1', 'shift-1']);
       expect(find.byType(ShiftReportView), findsOneWidget);
+    });
+
+    testWidgets('a processing report is polled before manual retry appears', (
+      tester,
+    ) async {
+      await pump(tester, reportRetryDelays: const [Duration(seconds: 2)]);
+      await finishSummary(tester, 'Today you did 17 stops.');
+
+      expect(api.reportRequests, ['shift-1']);
+      expect(find.text('Check again'), findsNothing);
+
+      api.report = ShiftReport.fromJson(_reportRow);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      expect(api.reportRequests, ['shift-1', 'shift-1']);
+      expect(find.byType(ShiftReportView), findsOneWidget);
+      expect(find.text('Check again'), findsNothing);
     });
 
     testWidgets('a failed fetch shows the error with a retry', (tester) async {
