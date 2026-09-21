@@ -41,7 +41,7 @@ void main() {
   late FakeVoiceConnector connector;
   late FakeRecorder recorder;
   late FakePlayback playback;
-  late FakeVoiceOpsApi api;
+  late FakeKoraApi api;
   late FakeAuthRepository auth;
   late _FakeNavigation navigation;
   late FakeCoRiderVoiceStore voices;
@@ -51,7 +51,7 @@ void main() {
     connector = FakeVoiceConnector();
     recorder = FakeRecorder();
     playback = FakePlayback();
-    api = FakeVoiceOpsApi();
+    api = FakeKoraApi();
     auth = FakeAuthRepository(signedIn: true);
     navigation = _FakeNavigation();
     voices = FakeCoRiderVoiceStore();
@@ -724,12 +724,12 @@ void main() {
       expect(connector.sockets, isEmpty);
 
       recorder.permitted = true;
-      api.shiftFailure = const ApiException('VoiceOps had a problem.');
+      api.shiftFailure = const ApiException('Kora had a problem.');
       session().onPushToTalk();
       flush();
       expect(ptt(), PushToTalkState.idle);
       expect(voice().connection, VoiceConnection.failed);
-      expect(voice().issue, 'VoiceOps had a problem.');
+      expect(voice().issue, 'Kora had a problem.');
       expect(connector.sockets, isEmpty);
     });
   });

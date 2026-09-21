@@ -40,7 +40,7 @@ class DriverProfile {
   /// The sign-up number. Read-only in the app: it identifies the driver.
   final String? phone;
 
-  /// When the driver row was created, i.e. when they joined VoiceOps.
+  /// When the driver row was created, i.e. when they joined Kora.
   final DateTime? createdAt;
 }
 
@@ -120,7 +120,7 @@ class ApiException implements Exception {
 
 /// The backend REST endpoints the app uses (contract §2). Every call carries
 /// the §4 `Authorization: Bearer` header.
-abstract interface class VoiceOpsApi {
+abstract interface class KoraApi {
   Future<DriverProfile> fetchDriverProfile();
 
   /// `PUT /v1/driver/profile` with a new name; returns the updated row.
@@ -147,22 +147,22 @@ abstract interface class VoiceOpsApi {
 /// The backend base URL ([BackendConfig.baseUri]); production by default.
 final backendUriProvider = Provider<Uri?>((ref) => BackendConfig.baseUri);
 
-final _voiceOpsHttpClientProvider = Provider<http.Client>((ref) {
+final _koraHttpClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
   return client;
 });
 
-final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
-  return HttpVoiceOpsApi(
+final koraApiProvider = Provider<KoraApi>((ref) {
+  return HttpKoraApi(
     baseUri: ref.watch(backendUriProvider),
     auth: ref.watch(authRepositoryProvider),
-    client: ref.watch(_voiceOpsHttpClientProvider),
+    client: ref.watch(_koraHttpClientProvider),
   );
 });
 
-class HttpVoiceOpsApi implements VoiceOpsApi {
-  HttpVoiceOpsApi({
+class HttpKoraApi implements KoraApi {
+  HttpKoraApi({
     required this.baseUri,
     required AuthRepository auth,
     required http.Client client,
@@ -288,8 +288,8 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   }
 
   static const _offlineMessage =
-      "Can't reach VoiceOps right now. Check your connection and try again.";
+      "Can't reach Kora right now. Check your connection and try again.";
   static const _timeoutMessage =
-      'VoiceOps is taking longer than usual. Try again in a moment.';
-  static const _serverMessage = 'VoiceOps had a problem. Try again.';
+      'Kora is taking longer than usual. Try again in a moment.';
+  static const _serverMessage = 'Kora had a problem. Try again.';
 }

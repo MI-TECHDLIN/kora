@@ -46,7 +46,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: Center(child: PushToTalkButton())),
         ),
       ),
@@ -81,7 +81,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: Center(child: PushToTalkButton())),
         ),
       ),
@@ -97,7 +97,7 @@ void main() {
   });
 
   test('live lime never leaks into the Material colour scheme', () {
-    final scheme = buildVoiceOpsTheme().colorScheme;
+    final scheme = buildKoraTheme().colorScheme;
     final roles = [
       scheme.primary,
       scheme.secondary,

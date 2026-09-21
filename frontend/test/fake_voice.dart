@@ -154,8 +154,8 @@ class FakePlayback implements VoicePlayback {
   Future<void> dispose() async {}
 }
 
-class FakeVoiceOpsApi implements VoiceOpsApi {
-  FakeVoiceOpsApi({this.profile, this.profileFailure});
+class FakeKoraApi implements KoraApi {
+  FakeKoraApi({this.profile, this.profileFailure});
 
   DriverProfile? profile;
   ApiException? profileFailure;
@@ -433,7 +433,7 @@ List<Override> offlineOverrides({
   FakeVoiceConnector? connector,
   FakeRecorder? recorder,
   FakePlayback? playback,
-  FakeVoiceOpsApi? api,
+  FakeKoraApi? api,
   FakeLocationSource? location,
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
@@ -451,7 +451,7 @@ List<Override> offlineOverrides({
     backendUriProvider.overrideWithValue(
       backendConfigured ? Uri.parse('https://api.voiceops.test') : null,
     ),
-    voiceOpsApiProvider.overrideWithValue(api ?? FakeVoiceOpsApi()),
+    koraApiProvider.overrideWithValue(api ?? FakeKoraApi()),
     voiceSocketConnectorProvider.overrideWithValue(sockets.connect),
     voiceRecorderProvider.overrideWithValue(recorder ?? FakeRecorder()),
     voicePlaybackProvider.overrideWithValue(playback ?? FakePlayback()),

@@ -1,4 +1,4 @@
-# VoiceOps — Privacy Policy
+# Kora — Privacy Policy
 *Last updated: [date] — Demo build*
 
 **What we collect:**

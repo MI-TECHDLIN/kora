@@ -258,7 +258,7 @@ void main() {
     );
     await settle(tester);
     expect(
-      find.text('VoiceOps — Privacy Policy', findRichText: true),
+      find.text('Kora — Privacy Policy', findRichText: true),
       findsOneWidget,
     );
     expect(
@@ -319,12 +319,12 @@ void main() {
     );
     await settle(tester);
     expect(
-      find.text('VoiceOps — Terms of Service', findRichText: true),
+      find.text('Kora — Terms of Service', findRichText: true),
       findsOneWidget,
     );
     expect(
       find.textContaining(
-        'VoiceOps is a voice-driven delivery driver assistant',
+        'Kora is a voice-driven delivery driver assistant',
         findRichText: true,
       ),
       findsOneWidget,

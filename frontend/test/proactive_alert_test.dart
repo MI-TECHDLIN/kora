@@ -183,7 +183,7 @@ void main() {
   group('the session', () {
     late FakeVoiceConnector connector;
     late FakeRecorder recorder;
-    late FakeVoiceOpsApi api;
+    late FakeKoraApi api;
     late FakeAuthRepository auth;
     late FakeLocationSource location;
     late ProviderContainer container;
@@ -191,7 +191,7 @@ void main() {
     setUp(() {
       connector = FakeVoiceConnector();
       recorder = FakeRecorder();
-      api = FakeVoiceOpsApi();
+      api = FakeKoraApi();
       auth = FakeAuthRepository(signedIn: true);
       location = FakeLocationSource();
     });
@@ -334,7 +334,7 @@ void main() {
   group('the GPS ping loop', () {
     late FakeVoiceConnector connector;
     late FakeRecorder recorder;
-    late FakeVoiceOpsApi api;
+    late FakeKoraApi api;
     late FakeAuthRepository auth;
     late FakeLocationSource location;
     late ProviderContainer container;
@@ -342,7 +342,7 @@ void main() {
     setUp(() {
       connector = FakeVoiceConnector();
       recorder = FakeRecorder();
-      api = FakeVoiceOpsApi();
+      api = FakeKoraApi();
       auth = FakeAuthRepository(signedIn: true);
       location = FakeLocationSource();
     });

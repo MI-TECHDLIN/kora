@@ -25,7 +25,7 @@ from app.services.self_ping_service import self_ping_service
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print(f"VoiceOps backend starting in {settings.environment} mode")
+    print(f"Kora backend starting in {settings.environment} mode")
     if not settings.tomtom_api_key:
         print("[Config] WARNING: TOMTOM_API_KEY is not set. Traffic-aware ETA calculations and proactive reroute suggestions will be disabled.")
     dispatcher = get_order_dispatcher()
@@ -36,14 +36,14 @@ async def lifespan(app: FastAPI):
     
     yield
     # Shutdown
-    print("VoiceOps backend shutting down")
+    print("Kora backend shutting down")
     await self_ping_service.stop()
     await dispatcher.stop()
 
 
 app = FastAPI(
-    title="VoiceOps API",
-    description="Backend for VoiceOps - Voice-first logistics driver companion",
+    title="Kora API",
+    description="Backend for Kora - Voice-first logistics driver companion",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -84,7 +84,7 @@ app.include_router(voice_router, tags=["voice-websocket"])
 @app.get("/")
 async def root():
     return {
-        "message": "VoiceOps API",
+        "message": "Kora API",
         "version": "1.0.0",
         "status": "running"
     }

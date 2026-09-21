@@ -71,7 +71,7 @@ class NotificationPolicyService:
             return False
 
         message = (
-            f"Hi {name}, your VoiceOps driver is approximately {eta_minutes} minutes away. "
+            f"Hi {name}, your Kora driver is approximately {eta_minutes} minutes away. "
             f"Please be ready to receive your package at {delivery.get('address', 'your address')}."
         )
 

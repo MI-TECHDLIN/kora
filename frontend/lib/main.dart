@@ -41,7 +41,7 @@ class KoraApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Kora',
       debugShowCheckedModeBanner: false,
-      theme: buildVoiceOpsTheme(), // dark-mode-first: the only theme
+      theme: buildKoraTheme(), // dark-mode-first: the only theme
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) => RootStack(
         child: MapWarmup(

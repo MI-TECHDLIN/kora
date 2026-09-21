@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// VoiceOps design tokens — the single source for every colour, spacing,
+/// Kora design tokens — the single source for every colour, spacing,
 /// radius, size, duration and text style. Widgets reference these; they
 /// never hardcode a value. Authority: CLAUDE.md § Design System and
 /// `.firstmate/rules/frontend.md`. Dark-mode-first.
@@ -429,7 +429,7 @@ class KoraText {
   static final numericCompact = numeric.copyWith(fontSize: 22);
 }
 
-ThemeData buildVoiceOpsTheme() {
+ThemeData buildKoraTheme() {
   // `live` is deliberately absent from the ColorScheme so no Material
   // component can pick it up as an accent.
   final colorScheme = ColorScheme.fromSeed(

@@ -12,11 +12,11 @@ import '../../onboarding/widgets/fill_or_scroll.dart';
 import '../widgets/auth_controls.dart';
 
 /// The signed-out entry point, where onboarding hands off: the resting
-/// co-rider, the VoiceOps promise, and the two ways in.
+/// co-rider, the Kora promise, and the two ways in.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
-  static const headline = 'Welcome to VoiceOps';
+  static const headline = 'Welcome to Kora';
   static const tagline =
       'Talk to your operations. Let your operations talk back.';
 
@@ -35,7 +35,7 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: KoraSpacing.lg),
                 Text(
-                  'VOICEOPS',
+                  'KORA',
                   textAlign: TextAlign.center,
                   style: KoraText.caption.copyWith(
                     color: KoraColors.textPrimary,
