@@ -287,6 +287,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (!mounted) return;
     _ref.read(orderOfferProvider.notifier).clear();
     _ref.read(proactiveAlertProvider.notifier).dismiss();
+    _ref.read(taskProgressProvider.notifier).clear();
     _setPtt(PushToTalkState.idle);
     state = const VoiceSessionState();
   }
