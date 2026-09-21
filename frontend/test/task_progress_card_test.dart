@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:voiceops/core/realtime/voice_events.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/overlays/task_progress_card.dart';
 import 'package:voiceops/providers/task_progress_provider.dart';
@@ -51,6 +52,37 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   }
 
+  test('task_step parsing carries optional reasoning', () {
+    final withReasoning = VoiceEvent.parse({
+      'event': 'task_step',
+      'step': 'Checking delivery route',
+      'status': 'active',
+      'reasoning': 'Checking traffic and calculating the fastest route.',
+    });
+    final withoutReasoning = VoiceEvent.parse({
+      'event': 'task_step',
+      'step': 'Texting the customer',
+      'status': 'done',
+    });
+
+    expect(
+      withReasoning,
+      isA<TaskStepEvent>().having(
+        (event) => event.reasoning,
+        'reasoning',
+        'Checking traffic and calculating the fastest route.',
+      ),
+    );
+    expect(
+      withoutReasoning,
+      isA<TaskStepEvent>().having(
+        (event) => event.reasoning,
+        'reasoning',
+        isNull,
+      ),
+    );
+  });
+
   testWidgets('renders parallel task steps and their contract statuses', (
     tester,
   ) async {
@@ -77,12 +109,9 @@ void main() {
     expect(find.text('Texting the customer'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget);
     expect(find.text('0/2'), findsOneWidget);
-    expect(find.text('Why'), findsNothing);
     expect(
-      tester
-          .widget<GestureDetector>(find.byKey(const Key('task-progress-card')))
-          .onTap,
-      isNull,
+      find.byKey(const Key('task-reasoning-Checking delivery route')),
+      findsNothing,
     );
 
     harness.connector.last.emit({
@@ -97,40 +126,165 @@ void main() {
     await closeCard(tester, container);
   });
 
-  testWidgets('shows trimmed reasoning and expands or collapses on tap', (
+  testWidgets('parallel reasoning stays per step and updates live by status', (
     tester,
   ) async {
     final harness = await pumpCard(tester);
+    harness.connector.last
+      ..emit({
+        'event': 'task_step',
+        'step': 'Checking delivery route',
+        'status': 'active',
+        'reasoning': 'Checking traffic and calculating the fastest route.',
+      })
+      ..emit({
+        'event': 'task_step',
+        'step': 'Texting the customer',
+        'status': 'active',
+        'reasoning': 'Preparing an arrival update for the customer.',
+      });
+    await settleCard(tester);
+
+    final routeActive = tester.widget<Text>(
+      find.byKey(const Key('task-reasoning-Checking delivery route')),
+    );
+    final messageActive = tester.widget<Text>(
+      find.byKey(const Key('task-reasoning-Texting the customer')),
+    );
+    expect(
+      routeActive.data,
+      'Checking traffic and calculating the fastest route.',
+    );
+    expect(messageActive.data, 'Preparing an arrival update for the customer.');
+    expect(routeActive.style?.fontStyle, FontStyle.italic);
+    expect(routeActive.style?.color, KoraColors.taskReasoningActive);
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find.byKey(
+              const Key('task-active-reasoning-fade-Checking delivery route'),
+            ),
+          )
+          .duration,
+      KoraMotion.taskReasoningFadeIn,
+    );
+
+    harness.connector.last.emit({
+      'event': 'task_step',
+      'step': 'Checking delivery route',
+      'status': 'done',
+      'reasoning': 'This route saves about 7 min versus the alternative.',
+    });
+    await tester.pump();
+
+    final routeDone = tester.widget<Text>(
+      find.byKey(const Key('task-reasoning-Checking delivery route')),
+    );
+    expect(
+      routeDone.data,
+      'This route saves about 7 min versus the alternative.',
+    );
+    expect(routeDone.maxLines, 2);
+    expect(routeDone.style?.fontStyle, isNot(FontStyle.italic));
+    expect(routeDone.style?.color, KoraColors.taskReasoningDone);
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Texting the customer')),
+          )
+          .data,
+      'Preparing an arrival update for the customer.',
+    );
+    await closeCard(tester, harness.container);
+  });
+
+  testWidgets('missing and empty reasoning render no explanation', (
+    tester,
+  ) async {
+    final harness = await pumpCard(tester);
+    harness.connector.last
+      ..emit({'event': 'task_step', 'step': 'Opening map', 'status': 'active'})
+      ..emit({
+        'event': 'task_step',
+        'step': 'Loading route',
+        'status': 'active',
+        'reasoning': '   ',
+      });
+    await settleCard(tester);
+
+    expect(find.byKey(const Key('task-reasoning-Opening map')), findsNothing);
+    expect(find.byKey(const Key('task-reasoning-Loading route')), findsNothing);
+    expect(
+      harness.container
+          .read(taskProgressProvider)
+          .every((step) => step.reasoning == null),
+      isTrue,
+    );
+    await closeCard(tester, harness.container);
+  });
+
+  testWidgets('done reasoning expands and collapses independently on tap', (
+    tester,
+  ) async {
+    final harness = await pumpCard(tester);
+    final result = List.filled(
+      14,
+      'The quieter route avoids roadworks near the next stop.',
+    ).join(' ');
     harness.connector.last.emit({
       'event': 'task_step',
       'step': 'Comparing routes',
-      'status': 'active',
-      'reasoning': '  The quieter route avoids roadworks near the next stop.  ',
+      'status': 'done',
+      'reasoning': '  $result  ',
     });
     await settleCard(tester);
 
-    expect(find.text('Why'), findsOneWidget);
+    final stored = harness.container
+        .read(taskProgressProvider)
+        .single
+        .reasoning!;
     final reasoning = tester.widget<Text>(
-      find.byKey(const Key('task-reasoning')),
+      find.byKey(const Key('task-reasoning-Comparing routes')),
     );
-    expect(
-      reasoning.data,
-      'The quieter route avoids roadworks near the next stop.',
-    );
-    expect(reasoning.maxLines, 1);
+    expect(reasoning.data, stored);
+    expect(reasoning.maxLines, 2);
+    expect(reasoning.overflow, TextOverflow.ellipsis);
+    expect(find.text('Tap to expand'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).maxLines,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Comparing routes')),
+          )
+          .maxLines,
       isNull,
     );
-
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).maxLines,
-      1,
+      tester
+          .widget<ConstrainedBox>(
+            find.byKey(const Key('task-reasoning-expanded-Comparing routes')),
+          )
+          .constraints
+          .maxHeight,
+      KoraSize.taskReasoningExpandedMaxHeight,
+    );
+    expect(find.text('Tap to expand'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Comparing routes')),
+          )
+          .maxLines,
+      2,
     );
     await closeCard(tester, harness.container);
   });
@@ -153,7 +307,11 @@ void main() {
     expect(stored.runes.length, TaskStep.reasoningMaxLength);
     expect(stored, endsWith('…'));
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).data,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Checking constraints')),
+          )
+          .data,
       stored,
     );
     await closeCard(tester, harness.container);
@@ -173,7 +331,7 @@ void main() {
 
     await tester.pump(KoraMotion.taskCompleteHold);
     expect(harness.container.read(taskProgressProvider), isNotEmpty);
-    expect(find.text('Why'), findsOneWidget);
+    expect(find.text('The eastern route avoids a closure.'), findsOneWidget);
     await closeCard(tester, harness.container);
   });
 
@@ -188,13 +346,19 @@ void main() {
       'reasoning': 'The eastern route avoids a closure.',
     });
     await settleCard(tester);
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
 
     await tester.pump(KoraMotion.taskReasoningCompleteHold);
     expect(harness.container.read(taskProgressProvider), isNotEmpty);
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).maxLines,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Comparing routes')),
+          )
+          .maxLines,
       isNull,
     );
     await closeCard(tester, harness.container);
@@ -211,12 +375,16 @@ void main() {
       'reasoning': 'The eastern route avoids a closure.',
     });
     await settleCard(tester);
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
     await tester.pump(KoraMotion.taskReasoningCompleteHold);
 
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
     await tester.pump(const Duration(seconds: 7));
     expect(harness.container.read(taskProgressProvider), isNotEmpty);
 
@@ -233,22 +401,32 @@ void main() {
     harness.connector.last.emit({
       'event': 'task_step',
       'step': 'Comparing routes',
-      'status': 'active',
+      'status': 'done',
       'reasoning': 'This route keeps the driver away from a closure.',
     });
     await settleCard(tester);
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
 
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).maxLines,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Comparing routes')),
+          )
+          .maxLines,
       isNull,
     );
     await tester.pump(KoraMotion.taskReasoningExpanded);
-    await tester.pump(KoraMotion.base);
+    await tester.pump(KoraMotion.taskReasoningResize);
     expect(
-      tester.widget<Text>(find.byKey(const Key('task-reasoning'))).maxLines,
-      1,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('task-reasoning-Comparing routes')),
+          )
+          .maxLines,
+      2,
     );
     await closeCard(tester, harness.container);
   });
@@ -260,29 +438,32 @@ void main() {
     harness.connector.last.emit({
       'event': 'task_step',
       'step': 'Comparing routes',
-      'status': 'active',
+      'status': 'done',
       'reasoning': 'This route is eight minutes faster.',
     });
     await settleCard(tester);
 
+    final cardSemantics = tester.getSemantics(
+      find.byKey(const Key('task-progress-semantics')),
+    );
+    expect(cardSemantics.label, 'Task complete. 1 of 1 steps done.');
     var semantics = tester.getSemantics(
-      find.byKey(const Key('task-progress-semantics')),
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
     );
-    expect(semantics.label, 'Working. 0 of 1 steps done.');
     expect(
-      semantics.value,
-      'Collapsed. Why: This route is eight minutes faster.',
+      semantics.label,
+      'Comparing routes, Done, This route is eight minutes faster.',
     );
+    expect(semantics.value, 'Collapsed');
 
-    await tester.tap(find.byKey(const Key('task-progress-card')));
-    await tester.pump(KoraMotion.base);
+    await tester.tap(
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
+    );
+    await tester.pump(KoraMotion.taskReasoningResize);
     semantics = tester.getSemantics(
-      find.byKey(const Key('task-progress-semantics')),
+      find.byKey(const Key('task-reasoning-toggle-Comparing routes')),
     );
-    expect(
-      semantics.value,
-      'Expanded. Why: This route is eight minutes faster.',
-    );
+    expect(semantics.value, 'Expanded');
     await closeCard(tester, harness.container);
   });
 

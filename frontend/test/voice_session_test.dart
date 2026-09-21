@@ -323,6 +323,61 @@ void main() {
     });
   });
 
+  test('task_step reasoning updates independently for parallel tools', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({
+          'event': 'task_step',
+          'step': 'Checking delivery route',
+          'status': 'active',
+          'reasoning': 'Checking traffic and calculating the fastest route.',
+        })
+        ..emit({
+          'event': 'task_step',
+          'step': 'Texting the customer',
+          'status': 'active',
+          'reasoning': 'Preparing an arrival update for the customer.',
+        });
+      flush();
+
+      var steps = container.read(taskProgressProvider);
+      expect(steps, hasLength(2));
+      expect(
+        steps.first.reasoning,
+        'Checking traffic and calculating the fastest route.',
+      );
+      expect(
+        steps.last.reasoning,
+        'Preparing an arrival update for the customer.',
+      );
+
+      socket.emit({
+        'event': 'task_step',
+        'step': 'Checking delivery route',
+        'status': 'done',
+        'reasoning': 'This route saves about 7 min versus the alternative.',
+      });
+      flush();
+
+      steps = container.read(taskProgressProvider);
+      expect(steps, hasLength(2));
+      expect(steps.first.status, TaskStepStatus.done);
+      expect(
+        steps.first.reasoning,
+        'This route saves about 7 min versus the alternative.',
+      );
+      expect(steps.last.status, TaskStepStatus.active);
+      expect(
+        steps.last.reasoning,
+        'Preparing an arrival update for the customer.',
+      );
+    });
+  });
+
   test('a completed shift summary opens by default', () {
     onFakeTime((async, flush) {
       session().onPushToTalk();
