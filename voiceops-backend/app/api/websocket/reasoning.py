@@ -1,17 +1,22 @@
 """
 Deterministic reasoning formatter for task_step events.
-Generates optional 'reasoning' field based on tool result fields.
-Follows the contract: reasoning appears only on done status with success: true,
+Generates optional 'reasoning' field based on tool result fields and status.
+Follows the contract: reasoning appears on both active and done status,
 text is deterministically derived from returned fields, max 140 characters.
 """
 from typing import Any, Dict, Optional
 
 
-def format_reasoning(tool_name: str, result: Dict[str, Any]) -> Optional[str]:
+def format_reasoning(tool_name: str, result: Dict[str, Any], status: str = "done") -> Optional[str]:
     """
-    Generate deterministic reasoning text for a successful tool result.
+    Generate deterministic reasoning text for a tool.
+    For active status: generates real-time reasoning about what the agent is doing.
+    For done status: generates result-based reasoning from tool output.
     Returns None if the tool has no reasoning template or required fields are missing.
     """
+    if status == "active":
+        return _format_active_reasoning(tool_name)
+    
     if not result.get("success"):
         return None
 
@@ -33,6 +38,33 @@ def format_reasoning(tool_name: str, result: Dict[str, Any]) -> Optional[str]:
         reasoning = formatter(result)
         if reasoning and len(reasoning) <= 140:
             return reasoning
+    return None
+
+
+def _format_active_reasoning(tool_name: str) -> Optional[str]:
+    """
+    Generate real-time reasoning for active status explaining what the agent is doing.
+    This helps users understand the agent's actions in real-time.
+    """
+    active_reasonings = {
+        "get_next_delivery": "Finding your next delivery stop from the route.",
+        "update_delivery_status": "Updating the delivery status in the system.",
+        "log_exception": "Recording the delivery exception details.",
+        "get_best_route": "Checking traffic and calculating the fastest route.",
+        "start_navigation": "Setting up navigation to the delivery location.",
+        "call_customer": "Initiating a call to the customer.",
+        "notify_customer": "Sending an SMS notification to the customer.",
+        "get_next_order": "Checking the order queue for new assignments.",
+        "accept_order": "Adding the new order to your delivery route.",
+        "decline_order": "Passing the order to the next available driver.",
+        "get_shift_summary": "Calculating your shift statistics and progress.",
+        "alert_dispatcher": "Notifying the dispatcher about your situation.",
+        "show_screen": "Opening the requested screen in the app.",
+    }
+    
+    reasoning = active_reasonings.get(tool_name)
+    if reasoning and len(reasoning) <= 140:
+        return reasoning
     return None
 
 

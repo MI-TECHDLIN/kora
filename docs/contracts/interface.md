@@ -1,6 +1,6 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
-**Version:** 1.6 (draft), 2026-09-21. 1.6 adds optional `reasoning` field to `task_step` event for result-backed explanations (§1).
+**Version:** 1.7 (draft), 2026-09-21. 1.7 extends `reasoning` field to `active` status for real-time agent activity visibility. See §1.
 **Version:** 1.5 (draft), 2026-09-16. 1.5 adds co-rider voice selection via optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback (§1).
 **Version:** 1.4 (draft), 2026-09-14. 1.4 adds traffic-aware routing and proactive reroute suggestions: new `PROACTIVE_ALERT` event with `route_suggestion` field for ROUTE_DEVIATION alerts, and traffic-aware ETA integration in order offers.
 **Version:** 1.3 (draft), 2026-09-13. 1.3 lets the offer card answer an order offer over the
@@ -67,7 +67,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 |---|---|---|
 | `agent_state` | `{"event": "agent_state", "state": "thinking"}` | co-rider mood (`agentStateProvider.setFromKey`) |
 | `screen_navigate` | `{"event": "screen_navigate", "screen": "map"}` | tab switch (`navigationProvider.navigateForAgent`) |
-| `task_step` | `{"event": "task_step", "step": "Checking delivery route", "status": "active"}` or `{"event": "task_step", "step": "Checking delivery route", "status": "done", "reasoning": "This route saves about 7 min versus the alternative."}` | task progress card. Optional `reasoning` field (max 140 chars) appears only on `done` status when the tool result has `success: true` and the text can be deterministically derived from returned fields. Omitted from `pending` and `active` events, failed tool results, and successful results lacking required fields. |
+| `task_step` | `{"event": "task_step", "step": "Checking delivery route", "status": "active"}` or `{"event": "task_step", "step": "Checking delivery route", "status": "done", "reasoning": "This route saves about 7 min versus the alternative."}` | task progress card. Optional `reasoning` field (max 140 chars, plain language) appears on both `active` and `done` status. On `active` status, reasoning explains what the agent is doing in real-time (e.g., "Finding your next delivery stop from the route."). On `done` status, reasoning is deterministically derived from tool result fields when `success: true` and required fields are present. Omitted from `pending` events, failed tool results, and successful results lacking required fields. Reasoning never includes PII beyond information already visible to the driver. |
 | `map_route` | see below | map pins, polyline, ETA card |
 | `call_started` | `{"event": "call_started", "call_id": "…", "delivery_id": "…", "customer_name": "Amara J.", "sequence": 4}` | call overlay opens |
 | `call_ended` | `{"event": "call_ended", "call_id": "…"}` | call overlay closes |
@@ -487,6 +487,20 @@ Additive: traffic-aware routing and proactive reroute suggestions.
 | Traffic-aware ETA integration in risk detection and order dispatch | Backend services |
 
 **Frontend:** The order offer card should display traffic-aware ETA and delay information when available. The `PROACTIVE_ALERT` event should be handled to display traffic alerts, and when `route_suggestion` is present, the alternate route should be drawn on the map with time savings comparison. The new `accept_reroute` tool allows drivers to accept suggested reroutes via voice.
+
+---
+
+## Changes in 1.7
+
+Additive: extended `reasoning` field to `active` status for real-time agent activity visibility.
+
+|| Addition | Where |
+||---|---|
+|| `reasoning` field now appears on both `active` and `done` status | §1 |
+|| Active status reasoning describes what the agent is doing in real-time | Backend implementation |
+|| Parallel tool execution displays separate active reasoning for each tool | Backend implementation |
+
+**Frontend:** The task progress card should display reasoning for both active and done status. Active reasoning helps users understand what the agent is doing in real-time, while done reasoning provides result-backed explanations. Both are optional - when the backend does not send reasoning, the card behaves exactly as it does today.
 
 ---
 
