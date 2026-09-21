@@ -40,6 +40,8 @@ class KoraColors {
   static const textPrimary = Color(0xFFF4F1FF);
   static const textMuted = Color(0xFFA7A1C4);
   static const textFaint = Color(0xFF7C7797); // ≥4.5:1 on canvas
+  static const taskReasoningActive = Color(0x99F4F1FF); // on-surface @ 60%
+  static const taskReasoningDone = Color(0xB3F4F1FF); // on-surface @ 70%
   static const onPrimary = Color(0xFFFFFFFF);
   static const onAccent = canvas; // dark ink on pastel accents
 
@@ -215,6 +217,7 @@ class KoraSize {
   static const taskCardBottom = 140.0;
   static const taskStatus = 22.0;
   static const taskStatusStroke = 2.0;
+  static const taskReasoningExpandedMaxHeight = 120.0;
 
   /// Height of buttons and single-line controls.
   static const control = 52.0;
@@ -326,7 +329,13 @@ class KoraMotion {
   /// Keep completed reasoning visible long enough to notice and inspect.
   static const taskReasoningCompleteHold = Duration(seconds: 8);
 
-  /// Return task reasoning to its glanceable one-line state.
+  /// Bring active reasoning in without flashing during rapid step updates.
+  static const taskReasoningFadeIn = fast;
+
+  /// Smoothly reveal or fold a completed step's result explanation.
+  static const taskReasoningResize = Duration(milliseconds: 200);
+
+  /// Return task reasoning to its glanceable collapsed state.
   static const taskReasoningExpanded = Duration(seconds: 30);
 
   /// Order-offer countdown refresh. The server remains authoritative for
