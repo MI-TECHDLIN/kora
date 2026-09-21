@@ -75,8 +75,9 @@ void main() {
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(VoiceScreen), findsOneWidget);
     expect(find.byType(MascotDisplay), findsOneWidget); // inline, chrome
-    // Chips are real driver commands (PRD §7), never generic assistant ones.
-    expect(find.text('Find my next stop'), findsOneWidget);
+    // Optional Home details stay out of the driver's way by default.
+    expect(find.text('Find my next stop'), findsNothing);
+    expect(find.byKey(const Key('home-status-card')), findsOneWidget);
     expect(find.text('Translate text'), findsNothing);
 
     // Bottom nav switches branches through go_router.
