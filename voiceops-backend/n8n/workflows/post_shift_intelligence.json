@@ -1,5 +1,5 @@
 {
-  "name": "VoiceOps - Post-Shift Intelligence",
+  "name": "Kora - Post-Shift Intelligence",
   "nodes": [
     {
       "parameters": {
@@ -109,9 +109,9 @@
       "parameters": {
         "fromEmail": "intelligence@voiceops.app",
         "toEmail": "={{ $json.operator_email }}",
-        "subject": "=🚨 VoiceOps Shift Review Required — {{ $json.driver_name }} ({{ $json.shift_date }})",
+        "subject": "=🚨 Kora Shift Review Required — {{ $json.driver_name }} ({{ $json.shift_date }})",
         "emailFormat": "text",
-        "text": "=⚠️ This shift has been flagged for operator review.\n\nDriver: {{ $json.driver_name }} ({{ $json.driver_id }})\nShift Date: {{ $json.shift_date }}\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\n\n--- SHIFT SUMMARY ---\n{{ $json.summary_text }}\n\n--- METRICS ---\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nDispatcher Alerts Raised: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\n\nAction: Please review this driver's shift in the VoiceOps operator dashboard.\n\n— VoiceOps Intelligence System",
+        "text": "=⚠️ This shift has been flagged for operator review.\n\nDriver: {{ $json.driver_name }} ({{ $json.driver_id }})\nShift Date: {{ $json.shift_date }}\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\n\n--- SHIFT SUMMARY ---\n{{ $json.summary_text }}\n\n--- METRICS ---\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nDispatcher Alerts Raised: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\n\nAction: Please review this driver's shift in the Kora operator dashboard.\n\n— Kora Intelligence System",
         "options": {}
       },
       "id": "psw-0006-0000-0000-000000000006",
@@ -143,9 +143,9 @@
       "parameters": {
         "fromEmail": "intelligence@voiceops.app",
         "toEmail": "={{ $json.operator_email }}",
-        "subject": "=✅ VoiceOps Daily Shift Report — {{ $json.driver_name }} ({{ $json.shift_date }})",
+        "subject": "=✅ Kora Daily Shift Report — {{ $json.driver_name }} ({{ $json.shift_date }})",
         "emailFormat": "text",
-        "text": "=Your daily shift report for {{ $json.driver_name }}.\n\n{{ $json.summary_text }}\n\n--- DETAILED METRICS ---\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\nDate: {{ $json.shift_date }}\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nShift Duration: {{ $json.shift_duration_min }} mins\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\nVoice Sessions: {{ $json.voice_sessions }}\nDispatcher Alerts: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\n\n— VoiceOps Intelligence System",
+        "text": "=Your daily shift report for {{ $json.driver_name }}.\n\n{{ $json.summary_text }}\n\n--- DETAILED METRICS ---\nShift ID: {{ $json.raw_shift_id || $json.shift_id }}\nDate: {{ $json.shift_date }}\nTotal Deliveries: {{ $json.total_deliveries }}\nDelivered: {{ $json.delivered_count }}\nFailed: {{ $json.failed_count }}\nSuccess Rate: {{ $json.success_rate }}%\nShift Duration: {{ $json.shift_duration_min }} mins\nAvg Time Per Stop: {{ $json.avg_time_per_stop_min }} mins\nVoice Sessions: {{ $json.voice_sessions }}\nDispatcher Alerts: {{ $json.dispatcher_alerts }}\nPerformance Tier: {{ $json.performance_tier }}\n\n— Kora Intelligence System",
         "options": {}
       },
       "id": "psw-0008-0000-0000-000000000008",

@@ -43,7 +43,7 @@ void main() {
   late FakeMapStyleStore mapStyleStore;
   late FakeCoRiderVoiceStore voiceStore;
   late FakeNotificationPreferencesStore notificationPreferencesStore;
-  late FakeVoiceOpsApi api;
+  late FakeKoraApi api;
   late ProviderContainer container;
 
   setUp(() {
@@ -53,7 +53,7 @@ void main() {
     mapStyleStore = FakeMapStyleStore();
     voiceStore = FakeCoRiderVoiceStore();
     notificationPreferencesStore = FakeNotificationPreferencesStore();
-    api = FakeVoiceOpsApi(
+    api = FakeKoraApi(
       profile: const DriverProfile(
         id: 'driver-1',
         name: 'Ada Obi',
@@ -91,7 +91,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: Scaffold(body: screen),
         ),
       ),
@@ -306,7 +306,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: MapScreen()),
         ),
       ),
@@ -354,7 +354,7 @@ void main() {
   });
 
   testWidgets('the vehicle card retries a failed profile load', (tester) async {
-    api.profileFailure = const ApiException("Can't reach VoiceOps right now.");
+    api.profileFailure = const ApiException("Can't reach Kora right now.");
     await pump(tester, const MapScreen());
     await settle(tester);
     expect(find.text("Couldn't load your vehicle"), findsOneWidget);
@@ -535,7 +535,7 @@ void main() {
           openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
         ],
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: OpenFreeMapLayer()),
         ),
       ),

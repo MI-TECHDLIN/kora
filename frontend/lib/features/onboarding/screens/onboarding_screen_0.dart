@@ -25,7 +25,7 @@ class OnboardingSplash extends StatelessWidget {
         children: [
           const SizedBox(height: KoraSpacing.lg),
           Text(
-            'VOICEOPS',
+            'KORA',
             textAlign: TextAlign.center,
             style: KoraText.caption.copyWith(
               color: KoraColors.textPrimary,

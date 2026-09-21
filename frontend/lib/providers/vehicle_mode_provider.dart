@@ -9,7 +9,7 @@ import '../core/api/voiceops_api.dart';
 import 'driver_details_provider.dart';
 
 /// The map marker the driver prefers. A motorbike and a pedal bicycle are
-/// deliberately separate because VoiceOps serves both kinds of rider.
+/// deliberately separate because Kora serves both kinds of rider.
 enum VehicleMode {
   car('Car', TablerIcons.carFilled),
   motorbike('Motorbike', TablerIcons.motorbikeFilled),

@@ -1,5 +1,5 @@
 {
-  "name": "VoiceOps - Dispatcher Alerts & Escalations",
+  "name": "Kora - Dispatcher Alerts & Escalations",
   "nodes": [
     {
       "parameters": {
@@ -119,7 +119,7 @@
         "toEmail": "={{ $json.dispatcher_email }}",
         "subject": "=🚨 CRITICAL: {{ $json.alert_type }} - Driver {{ $json.driver_name }}",
         "emailFormat": "text",
-        "text": "=Critical dispatcher alert requiring immediate attention.\n\nDriver: {{ $json.driver_name }} ({{ $json.driver_id }})\nAlert type: {{ $json.alert_type }}\nMessage: {{ $json.message }}\nLocation: {{ $json.location }}\nShift ID: {{ $json.shift_id }}\nTimestamp: {{ $json.timestamp }}\n\nThis is an automated escalation from VoiceOps.",
+        "text": "=Critical dispatcher alert requiring immediate attention.\n\nDriver: {{ $json.driver_name }} ({{ $json.driver_id }})\nAlert type: {{ $json.alert_type }}\nMessage: {{ $json.message }}\nLocation: {{ $json.location }}\nShift ID: {{ $json.shift_id }}\nTimestamp: {{ $json.timestamp }}\n\nThis is an automated escalation from Kora.",
         "options": {}
       },
       "id": "1a2b3c4d-0005-0000-0000-000000000005",

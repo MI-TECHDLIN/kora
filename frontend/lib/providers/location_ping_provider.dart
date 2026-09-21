@@ -98,7 +98,7 @@ class LocationPinger {
     _sending = true;
     try {
       await _ref
-          .read(voiceOpsApiProvider)
+          .read(koraApiProvider)
           .sendLocationPing(
             LocationPing(
               latitude: fix.point.latitude,

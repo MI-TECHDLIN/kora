@@ -20,7 +20,7 @@ class MainShell extends StatelessWidget {
       backgroundColor: Colors.transparent,
       extendBody: true,
       body: navigationShell,
-      bottomNavigationBar: _VoiceOpsBottomNav(
+      bottomNavigationBar: _KoraBottomNav(
         currentIndex: navigationShell.currentIndex,
         // Re-tapping the active tab pops it back to its root.
         onSelect: (i) => navigationShell.goBranch(
@@ -32,8 +32,8 @@ class MainShell extends StatelessWidget {
   }
 }
 
-class _VoiceOpsBottomNav extends StatelessWidget {
-  const _VoiceOpsBottomNav({
+class _KoraBottomNav extends StatelessWidget {
+  const _KoraBottomNav({
     required this.currentIndex,
     required this.onSelect,
   });

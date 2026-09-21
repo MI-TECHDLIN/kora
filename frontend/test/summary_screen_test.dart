@@ -76,10 +76,10 @@ void main() {
     });
   });
 
-  group('HttpVoiceOpsApi.fetchShiftReport', () {
+  group('HttpKoraApi.fetchShiftReport', () {
     Future<ShiftReport?> fetch(Map<String, dynamic> body) {
       late http.Request seen;
-      final api = HttpVoiceOpsApi(
+      final api = HttpKoraApi(
         baseUri: Uri.parse('https://api.voiceops.test'),
         auth: FakeAuthRepository(signedIn: true),
         client: MockClient((request) async {
@@ -109,7 +109,7 @@ void main() {
     });
 
     test('distinguishes a slow report request from an offline request', () {
-      final api = HttpVoiceOpsApi(
+      final api = HttpKoraApi(
         baseUri: Uri.parse('https://api.voiceops.test'),
         auth: FakeAuthRepository(signedIn: true),
         client: MockClient((_) async => throw TimeoutException('too slow')),
@@ -121,7 +121,7 @@ void main() {
           isA<ApiException>().having(
             (e) => e.message,
             'message',
-            'VoiceOps is taking longer than usual. Try again in a moment.',
+            'Kora is taking longer than usual. Try again in a moment.',
           ),
         ),
       );
@@ -129,10 +129,10 @@ void main() {
   });
 
   group('SummaryScreen', () {
-    late FakeVoiceOpsApi api;
+    late FakeKoraApi api;
     late ProviderContainer container;
 
-    setUp(() => api = FakeVoiceOpsApi());
+    setUp(() => api = FakeKoraApi());
 
     Future<void> pump(
       WidgetTester tester, {
@@ -154,7 +154,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: buildVoiceOpsTheme(),
+            theme: buildKoraTheme(),
             home: const Scaffold(body: SummaryScreen()),
           ),
         ),
@@ -314,12 +314,12 @@ void main() {
     });
 
     testWidgets('a failed fetch shows the error with a retry', (tester) async {
-      api.reportFailure = const ApiException('VoiceOps had a problem.');
+      api.reportFailure = const ApiException('Kora had a problem.');
       await pump(tester);
       await finishSummary(tester, 'Today you did 17 stops.');
 
       expect(find.byKey(const Key('report-error')), findsOneWidget);
-      expect(find.text('VoiceOps had a problem.'), findsOneWidget);
+      expect(find.text('Kora had a problem.'), findsOneWidget);
 
       api
         ..reportFailure = null

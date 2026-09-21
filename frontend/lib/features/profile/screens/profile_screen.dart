@@ -92,7 +92,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-/// Avatar, name and how long the driver has ridden with VoiceOps.
+/// Avatar, name and how long the driver has ridden with Kora.
 class _Identity extends StatelessWidget {
   const _Identity({required this.driver});
 
@@ -201,7 +201,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
     });
     _Outcome outcome;
     try {
-      await ref.read(voiceOpsApiProvider).updateDriverName(_name.text.trim());
+      await ref.read(koraApiProvider).updateDriverName(_name.text.trim());
       outcome = const _Outcome.success('Name saved.');
     } on ApiException catch (e) {
       outcome = _Outcome.failure(e.message);
@@ -331,7 +331,7 @@ class _CompanyCardState extends ConsumerState<_CompanyCard> {
     _Outcome outcome;
     try {
       final connection = await ref
-          .read(voiceOpsApiProvider)
+          .read(koraApiProvider)
           .connectWithCode(_code.text.trim());
       await ref
           .read(companyConnectionStoreProvider)

@@ -216,5 +216,5 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   static const _offlineMessage =
-      "Can't reach VoiceOps right now. Check your connection and try again.";
+      "Can't reach Kora right now. Check your connection and try again.";
 }

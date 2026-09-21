@@ -1,5 +1,5 @@
 {
-  "name": "VoiceOps - Driver Onboarding",
+  "name": "Kora - Driver Onboarding",
   "nodes": [
     {
       "parameters": {
@@ -27,7 +27,7 @@
             { "id": "f3",  "name": "phone",           "value": "={{ $json.body.phone || '' }}",     "type": "string" },
             { "id": "f4",  "name": "email",           "value": "={{ $json.body.email || $json.body.operator_email || 'driver@voiceops.app' }}", "type": "string" },
             { "id": "f5",  "name": "vehicle_type",    "value": "={{ $json.body.vehicle_type || 'Not set' }}", "type": "string" },
-            { "id": "f6",  "name": "operator_name",   "value": "={{ $json.body.operator_name || 'VoiceOps' }}", "type": "string" },
+            { "id": "f6",  "name": "operator_name",   "value": "={{ $json.body.operator_name || 'Kora' }}", "type": "string" },
             { "id": "f7",  "name": "registered_at",   "value": "={{ $json.body.registered_at || $now.toISO() }}", "type": "string" },
             { "id": "f8",  "name": "operator_email",  "value": "={{ $json.body.operator_email || 'tomarianoor@gmail.com' }}", "type": "string" },
             { "id": "f9",  "name": "supabase_url",    "value": "={{ $json.body.supabase_url || '' }}", "type": "string" },
@@ -68,9 +68,9 @@
       "parameters": {
         "fromEmail": "welcome@voiceops.app",
         "toEmail": "={{ $json.email }}",
-        "subject": "=🚀 Welcome to VoiceOps, {{ $json.driver_name }} — Your Smart Voice Companion",
+        "subject": "=🚀 Welcome to Kora, {{ $json.driver_name }} — Your Smart Voice Companion",
         "emailFormat": "html",
-        "html": "=<h2>Welcome aboard, {{ $json.driver_name }}! 🚚</h2><p>You're all set to begin your shifts with <strong>VoiceOps</strong>, the hands-free voice companion built specifically for logistics and delivery drivers.</p><hr/><h3>Key Features Available During Your Shift:</h3><ul><li><strong>📍 Hands-Free Stop & Route Guidance:</strong> Instant access to upcoming stop addresses, package counts, customer access codes, and turn-by-turn directions without looking down at your phone.</li><li><strong>📞 Privacy-Safe Customer Communication:</strong> Direct two-way voice bridging with masked numbers to coordinate customer arrivals safely.</li><li><strong>🚨 Instant Dispatcher Priority Escalation:</strong> Real-time alerts for road blockages, access issues, or safety incidents routed immediately to dispatch with live tracking.</li><li><strong>📊 Live Shift Intelligence & Metrics:</strong> On-demand delivery completion rates, package counts, and shift performance summaries at any point during your workday.</li><li><strong>✅ Frictionless Delivery Confirmation:</strong> Complete drop-offs, record gate notes, or reschedule stops completely hands-free.</li></ul><br/><p>Drive safe and have a productive shift!</p><p>— <em>The VoiceOps Team</em></p>",
+        "html": "=<h2>Welcome aboard, {{ $json.driver_name }}! 🚚</h2><p>You're all set to begin your shifts with <strong>Kora</strong>, the hands-free voice companion built specifically for logistics and delivery drivers.</p><hr/><h3>Key Features Available During Your Shift:</h3><ul><li><strong>📍 Hands-Free Stop & Route Guidance:</strong> Instant access to upcoming stop addresses, package counts, customer access codes, and turn-by-turn directions without looking down at your phone.</li><li><strong>📞 Privacy-Safe Customer Communication:</strong> Direct two-way voice bridging with masked numbers to coordinate customer arrivals safely.</li><li><strong>🚨 Instant Dispatcher Priority Escalation:</strong> Real-time alerts for road blockages, access issues, or safety incidents routed immediately to dispatch with live tracking.</li><li><strong>📊 Live Shift Intelligence & Metrics:</strong> On-demand delivery completion rates, package counts, and shift performance summaries at any point during your workday.</li><li><strong>✅ Frictionless Delivery Confirmation:</strong> Complete drop-offs, record gate notes, or reschedule stops completely hands-free.</li></ul><br/><p>Drive safe and have a productive shift!</p><p>— <em>The Kora Team</em></p>",
         "options": {}
       },
       "id": "dob-0004-0000-0000-000000000004",
@@ -87,7 +87,7 @@
         "toEmail": "={{ $json.operator_email }}",
         "subject": "=👋 New Driver Registered — {{ $json.driver_name }}",
         "emailFormat": "text",
-        "text": "=A new driver has registered on VoiceOps.\n\nDriver Details:\nName:         {{ $json.driver_name }}\nPhone:        {{ $json.phone || 'Not provided' }}\nEmail:        {{ $json.email }}\nVehicle Type: {{ $json.vehicle_type }}\nRegistered:   {{ $json.registered_at }}\nDriver ID:    {{ $json.driver_id }}\n\nA welcoming feature overview email has been sent to the driver.\n\n— VoiceOps Onboarding System",
+        "text": "=A new driver has registered on Kora.\n\nDriver Details:\nName:         {{ $json.driver_name }}\nPhone:        {{ $json.phone || 'Not provided' }}\nEmail:        {{ $json.email }}\nVehicle Type: {{ $json.vehicle_type }}\nRegistered:   {{ $json.registered_at }}\nDriver ID:    {{ $json.driver_id }}\n\nA welcoming feature overview email has been sent to the driver.\n\n— Kora Onboarding System",
         "options": {}
       },
       "id": "dob-0005-0000-0000-000000000005",
@@ -121,7 +121,7 @@
         "toEmail": "={{ $json.operator_email }}",
         "subject": "=⚠️ New Driver Registered (No Email) — {{ $json.driver_name }}",
         "emailFormat": "text",
-        "text": "=A new driver registered without an email address. Welcome feature guide could not be sent.\n\nDriver Details:\nName:       {{ $json.driver_name }}\nPhone:      {{ $json.phone || 'Not provided' }}\nRegistered: {{ $json.registered_at }}\nDriver ID:  {{ $json.driver_id }}\n\nPlease update driver email to ensure they receive feature guides and shift summaries.\n\n— VoiceOps Onboarding System",
+        "text": "=A new driver registered without an email address. Welcome feature guide could not be sent.\n\nDriver Details:\nName:       {{ $json.driver_name }}\nPhone:      {{ $json.phone || 'Not provided' }}\nRegistered: {{ $json.registered_at }}\nDriver ID:  {{ $json.driver_id }}\n\nPlease update driver email to ensure they receive feature guides and shift summaries.\n\n— Kora Onboarding System",
         "options": {}
       },
       "id": "dob-0007-0000-0000-000000000007",

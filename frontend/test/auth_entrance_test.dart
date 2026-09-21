@@ -61,7 +61,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [authRepositoryProvider.overrideWithValue(auth)],
-          child: MaterialApp(theme: buildVoiceOpsTheme(), home: form.screen),
+          child: MaterialApp(theme: buildKoraTheme(), home: form.screen),
         ),
       );
       return auth;

@@ -36,7 +36,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: buildVoiceOpsTheme(),
+            theme: buildKoraTheme(),
             home: const Scaffold(body: VoiceScreen()),
           ),
         ),
@@ -152,7 +152,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: VoiceScreen()),
         ),
       ),

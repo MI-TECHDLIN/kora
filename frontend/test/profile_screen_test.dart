@@ -28,11 +28,11 @@ void main() {
     await tester.pump(KoraMotion.slow * 2);
   }
 
-  late FakeVoiceOpsApi api;
+  late FakeKoraApi api;
   late FakeCompanyConnectionStore connections;
 
   setUp(() {
-    api = FakeVoiceOpsApi(
+    api = FakeKoraApi(
       profile: DriverProfile(
         id: 'driver-1',
         name: 'Ada Obi',
@@ -55,7 +55,7 @@ void main() {
           ...offlineOverrides(api: api, companyConnectionStore: connections),
         ],
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: ProfileScreen()),
         ),
       ),
@@ -181,11 +181,11 @@ void main() {
   });
 
   testWidgets('a failed load offers a retry', (tester) async {
-    api.profileFailure = const ApiException("Can't reach VoiceOps right now.");
+    api.profileFailure = const ApiException("Can't reach Kora right now.");
     await pumpProfile(tester);
     await tester.pump();
     expect(find.byKey(const Key('profile-error')), findsOneWidget);
-    expect(find.text("Can't reach VoiceOps right now."), findsOneWidget);
+    expect(find.text("Can't reach Kora right now."), findsOneWidget);
 
     api.profileFailure = null;
     await tester.tap(find.text('Retry'));
@@ -230,7 +230,7 @@ void main() {
     );
 
     api.updateFailure = const ApiException(
-      'VoiceOps had a problem. Try again.',
+      'Kora had a problem. Try again.',
     );
     await enter(tester, 'profile-name', 'Ada O.');
     await tapKey(tester, 'profile-save');
@@ -238,7 +238,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('profile-save-result')),
-        matching: find.text('VoiceOps had a problem. Try again.'),
+        matching: find.text('Kora had a problem. Try again.'),
       ),
       findsOneWidget,
     );
@@ -297,8 +297,8 @@ void main() {
     expect(find.text('Linked 10 September 2026'), findsOneWidget);
   });
 
-  group('HttpVoiceOpsApi', () {
-    HttpVoiceOpsApi apiWith(MockClientHandler handler) => HttpVoiceOpsApi(
+  group('HttpKoraApi', () {
+    HttpKoraApi apiWith(MockClientHandler handler) => HttpKoraApi(
       baseUri: Uri.parse('https://api.voiceops.test'),
       auth: FakeAuthRepository(signedIn: true),
       client: MockClient(handler),

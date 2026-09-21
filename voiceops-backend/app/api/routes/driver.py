@@ -23,7 +23,7 @@ class OnboardDriverRequest(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     vehicle_type: Optional[str] = None
-    operator_name: Optional[str] = "VoiceOps"
+    operator_name: Optional[str] = "Kora"
 
 
 class ConnectPlatformRequest(BaseModel):
@@ -171,7 +171,7 @@ async def onboard_driver(
 
     # Defaults for onboarding
     driver_id = driver_id or f"drv_{int(datetime.now(timezone.utc).timestamp())}"
-    driver_name = driver_name or "VoiceOps Driver"
+    driver_name = driver_name or "Kora Driver"
 
     # Fire-and-forget onboarding trigger
     trigger_driver_onboarding_background(
@@ -180,7 +180,7 @@ async def onboard_driver(
         phone=phone,
         email=email,
         vehicle_type=vehicle_type,
-        operator_name=request.operator_name or "VoiceOps"
+        operator_name=request.operator_name or "Kora"
     )
 
     return {

@@ -6,13 +6,13 @@ import '../core/api/voiceops_api.dart';
 /// socket lives at `/ws/voice/{shift_id}`, so the voice session starts a
 /// shift (`POST /v1/shift/start`) the first time the driver talks.
 final shiftProvider = StateNotifierProvider<ShiftNotifier, String?>(
-  (ref) => ShiftNotifier(ref.watch(voiceOpsApiProvider)),
+  (ref) => ShiftNotifier(ref.watch(koraApiProvider)),
 );
 
 class ShiftNotifier extends StateNotifier<String?> {
   ShiftNotifier(this._api) : super(null);
 
-  final VoiceOpsApi _api;
+  final KoraApi _api;
   Future<String>? _starting;
 
   /// The active shift id, starting a shift if there is none. Concurrent
