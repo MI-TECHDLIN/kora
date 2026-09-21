@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Wave-cut orb</title>
+  <defs><clipPath id="c"><circle cx="256" cy="256" r="164"/></clipPath></defs>
+  <g clip-path="url(#c)" fill="#8B5CF6">
+    <path d="M60 239C130 173 190 173 256 239S382 305 452 239V60H60Z"/>
+    <path d="M60 273C130 207 190 207 256 273S382 339 452 273V452H60Z"/>
+  </g>
+</svg>
