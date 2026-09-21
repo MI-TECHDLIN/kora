@@ -39,7 +39,7 @@ class KoraApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'VoiceOps',
+      title: 'Kora',
       debugShowCheckedModeBanner: false,
       theme: buildVoiceOpsTheme(), // dark-mode-first: the only theme
       routerConfig: ref.watch(routerProvider),
