@@ -14,6 +14,7 @@ import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/summary/data/shift_report.dart';
 import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/company_connection_provider.dart';
+import 'package:voiceops/providers/home_preferences_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
@@ -337,6 +338,38 @@ class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
   }
 }
 
+class FakeHomePreferencesStore implements HomePreferencesStore {
+  FakeHomePreferencesStore({
+    bool quickActionsEnabled = false,
+    bool conversationEnabled = false,
+    bool locationEnabled = false,
+  }) : value = HomePreferences(
+         quickActionsEnabled: quickActionsEnabled,
+         conversationEnabled: conversationEnabled,
+         locationEnabled: locationEnabled,
+       );
+
+  HomePreferences value;
+
+  @override
+  Future<HomePreferences> load() async => value;
+
+  @override
+  Future<void> saveQuickActions({required bool enabled}) async {
+    value = value.copyWith(quickActionsEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveConversation({required bool enabled}) async {
+    value = value.copyWith(conversationEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveLocation({required bool enabled}) async {
+    value = value.copyWith(locationEnabled: enabled);
+  }
+}
+
 /// The bundled preview clips: no just_audio, no asset bundle. A clip plays
 /// until the test calls [finish] or the app stops it.
 class FakeVoicePreviewPlayer implements VoicePreviewPlayer {
@@ -438,6 +471,7 @@ List<Override> offlineOverrides({
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
   FakeMapStyleStore? mapStyleStore,
+  FakeHomePreferencesStore? homePreferencesStore,
   FakeNotificationPreferencesStore? notificationPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeVoicePreviewPlayer? voicePreviewPlayer,
@@ -462,6 +496,9 @@ List<Override> offlineOverrides({
     ),
     mapStyleStoreProvider.overrideWithValue(
       mapStyleStore ?? FakeMapStyleStore(),
+    ),
+    homePreferencesStoreProvider.overrideWithValue(
+      homePreferencesStore ?? FakeHomePreferencesStore(),
     ),
     notificationPreferencesStoreProvider.overrideWithValue(
       notificationPreferencesStore ?? FakeNotificationPreferencesStore(),

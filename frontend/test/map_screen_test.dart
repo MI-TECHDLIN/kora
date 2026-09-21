@@ -452,18 +452,18 @@ void main() {
       isTrue,
     );
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('proactive-alerts-toggle')),
-        matching: find.byType(Switch),
-      ),
+    final proactiveAlerts = find.descendant(
+      of: find.byKey(const Key('proactive-alerts-toggle')),
+      matching: find.byType(Switch),
     );
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('shift-summary-ready-toggle')),
-        matching: find.byType(Switch),
-      ),
+    await tester.ensureVisible(proactiveAlerts);
+    await tester.tap(proactiveAlerts);
+    final shiftSummary = find.descendant(
+      of: find.byKey(const Key('shift-summary-ready-toggle')),
+      matching: find.byType(Switch),
     );
+    await tester.ensureVisible(shiftSummary);
+    await tester.tap(shiftSummary);
     await settle(tester);
 
     expect(notificationPreferencesStore.value.proactiveAlertsEnabled, isFalse);
