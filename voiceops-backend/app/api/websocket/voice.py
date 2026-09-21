@@ -68,6 +68,7 @@ REPLY_GRACE = 5.0              # after the driver's turn or a tool.result, a rep
 ANNOUNCE_POLL = 0.2            # how often a queued announcement checks for a quiet moment
 TURN_STATE_STALE = 30.0        # a reply / speech flag with no upstream event for this long is stale
 TERMINAL_CALL_STATUSES = {"completed", "busy", "failed", "no-answer", "canceled"}
+DEMO_SIMULATED_CALL_SECONDS = 1.5  # timer for simulated customer call demo
 
 # Tools whose origin is the driver's position: refresh it from the latest GPS ping first
 ROUTING_TOOLS = {"get_next_delivery", "get_best_route", "start_navigation"}
@@ -126,7 +127,7 @@ def _upstream_error_code(data: dict) -> str:
 
 
 def _is_mock_call(call_id: str) -> bool:
-    return call_id.startswith("mock-")
+    return call_id.startswith("mock-") or call_id.startswith("demo-")
 
 
 def live_shifts() -> Dict[str, str]:
@@ -206,6 +207,7 @@ class VoiceSession:
         self.pending_tools: List[Tuple[str, str, asyncio.Task]] = []  # (call_id, name, task)
         self._deferred_upstream: List[dict] = []
         self.active_calls: Dict[str, Optional[asyncio.Task]] = {}  # call_id → status watcher
+        self._simulated_call_timer: Optional[asyncio.Task] = None  # timer for simulated customer call demo
 
         self.driver_turns: List[str] = []
         self.agent_turns: List[str] = []
@@ -507,6 +509,12 @@ class VoiceSession:
         for watcher in self.active_calls.values():
             if watcher is not None:
                 watcher.cancel()
+
+        # Cancel simulated call timer and clean up stored outcome
+        if self._simulated_call_timer is not None:
+            self._simulated_call_timer.cancel()
+            self._simulated_call_timer = None
+        self.context.pop("simulated_customer_outcome", None)
 
         if self.upstream is not None:
             try:
@@ -822,9 +830,14 @@ class VoiceSession:
                 return
             delivery_id = arguments.get("delivery_id")
             sequence = resolve_stop(delivery_id, self.context).get("sequence")
-            self.active_calls[call_id] = (
-                None if _is_mock_call(call_id) else asyncio.create_task(self._watch_call(call_id))
-            )
+
+            if call_id.startswith("demo-"):
+                # Simulated customer call demo: start timer instead of watching real call
+                self.active_calls[call_id] = None
+                self._simulated_call_timer = asyncio.create_task(self._run_simulated_call(call_id))
+            else:
+                self.active_calls[call_id] = asyncio.create_task(self._watch_call(call_id))
+
             await self.emit(events.call_started(call_id, delivery_id, result.get("customer_name"), sequence))
 
         elif name == "update_delivery_status":
@@ -867,11 +880,37 @@ class VoiceSession:
         self.active_calls.pop(call_id, None)
         await self.emit(events.call_ended(call_id))
 
+    async def _run_simulated_call(self, call_id: str) -> None:
+        """Run simulated customer call demo: wait 1.5 seconds, then end call and announce outcome."""
+        try:
+            await asyncio.sleep(DEMO_SIMULATED_CALL_SECONDS)
+        except asyncio.CancelledError:
+            # Call was ended by driver or session end
+            return
+
+        self.active_calls.pop(call_id, None)
+        await self.emit(events.call_ended(call_id))
+
+        # Queue announcement of the simulated customer's response
+        outcome = self.context.pop("simulated_customer_outcome", None)
+        if outcome:
+            announcement = f"The simulated customer said {outcome}"
+            self._announce(f"simulated:{call_id}", (
+                "Tell the driver in one or two short sentences: " + announcement
+            ))
+
     async def _end_call(self, call_id: str, hang_up: bool) -> None:
         known = call_id in self.active_calls
         watcher = self.active_calls.pop(call_id, None)
         if watcher is not None:
             watcher.cancel()
+
+        # Cancel simulated call timer and clean up stored outcome
+        if call_id.startswith("demo-") and self._simulated_call_timer is not None:
+            self._simulated_call_timer.cancel()
+            self._simulated_call_timer = None
+            self.context.pop("simulated_customer_outcome", None)
+
         if hang_up and known and not _is_mock_call(call_id):
             try:
                 await asyncio.wait_for(asyncio.to_thread(hang_up_call, call_id), DB_TIMEOUT)

@@ -98,7 +98,11 @@ class Settings(BaseSettings):
     # Self-pinging to keep Render instance awake
     self_ping_enabled: bool = True  # Enable self-ping in production to prevent spin-down
     self_ping_interval_seconds: float = 30.0  # Ping every 30 seconds (more frequent than 1 min for safety)
-    
+
+    # Simulated customer call demo (demo-only, no real calls)
+    demo_simulated_customer: bool = False  # Enable simulated customer calls for demo
+    demo_simulated_customer_scenario: Optional[str] = None  # Optional: home | neighbour | gate_code | reschedule
+
     @property
     def backend_url(self) -> str:
         """Get the appropriate backend URL based on environment."""

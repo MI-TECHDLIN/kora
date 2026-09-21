@@ -4,10 +4,12 @@ Tools: call_customer, notify_customer, alert_dispatcher
 Platform: Twilio Voice & SMS, Supabase + n8n webhook
 """
 import logging
+import random
 from typing import Dict, Any, Optional
 from app.integrations.twilio_client import make_call, send_sms
 from app.integrations.n8n_client import trigger_dispatcher_alert_background
 from app.db.queries import get_delivery_by_id, get_supabase, is_valid_uuid
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,10 @@ async def call_customer(parameters: dict, context: dict) -> dict:
                 "error": "No customer phone number on file for this delivery."
             }
 
+        # Simulated customer call demo (demo-only, no real calls)
+        if settings.demo_simulated_customer:
+            return await _simulated_customer_call(customer_name, context, resolved_del_id)
+
         # Call Twilio integration
         result = await make_call(
             to_phone=customer_phone,
@@ -104,6 +110,62 @@ async def call_customer(parameters: dict, context: dict) -> dict:
             "success": False,
             "error": str(e)
         }
+
+
+async def _simulated_customer_call(customer_name: str, context: dict, delivery_id: Optional[str]) -> dict:
+    """
+    Simulated customer call for demo purposes.
+    Returns a demo call ID and stores the outcome in session context for the relay to announce.
+    """
+    scenarios = ["home", "neighbour", "gate_code", "reschedule"]
+    scenario = settings.demo_simulated_customer_scenario
+
+    if scenario and scenario not in scenarios:
+        logger.warning(f"[Communication] Unknown simulated customer scenario: {scenario}, falling back to random")
+        scenario = None
+
+    if not scenario:
+        scenario = random.choice(scenarios)
+
+    # Get ETA from context or use 10 minutes as fallback
+    eta_minutes = 10
+    if "eta_minutes" in context:
+        try:
+            eta_minutes = int(context["eta_minutes"])
+        except (ValueError, TypeError):
+            pass
+
+    # Build outcome sentence based on scenario
+    outcomes = {
+        "home": f"{customer_name} is home and will answer the door when you arrive in about {eta_minutes} minutes.",
+        "neighbour": f"Please leave the package with the neighbour, as {customer_name} is not home right now.",
+        "gate_code": f"The gate code is 2468. {customer_name} will answer the door when you arrive in about {eta_minutes} minutes.",
+        "reschedule": f"{customer_name} asks if you can reschedule the delivery for the 4 to 6 PM window today."
+    }
+
+    outcome = outcomes.get(scenario, outcomes["home"])
+    demo_call_id = f"demo-{scenario}-{random.randint(1000, 9999)}"
+
+    # Store outcome in session context for the relay to announce
+    context["simulated_customer_outcome"] = outcome
+
+    # Log the simulated interaction
+    await _log_customer_interaction(
+        delivery_id=delivery_id,
+        channel="call",
+        content=f"[SIMULATED] {outcome}",
+        status="completed",
+        external_id=demo_call_id
+    )
+
+    logger.info(f"[Communication] Simulated customer call: {scenario} - {outcome}")
+
+    return {
+        "success": True,
+        "call_sid": demo_call_id,
+        "customer_name": customer_name,
+        "status": "initiated"
+    }
 
 
 async def notify_customer(parameters: dict, context: dict) -> dict:
