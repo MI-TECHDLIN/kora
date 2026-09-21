@@ -6,12 +6,14 @@ Supabase is an in-memory table store that runs the real queries in app/db/querie
 AssemblyAI is test_voice_ws.py's scripted fake upstream.
 """
 import asyncio
+import os
 import itertools
 import json
 import random
 import re
 import time
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -189,6 +191,37 @@ def dispatcher_with(adapter, hub, **kwargs):
 
 def run(coro):
     return asyncio.run(coro)
+
+
+# ---------------------------------------------------------------------------- deployment boundary
+
+
+def test_production_uses_one_worker_for_process_local_dispatch_state():
+    """The offer queue and voice-session hub cannot be split across Uvicorn workers."""
+    procfile = (Path(__file__).parents[1] / "Procfile").read_text()
+    assert re.search(r"(?:^|\s)--workers(?:=|\s+)1(?:\s|$)", procfile), (
+        "OrderDispatcher._orders and the voice-session registry are process-local; "
+        "multiple workers can retain competing copies of an open order."
+    )
+
+
+def test_offer_state_is_per_dispatcher_so_a_second_worker_cannot_accept_it(store, adapter):
+    """Two dispatchers stand in for two uvicorn workers: each has its own offer queue."""
+    store.add_driver(REAL)
+    worker_a = dispatcher_with(adapter, online(REAL))
+    worker_b = dispatcher_with(adapter, FakeHub())
+
+    async def scenario():
+        placed = await worker_a.ingest(make_order())
+        on_b = await worker_b.accept(REAL["driver_id"], REAL["shift_id"], placed["order_id"])
+        on_a = await worker_a.accept(REAL["driver_id"], REAL["shift_id"], placed["order_id"])
+        await worker_a.stop()
+        await worker_b.stop()
+        return on_b, on_a
+
+    on_b, on_a = run(scenario())
+    assert on_b["success"] is False and "No order is waiting" in on_b["error"]
+    assert on_a["success"] is True
 
 
 # ---------------------------------------------------------------------------- mock order feed
@@ -469,6 +502,34 @@ def test_only_the_offered_driver_can_accept(store, adapter):
     assert store.delivery(placed["order_id"])["shift_id"] is None
 
 
+def test_accept_failure_logs_order_shift_and_reason(store, adapter, caplog):
+    dispatcher = dispatcher_with(adapter, FakeHub())
+
+    with caplog.at_level("WARNING", logger="app.dispatch.order_dispatch"):
+        result = run(dispatcher.accept(REAL["driver_id"], REAL["shift_id"], "missing-order"))
+
+    assert result["success"] is False
+    assert (
+        f"[Dispatch] accept_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        f"reason=no_matching_order pid={os.getpid()}"
+    ) in caplog.messages
+
+
+def test_decline_failure_logs_order_shift_and_reason(store, adapter, caplog):
+    dispatcher = dispatcher_with(adapter, FakeHub())
+
+    with caplog.at_level("WARNING", logger="app.dispatch.order_dispatch"):
+        result = run(dispatcher.decline(
+            REAL["driver_id"], "missing-order", shift_id=REAL["shift_id"]
+        ))
+
+    assert result["success"] is False
+    assert (
+        f"[Dispatch] decline_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        f"reason=no_matching_offer pid={os.getpid()}"
+    ) in caplog.messages
+
+
 def test_decline_cascades_to_the_next_nearest_then_parks(store, adapter):
     for driver in (REAL, MARIA, BEN):
         store.add_driver(driver)
@@ -613,6 +674,19 @@ def test_order_tools_need_a_driver_session():
     assert run(execute_tool("decline_order", {}, {}))["success"] is False
 
 
+def test_accept_tool_failure_logs_order_shift_and_reason(caplog):
+    context = {"driver_id": REAL["driver_id"], "shift_id": REAL["shift_id"]}
+
+    with caplog.at_level("WARNING", logger="app.agents.tools.delivery"):
+        result = run(execute_tool("accept_order", {"order_id": "missing-order"}, context))
+
+    assert result["success"] is False
+    assert (
+        f"[Tool:accept_order] accept_failed order_id=missing-order shift_id={REAL['shift_id']} "
+        "reason=dispatcher_rejected detail='No order is waiting for you right now.'"
+    ) in caplog.messages
+
+
 # ---------------------------------------------------------------------------- voice relay
 
 
@@ -653,9 +727,13 @@ def reply_creates(upstream):
 
 
 def offer_and_announce(ws, upstream, dispatcher, order=None):
+    seen_announcements = len(reply_creates(upstream))
     placed = ws.portal.call(dispatcher.ingest, order or make_order())
     offer = next(f for f in collect_until(ws, is_event("order_offer")) if is_event("order_offer")(f))
-    upstream.wait_sent(lambda m: m["type"] == "reply.create")
+    deadline = time.monotonic() + 3
+    while len(reply_creates(upstream)) <= seen_announcements and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert len(reply_creates(upstream)) > seen_announcements
     return placed, offer
 
 
@@ -735,6 +813,26 @@ def test_driver_accepts_the_offer_by_voice(upstream, live_dispatch, store):
     assert len(reply_creates(upstream)) == 1  # nothing more announced
 
 
+def test_driver_accepts_second_offer_by_voice_after_finishing_first(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        first, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
+        first_result = finish_turn(ws, upstream, "c1")
+        store.delivery(first["order_id"])["status"] = "delivered"
+
+        second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c2", "name": "accept_order", "arguments": {}})
+        second_result = finish_turn(ws, upstream, "c2")
+        ws.portal.call(live_dispatch.stop)
+
+    assert first_result["success"] is True
+    assert second_result["success"] is True and second_result["delivery_id"] == second["order_id"]
+    assert store.delivery(second["order_id"])["sequence_order"] == 2
+
+
 def test_accepted_order_can_be_navigated_to(upstream, live_dispatch, backend):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
@@ -789,6 +887,31 @@ def test_driver_accepts_the_offer_by_tap(upstream, live_dispatch, store):
     assert (row["shift_id"], row["status"]) == (SHIFT_ID, "pending")
     assert "accepted" in confirm["instructions"] and "812 Lavaca St" in confirm["instructions"]
     assert upstream.sent_of("tool.result") == []  # FastAPI ran the handler; no LLM tool call
+
+
+def test_driver_accepts_second_offer_by_tap_after_finishing_first(upstream, live_dispatch, store):
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        first, _ = offer_and_announce(ws, upstream, live_dispatch)
+        upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
+        first_result = finish_turn(ws, upstream, "c1")
+        store.delivery(first["order_id"])["status"] = "delivered"
+
+        second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
+        upstream.push({"type": "reply.done", "status": "completed"})
+        collect_until(ws, is_event("reply_done"))
+        ws.send_json({"event": "accept_order", "order_id": second["order_id"]})
+        frames = collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        upstream.wait_sent(lambda m: m["type"] == "reply.create" and "accepted" in m["instructions"])
+        ws.portal.call(live_dispatch.stop)
+
+    assert first_result["success"] is True
+    assert events.order_offer_closed(second["order_id"], "accepted") in frames
+    assert store.delivery(second["order_id"])["sequence_order"] == 2
+    assert upstream.sent_of("tool.result") == [
+        m for m in upstream.sent_of("tool.result") if m["call_id"] == "c1"
+    ]
 
 
 def test_driver_declines_the_offer_by_tap_and_it_moves_on(upstream, live_dispatch, store):
