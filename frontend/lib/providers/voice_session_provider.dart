@@ -287,6 +287,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (!mounted) return;
     _ref.read(orderOfferProvider.notifier).clear();
     _ref.read(proactiveAlertProvider.notifier).dismiss();
+    _ref.read(taskProgressProvider.notifier).clear();
     _setPtt(PushToTalkState.idle);
     state = const VoiceSessionState();
   }
@@ -529,8 +530,10 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
             _mapFocusTimer = Timer(_routeGrace, _followDriver);
           }
         }
-      case TaskStepEvent(:final step, :final status):
-        _ref.read(taskProgressProvider.notifier).applyStep(step, status);
+      case TaskStepEvent(:final step, :final status, :final reasoning):
+        _ref
+            .read(taskProgressProvider.notifier)
+            .applyStep(step, status, reasoning: reasoning);
       case MapRouteEvent(:final route):
         _mapFocusTimer?.cancel();
         _mapFocusTimer = null;

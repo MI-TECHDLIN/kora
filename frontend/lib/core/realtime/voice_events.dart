@@ -25,6 +25,9 @@ sealed class VoiceEvent {
           (s) => s.name == json['status'],
           orElse: () => TaskStepStatus.pending,
         ),
+        reasoning: json['reasoning'] is String
+            ? json['reasoning'] as String
+            : null,
       ),
       'map_route' => MapRouteEvent(MapRoute.fromJson(json)),
       'call_started' => CallStartedEvent(
@@ -98,9 +101,10 @@ class ScreenNavigateEvent extends VoiceEvent {
 }
 
 class TaskStepEvent extends VoiceEvent {
-  const TaskStepEvent(this.step, this.status);
+  const TaskStepEvent(this.step, this.status, {this.reasoning});
   final String step;
   final TaskStepStatus status;
+  final String? reasoning;
 }
 
 class MapRouteEvent extends VoiceEvent {

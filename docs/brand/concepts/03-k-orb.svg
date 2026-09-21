@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>K monogram carrying the orb</title>
+  <g fill="none" stroke="#8B5CF6" stroke-width="56" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M148 128V384"/>
+    <path d="M330 388L196 254L318 132"/>
+  </g>
+  <circle cx="350" cy="122" r="54" fill="#8B5CF6"/>
+</svg>

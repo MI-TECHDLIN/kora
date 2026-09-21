@@ -6,8 +6,10 @@ and flags risks with confidence and recommended actions.
 import logging
 from enum import Enum
 from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from app.services.eta_service import eta_service
+from app.services.location_service import haversine_distance
 from app.db.queries import (
     get_next_pending_delivery,
     get_recent_location_pings,
@@ -70,8 +72,8 @@ class RiskEngine:
         loc = location_update or {}
 
         try:
-            # 1. Evaluate idle time
-            idle_risk = await self._check_idle_time(driver_id, loc)
+            # 1. Evaluate idle time (gated on proximity to current delivery stop)
+            idle_risk = await self._check_idle_time(driver_id, shift_id, loc)
             if idle_risk:
                 risks.append(idle_risk)
 
@@ -88,27 +90,93 @@ class RiskEngine:
     async def _check_idle_time(
         self,
         driver_id: str,
+        shift_id: str,
         location_update: Dict[str, Any]
     ) -> Optional[RiskEvent]:
-        """Flags driver if stationary for an extended period."""
-        if not is_valid_uuid(driver_id):
+        """
+        Flags driver if stationary for an extended period at a delivery stop.
+        Gated on being within 100m geofence of the current pending delivery
+        to avoid false positives in traffic jams or at traffic lights.
+        """
+        if not is_valid_uuid(driver_id) or not is_valid_uuid(shift_id):
             return None
 
         speed = float(location_update.get("speed", 0.0) or 0.0)
         if speed > 2.0:
             return None
 
+        delivery = await get_next_pending_delivery(shift_id, driver_id)
+        if not delivery:
+            return None
+
+        dest_lat = delivery.get("dropoff_latitude") or delivery.get("latitude")
+        dest_lng = delivery.get("dropoff_longitude") or delivery.get("longitude")
+        lat = location_update.get("latitude")
+        lng = location_update.get("longitude")
+
+        dist = None
+        at_stop = False
+        if dest_lat is not None and dest_lng is not None and lat is not None and lng is not None:
+            try:
+                dist = haversine_distance(float(lat), float(lng), float(dest_lat), float(dest_lng))
+                if dist <= 100.0:
+                    at_stop = True
+            except (TypeError, ValueError):
+                pass
+
+        if delivery.get("status") == "arrived":
+            at_stop = True
+
+        # Gate on stop proximity: don't interrupt drivers who are simply in traffic
+        if not at_stop:
+            return None
+
         pings = await get_recent_location_pings(driver_id, limit=6)
         if len(pings) >= 5:
             stationary_pings = sum(1 for p in pings if float(p.get("speed", 0) or 0) <= 1.0)
             if stationary_pings >= 5:
+                dwell_seconds = stationary_pings * 15
+                if len(pings) >= 2 and pings[0].get("pinged_at") and pings[-1].get("pinged_at"):
+                    try:
+                        latest_t = datetime.fromisoformat(str(pings[0]["pinged_at"]).replace("Z", "+00:00"))
+                        oldest_t = datetime.fromisoformat(str(pings[-1]["pinged_at"]).replace("Z", "+00:00"))
+                        diff_s = int((latest_t - oldest_t).total_seconds())
+                        if diff_s > 0:
+                            dwell_seconds = diff_s
+                    except Exception:
+                        pass
+
+                prior_failures = int(delivery.get("attempt_count") or 0)
+                recipient = delivery.get("recipient_name") or "the customer"
+                address = delivery.get("address") or "this stop"
+
+                if prior_failures > 0:
+                    question = (
+                        f"You've been at this stop a while, and this delivery had a prior failed attempt. "
+                        f"Are you stuck at a gate, or having trouble finding {recipient}?"
+                    )
+                else:
+                    question = (
+                        f"You've been at this stop a while — "
+                        f"are you stuck at a gate, or having trouble finding {recipient}?"
+                    )
+
                 return RiskEvent(
                     risk_type=RiskType.EXCESSIVE_IDLE,
                     severity=RiskSeverity.MEDIUM,
                     confidence=0.85,
-                    evidence={"consecutive_stationary_pings": stationary_pings, "current_speed": speed},
-                    recommended_action="Driver has been stationary for over 5 minutes. Check if there are vehicle issues or parking delays.",
-                    delivery_id=None,
+                    evidence={
+                        "consecutive_stationary_pings": stationary_pings,
+                        "current_speed": speed,
+                        "dwell_seconds": dwell_seconds,
+                        "at_stop": True,
+                        "distance_to_stop_meters": round(dist, 1) if dist is not None else None,
+                        "prior_failures": prior_failures,
+                        "recipient_name": recipient,
+                        "address": address,
+                    },
+                    recommended_action=question,
+                    delivery_id=delivery["id"],
                     driver_id=driver_id,
                 )
         return None

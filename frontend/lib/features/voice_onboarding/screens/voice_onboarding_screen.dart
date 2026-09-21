@@ -190,22 +190,27 @@ class VoiceCharacterSlot extends ConsumerStatefulWidget {
 }
 
 class _VoiceCharacterSlotState extends ConsumerState<VoiceCharacterSlot> {
-  VoiceCharacterRive? _art;
-  rive.File? _artFile; // the file _art (or a failed attempt) was built from
+  VoiceArt? _art;
+  // What _art (or a failed attempt) was built for. A different factory (the
+  // file loaded) or a different voice (the preview card follows the
+  // selection) means the old art is for something else: dispose and rebuild.
+  VoiceArtFactory? _artFactory;
+  CoRiderVoice? _artVoice;
   bool _artFailed = false;
 
-  VoiceCharacterRive? _artFor(rive.File? file) {
-    if (file == null) return null;
-    if (!identical(file, _artFile)) {
+  VoiceArt? _artFor(VoiceArtFactory? factory) {
+    if (factory == null) return null;
+    final voice = widget.voice;
+    if (!identical(factory, _artFactory) || voice != _artVoice) {
       _art?.dispose();
       _art = null;
       _artFailed = false;
-      _artFile = file;
+      _artFactory = factory;
+      _artVoice = voice;
     }
     if (_art == null && !_artFailed) {
-      _art = VoiceCharacterRive.tryCreate(
-        file,
-        widget.voice,
+      _art = factory(
+        voice,
         selected: widget.selected,
         speaking: widget.speaking,
       );
@@ -227,10 +232,14 @@ class _VoiceCharacterSlotState extends ConsumerState<VoiceCharacterSlot> {
     final selected = widget.selected;
     final size = widget.size;
     final art = widget.rive
-        ? _artFor(ref.watch(voiceCharactersFileProvider).valueOrNull)
+        ? _artFor(ref.watch(voiceArtFactoryProvider))
         : null;
     if (art != null) {
-      return SizedBox.square(dimension: size, child: art.build());
+      return SizedBox.square(
+        dimension: size,
+        // Keyed by the art so a switched voice never reuses the old view.
+        child: KeyedSubtree(key: ObjectKey(art), child: art.build()),
+      );
     }
 
     final initial = voice.label.isEmpty ? '?' : voice.label[0].toUpperCase();

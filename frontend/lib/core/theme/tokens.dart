@@ -210,6 +210,12 @@ class KoraSize {
   /// Minimum touch target for any tappable control.
   static const touchTarget = 48.0;
 
+  /// Global task-progress overlay.
+  static const taskCardMaxWidth = 420.0;
+  static const taskCardBottom = 140.0;
+  static const taskStatus = 22.0;
+  static const taskStatusStroke = 2.0;
+
   /// Height of buttons and single-line controls.
   static const control = 52.0;
 
@@ -313,6 +319,15 @@ class KoraMotion {
 
   /// How long a snackbar notice stays up: long enough to read two lines.
   static const notice = Duration(seconds: 8);
+
+  /// Keep a completed task visible long enough for a quick confirmation.
+  static const taskCompleteHold = Duration(seconds: 2);
+
+  /// Keep completed reasoning visible long enough to notice and inspect.
+  static const taskReasoningCompleteHold = Duration(seconds: 8);
+
+  /// Return task reasoning to its glanceable one-line state.
+  static const taskReasoningExpanded = Duration(seconds: 30);
 
   /// Order-offer countdown refresh. The server remains authoritative for
   /// closing an offer; this only keeps the displayed seconds moving.

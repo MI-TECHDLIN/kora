@@ -67,7 +67,24 @@ async def end_shift(
         # Mark shift as completed in Supabase
         await update_shift_status(shift_id, "completed")
 
-        # Pull real stats to build the intelligence payload
+        # Pull real stats and shift duration
+        shift = await get_shift_by_id(shift_id)
+        shift_duration_min = 0
+        ended_at_str = datetime.now(timezone.utc).isoformat()
+
+        if shift and shift.get("started_at"):
+            try:
+                started_dt = datetime.fromisoformat(str(shift["started_at"]).replace("Z", "+00:00"))
+                shift_duration_min = max(0, int((datetime.now(timezone.utc) - started_dt).total_seconds() / 60))
+            except Exception:
+                shift_duration_min = 0
+
+        # Update ended_at timestamp on the shift row
+        try:
+            get_supabase().table("shifts").update({"ended_at": ended_at_str}).eq("id", shift_id).execute()
+        except Exception:
+            pass
+
         stats = await get_shift_stats(shift_id)
         sessions = await get_shift_voice_sessions(shift_id)
 
@@ -82,11 +99,11 @@ async def end_shift(
             total_deliveries=stats.get("total", 0),
             delivered_count=stats.get("delivered", 0),
             failed_count=stats.get("failed", 0),
-            shift_duration_min=0,
+            shift_duration_min=shift_duration_min,
             dispatcher_alerts=0,
             voice_sessions=len(sessions),
             shift_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            ended_at=datetime.now(timezone.utc).isoformat(),
+            ended_at=ended_at_str,
         )
 
         return ShiftEndResponse(
@@ -122,6 +139,20 @@ async def get_shift_report(
         report["shift_started_at"] = shift["started_at"]
     if shift.get("ended_at"):
         report["shift_ended_at"] = shift["ended_at"]
+
+    if shift.get("started_at") and shift.get("ended_at"):
+        try:
+            started = datetime.fromisoformat(str(shift["started_at"]).replace("Z", "+00:00"))
+            ended = datetime.fromisoformat(str(shift["ended_at"]).replace("Z", "+00:00"))
+            report["shift_duration_min"] = max(0, int((ended - started).total_seconds() / 60))
+        except Exception:
+            pass
+
+    # Expose lemur_source and is_estimated at top-level
+    if "lemur_source" not in report:
+        report["lemur_source"] = (report.get("failure_patterns") or {}).get("lemur_source") or "assemblyai_lemur_api"
+    if "is_estimated" not in report:
+        report["is_estimated"] = (report.get("failure_patterns") or {}).get("is_estimated", report["lemur_source"] == "voiceops_speech_intelligence_engine")
 
     return report
 

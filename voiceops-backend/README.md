@@ -308,6 +308,8 @@ ALLOWED_ORIGINS=*
 
 ## 🧪 Testing & Verification
 
+> **Deployment:** run exactly one uvicorn worker (see `Procfile`). Order-offer state and voice sessions are per process; see `../docs/backend-handoff/order-accept-multi-worker.md`.
+
 ### Start the Local Server
 ```bash
 uvicorn app.main:app --reload --port 8000
