@@ -273,7 +273,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "show_screen",
-            "description": "Open a screen in the driver's app when no other tool shows what they asked for. map: 'open the map', 'where am I', 'zoom to my location'. settings: 'show my vehicle', 'my profile'. summary: 'show my summary'. voice: 'go home'. Routing tools already open the map, so don't call this alongside them.",
+            "description": "Open a screen in the driver's app. Call immediately when the driver explicitly asked to open, show, or go to that screen. When Kora is suggesting the change, ask for voice confirmation and call this tool only after the driver agrees. Do not call it merely because the screen might be useful. map: 'open the map', 'where am I', 'zoom to my location'. settings: 'show my vehicle', 'my profile'. summary: 'show my summary'. voice: 'go home'. Routing tools already open the map, so don't call this alongside them.",
             "parameters": {
                 "type": "object",
                 "properties": {

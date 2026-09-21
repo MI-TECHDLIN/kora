@@ -43,6 +43,7 @@ from app.agents.tools.navigation import (
     routes_to_stop,
 )
 from app.api.websocket import events
+from app.api.websocket import reasoning
 from app.dispatch.order_dispatch import get_order_dispatcher
 from app.db.queries import (
     create_voice_session,
@@ -801,7 +802,11 @@ class VoiceSession:
 
         # A failed tool still ends `done` (the enum has no failed state); the reply says what failed
         if not silent:
-            await self.emit(events.task_step(step, "done"))
+            # Generate reasoning for successful tool results
+            reasoning_text = None
+            if outcome["parsed_result"].get("success"):
+                reasoning_text = reasoning.format_reasoning(name, outcome["parsed_result"])
+            await self.emit(events.task_step(step, "done", reasoning_text))
         return outcome
 
     async def _emit_tool_events(self, name: str, arguments: dict, result: Any) -> None:

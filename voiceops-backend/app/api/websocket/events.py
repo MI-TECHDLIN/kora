@@ -72,9 +72,15 @@ def screen_navigate(screen: str) -> Dict[str, Any]:
     return {"event": "screen_navigate", "screen": screen}
 
 
-def task_step(step: str, status: str) -> Dict[str, Any]:
+def task_step(step: str, status: str, reasoning: Optional[str] = None) -> Dict[str, Any]:
     _check(status, TASK_STEP_STATUSES, "task_step.status")
-    return {"event": "task_step", "step": step, "status": status}
+    event = {"event": "task_step", "step": step, "status": status}
+    # Only include reasoning for done status
+    if reasoning is not None and status == "done":
+        if len(reasoning) > 140:
+            raise ValueError(f"reasoning exceeds 140 character limit: {len(reasoning)} chars")
+        event["reasoning"] = reasoning
+    return event
 
 
 def map_route(stop: Dict[str, Any], route: Dict[str, Any]) -> Dict[str, Any]:
