@@ -23,6 +23,7 @@ import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 import 'package:voiceops/providers/voice_onboarding_provider.dart';
 import 'package:voiceops/providers/voice_preview_provider.dart';
+import 'package:voiceops/providers/wake_word_provider.dart';
 
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
@@ -338,6 +339,18 @@ class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
   }
 }
 
+class FakeWakeWordPreferencesStore implements WakeWordPreferencesStore {
+  FakeWakeWordPreferencesStore({this.enabled = true});
+
+  bool enabled;
+
+  @override
+  Future<bool> load() async => enabled;
+
+  @override
+  Future<void> save({required bool enabled}) async => this.enabled = enabled;
+}
+
 class FakeHomePreferencesStore implements HomePreferencesStore {
   FakeHomePreferencesStore({
     bool quickActionsEnabled = false,
@@ -473,6 +486,7 @@ List<Override> offlineOverrides({
   FakeMapStyleStore? mapStyleStore,
   FakeHomePreferencesStore? homePreferencesStore,
   FakeNotificationPreferencesStore? notificationPreferencesStore,
+  FakeWakeWordPreferencesStore? wakeWordPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeVoicePreviewPlayer? voicePreviewPlayer,
   FakeOnboardingStore? onboardingStore,
@@ -502,6 +516,9 @@ List<Override> offlineOverrides({
     ),
     notificationPreferencesStoreProvider.overrideWithValue(
       notificationPreferencesStore ?? FakeNotificationPreferencesStore(),
+    ),
+    wakeWordPreferencesStoreProvider.overrideWithValue(
+      wakeWordPreferencesStore ?? FakeWakeWordPreferencesStore(),
     ),
     coRiderVoiceStoreProvider.overrideWithValue(
       coRiderVoiceStore ?? FakeCoRiderVoiceStore(),

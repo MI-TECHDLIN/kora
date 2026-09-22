@@ -3,7 +3,7 @@
          only for the Flutter tool): Supabase, the backend, the voice socket
          and OpenFreeMap tiles. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Push-to-talk streams the mic to the co-rider (record). -->
+    <!-- Push-to-talk and foreground wake-word detection use the microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- The driver's live position on the Map tab (geolocator). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>

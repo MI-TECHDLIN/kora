@@ -235,6 +235,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_voice_processor:
+    dependency: transitive
+    description:
+      name: flutter_voice_processor
+      sha256: "8ae3fc196d6060a13392e4ca557f7a2f4a6b87898ae519787f6929f986538572"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.2"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -696,6 +704,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  porcupine_flutter:
+    dependency: "direct main"
+    description:
+      name: porcupine_flutter
+      sha256: a8c6350a2681052918923bc3bb39a01846999020260770dff582a94cb1ba18ec
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
   postgrest:
     dependency: transitive
     description:

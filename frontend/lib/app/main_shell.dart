@@ -4,6 +4,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../core/theme/tokens.dart';
 import '../core/widgets/glass_card.dart';
+import '../core/widgets/wake_word_lifecycle.dart';
 
 /// Frame for the four main tabs. go_router's [StatefulShellRoute] keeps each
 /// tab's navigator alive; this widget only lays out the active branch and
@@ -19,7 +20,7 @@ class MainShell extends StatelessWidget {
       // Transparent so the shared GradientOrbBackground shows through.
       backgroundColor: Colors.transparent,
       extendBody: true,
-      body: navigationShell,
+      body: WakeWordLifecycle(child: navigationShell),
       bottomNavigationBar: _KoraBottomNav(
         currentIndex: navigationShell.currentIndex,
         // Re-tapping the active tab pops it back to its root.
