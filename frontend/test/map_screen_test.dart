@@ -18,6 +18,7 @@ import 'package:voiceops/providers/map_route_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
+import 'package:voiceops/providers/wake_word_provider.dart';
 
 import 'fake_auth.dart';
 import 'fake_map_controller.dart';
@@ -38,6 +39,7 @@ void main() {
   late FakeMapStyleStore mapStyleStore;
   late FakeCoRiderVoiceStore voiceStore;
   late FakeNotificationPreferencesStore notificationPreferencesStore;
+  late FakeWakeWordPreferencesStore wakeWordPreferencesStore;
   late FakeKoraApi api;
   late ProviderContainer container;
   late FakeKoraMapController mapController;
@@ -49,6 +51,7 @@ void main() {
     mapStyleStore = FakeMapStyleStore();
     voiceStore = FakeCoRiderVoiceStore();
     notificationPreferencesStore = FakeNotificationPreferencesStore();
+    wakeWordPreferencesStore = FakeWakeWordPreferencesStore();
     api = FakeKoraApi(
       profile: const DriverProfile(
         id: 'driver-1',
@@ -74,6 +77,7 @@ void main() {
           vehicleModeStore: vehicleModeStore,
           mapStyleStore: mapStyleStore,
           notificationPreferencesStore: notificationPreferencesStore,
+          wakeWordPreferencesStore: wakeWordPreferencesStore,
           coRiderVoiceStore: voiceStore,
           api: api,
           onMapControllerCreated: (c) => mapController = c,
@@ -487,6 +491,24 @@ void main() {
     final restored = container.read(notificationPreferencesProvider);
     expect(restored.proactiveAlertsEnabled, isFalse);
     expect(restored.shiftSummaryReadyEnabled, isFalse);
+  });
+
+  testWidgets('wake-word switch persists the driver choice', (tester) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+
+    final wakeWord = find.descendant(
+      of: find.byKey(const Key('wake-word-toggle')),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(wakeWord);
+    await tester.tap(wakeWord);
+    await settle(tester);
+
+    expect(wakeWordPreferencesStore.enabled, isFalse);
+    container.invalidate(wakeWordEnabledProvider);
+    await settle(tester);
+    expect(container.read(wakeWordEnabledProvider), isFalse);
   });
 
   testWidgets('map dependencies warm before the Map tab is built', (

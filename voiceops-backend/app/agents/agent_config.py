@@ -1,6 +1,7 @@
 """
 AssemblyAI Voice Agent configuration and prompts.
 """
+from random import SystemRandom
 from typing import Dict, Any, Optional, List
 from app.agents.tool_registry import get_tools
 
@@ -12,6 +13,14 @@ VOICES = {
     "anna", "charles", "paul", "vera",
 }
 DEFAULT_VOICE = "anna"
+
+_GREETING_QUESTIONS = (
+    "What is one good thing that has happened on your route today?",
+    "Is there anything you are looking forward to after your shift?",
+    "What would make this shift feel like a win for you?",
+    "Have you heard a song today that put you in a good mood?",
+)
+_GREETING_RANDOM = SystemRandom()
 
 
 def resolve_voice(value: Optional[str] = None) -> str:
@@ -63,7 +72,7 @@ Screen changes require voice confirmation unless the driver's current request ex
 
 The driver's microphone remains open during the conversation. When they say they are done, say a short goodbye and call end_conversation. Do not call it while waiting for an answer.
 
-Be concise and helpful in your responses."""
+Use a calm, warm, and friendly manner in every response. Be reassuring and respectful, including when a tool fails or the driver sounds rushed. Be concise and helpful."""
 
     driver_facts = [f"The driver's name is {driver_name}."]
     if vehicle_type and vehicle_type != "vehicle":
@@ -73,9 +82,20 @@ Be concise and helpful in your responses."""
     return f"{system_prompt}\n\n{' '.join(driver_facts)}"
 
 
-def get_agent_greeting() -> str:
-    """Get the default greeting for the VoiceOps agent."""
-    return "Hello! I'm Kora, your co-rider. How can I help with your deliveries today?"
+def get_agent_greeting(
+    driver_name: str = "Driver", question_index: Optional[int] = None
+) -> str:
+    """Build a warm first greeting, with an injectable variation for tests."""
+    if question_index is None:
+        question = _GREETING_RANDOM.choice(_GREETING_QUESTIONS)
+    else:
+        question = _GREETING_QUESTIONS[question_index % len(_GREETING_QUESTIONS)]
+    name = (driver_name or "").strip()
+    salutation = f"Hello, {name}" if name and name.lower() != "driver" else "Hello there"
+    return (
+        f"{salutation}! I'm Kora, your co-rider. "
+        f"How has your day been so far? {question}"
+    )
 
 
 def get_audio_config(voice: Optional[str] = None) -> Dict[str, Any]:
@@ -132,7 +152,7 @@ def get_session_config(
         "type": "session.update",
         "session": {
             "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
-            "greeting": get_agent_greeting(),
+            "greeting": get_agent_greeting(driver_name),
             **get_audio_config(voice),
             "tools": get_tools()
         }

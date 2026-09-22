@@ -8,6 +8,7 @@ import '../../../providers/home_preferences_provider.dart';
 import '../../../providers/map_style_provider.dart';
 import '../../../providers/notification_preferences_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
+import '../../../providers/wake_word_provider.dart';
 import '../widgets/co_rider_voice_picker.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
@@ -22,6 +23,7 @@ class SettingsScreen extends ConsumerWidget {
     final mapStyle = ref.watch(mapStyleProvider);
     final homePreferences = ref.watch(homePreferencesProvider);
     final notificationPreferences = ref.watch(notificationPreferencesProvider);
+    final wakeWordEnabled = ref.watch(wakeWordEnabledProvider);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -156,6 +158,25 @@ class SettingsScreen extends ConsumerWidget {
                         .setShiftSummaryReady(enabled: enabled),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: KoraSpacing.lg),
+            Text('HANDS-FREE VOICE', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            GlassCard(
+              key: const Key('wake-word-preference'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: KoraSpacing.lg,
+                vertical: KoraSpacing.sm,
+              ),
+              child: _SettingsToggle(
+                key: const Key('wake-word-toggle'),
+                title: '“Kora” wake word',
+                description: 'Say a trained Kora phrase while the app is open',
+                enabled: wakeWordEnabled,
+                onChanged: (enabled) => ref
+                    .read(wakeWordEnabledProvider.notifier)
+                    .setEnabled(enabled: enabled),
               ),
             ),
             const SizedBox(height: KoraSpacing.lg),

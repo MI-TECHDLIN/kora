@@ -8,6 +8,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../../../app/router.dart';
 import '../../../core/realtime/voice_events.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/wake/wake_word_service.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/push_to_talk_button.dart';
 import '../../../features/map/data/location_source.dart';
@@ -22,6 +23,7 @@ import '../../../providers/push_to_talk_provider.dart';
 import '../../../providers/shift_provider.dart';
 import '../../../providers/transcript_provider.dart';
 import '../../../providers/voice_session_provider.dart';
+import '../../../providers/wake_word_provider.dart';
 import '../widgets/action_chips_rail.dart';
 
 class VoiceScreen extends ConsumerWidget {
@@ -103,7 +105,11 @@ class VoiceScreen extends ConsumerWidget {
                 const SizedBox(height: KoraSpacing.sm),
                 Text(
                   switch (ref.watch(pushToTalkProvider)) {
-                    PushToTalkState.idle => 'Tap to talk to your co-rider',
+                    PushToTalkState.idle =>
+                      ref.watch(wakeWordControllerProvider) ==
+                              WakeWordStatus.listening
+                          ? 'Say “Kora” or tap to talk'
+                          : 'Tap to talk to your co-rider',
                     PushToTalkState.recording => 'Listening · tap to end',
                     PushToTalkState.processing => 'Working on it…',
                     PushToTalkState.speaking =>

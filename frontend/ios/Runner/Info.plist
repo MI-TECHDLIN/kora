@@ -64,9 +64,9 @@
 	</array>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
-	<!-- Push-to-talk streams the mic to the co-rider (record). -->
+	<!-- Push-to-talk and foreground wake-word detection use the microphone. -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kora listens when you tap the mic so your co-rider can hear you.</string>
+	<string>Kora listens for your chosen wake phrase and hears you when voice mode is active.</string>
 	<!-- The driver's live position on the Map tab (geolocator). -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Kora shows where you are on the map and routes you to your next stop.</string>
