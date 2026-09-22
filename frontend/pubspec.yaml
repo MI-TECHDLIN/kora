@@ -35,11 +35,14 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   flutter_riverpod: ^2.5.1
   rive: ^0.14.11
-  # Map: flutter_map + OpenFreeMap vector tiles (no API key, no billing).
-  # vector_map_tiles renders the vector tiles; 8.x is its stable line and
-  # pins flutter_map to 7.x.
-  flutter_map: ^7.0.2
-  vector_map_tiles: ^8.0.0
+  # Map: MapLibre Native (GPU vector rendering) + OpenFreeMap tiles (no API
+  # key, no billing; OpenFreeMap is MapLibre's own reference tile source, so
+  # the style URLs in map_style_provider.dart are unchanged). maplibre_gl,
+  # not the newer `maplibre` package: `maplibre` requires Flutter >=3.44.0 /
+  # Dart ^3.12.0, above this project's pinned Dart ^3.11.5 floor. Keep this
+  # exact pin: maplibre_gl 0.23+ requires JDK 21, while the project toolchain
+  # and Android Studio runtime use JDK 17.
+  maplibre_gl: 0.22.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   flutter_compass: ^0.8.1
