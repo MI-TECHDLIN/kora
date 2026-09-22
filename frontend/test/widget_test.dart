@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/core/theme/tokens.dart';
@@ -19,6 +18,7 @@ import 'package:voiceops/providers/onboarding_provider.dart';
 import 'package:voiceops/providers/push_to_talk_provider.dart';
 
 import 'fake_auth.dart';
+import 'fake_map_controller.dart';
 import 'fake_voice.dart';
 import 'map_route_test.dart' show sampleMapRoute;
 import 'test_fonts.dart';
@@ -101,10 +101,15 @@ void main() {
     addTearDown(tester.view.reset);
     final connector = FakeVoiceConnector();
     final location = FakeLocationSource();
+    FakeKoraMapController? mapController;
     final container = ProviderContainer(
       overrides: [
         ...signedInOverrides(),
-        ...offlineOverrides(connector: connector, location: location),
+        ...offlineOverrides(
+          connector: connector,
+          location: location,
+          onMapControllerCreated: (c) => mapController = c,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -132,7 +137,7 @@ void main() {
     await settle(tester);
 
     expect(find.byType(MapScreen), findsOneWidget);
-    expect(find.byType(PolylineLayer), findsOneWidget);
+    expect(mapController?.routeLine, isNotNull);
     expect(find.byType(StopPin), findsNWidgets(2));
     expect(find.byType(PositionMarker), findsOneWidget);
     expect(find.text('Amara Johnson'), findsOneWidget);

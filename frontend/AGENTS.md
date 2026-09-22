@@ -9,6 +9,29 @@ Flutter app. Authority: repo-root `CLAUDE.md` and `.firstmate/rules/frontend.md`
 - **Auth gate:** every route sits behind a Supabase session (the router redirect sends a null/expired one to `/welcome`). Credentials come from `--dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…` (`lib/core/config/supabase_config.dart`; anon key only, never service-role). Tests that pump `KoraApp` must override `authRepositoryProvider` — see `test/fake_auth.dart`.
 - **Backend:** REST and the voice socket need `--dart-define=VOICEOPS_API_URL=…` (`lib/core/config/backend_config.dart`). `voiceSessionProvider` is the only WebSocket owner. Tests that tap push-to-talk, open the Map tab, or show onboarding add `offlineOverrides()` from `test/fake_voice.dart`, which fakes the socket, mic, speaker, REST, GPS, map tiles and saved onboarding flag (a real `AudioRecorder()` hits a platform channel in its constructor, and onboarding checks the mic).
 - **OS permissions** are asked only from onboarding's Power screen (`OnboardingFlow`: mic via `VoiceRecorder`, location via `LocationSource.requestPermission`). `LocationSource.watch()` never prompts; after onboarding only a driver tap asks again (the map's "Allow" chip, the mic button). Onboarding completion is read in `main.dart` before the first frame (`onboardingCompletedAtLaunchProvider`) so the router never flashes it.
+- **Map stack: MapLibre Native (`maplibre_gl`), not flutter_map.** Migrated
+  2026-09 (`frontend/lib/features/map/`); `flutter_map`/`vector_map_tiles`
+  are gone. Keep `maplibre_gl` pinned exactly to 0.22.0: 0.23+ requires JDK
+  21 while the project and Android Studio toolchain use JDK 17. Use
+  `maplibre_gl`, not the newer `maplibre` package, because the
+  latter needs Flutter ≥3.44/Dart ^3.12.0, above the captain's pinned SDK
+  (see the go_router note below) — recheck that constraint before ever
+  switching packages. MapLibre renders the camera and base tiles on the
+  platform side, outside the widget tree, so `map_screen.dart` carries its
+  own padding-aware camera math (`data/mercator.dart`, pure Web Mercator, no
+  MapLibre dependency) and draws `StopPin`/`PositionMarker` as ordinary
+  `Positioned` overlay widgets projected onto the native camera every
+  `onCameraMove` tick, instead of platform-rendered symbols — chosen over
+  pre-rendered `addImage` icons specifically to keep their live
+  AnimatedContainer/Transform.rotate behavior unchanged. `MapScreen`
+  programs against `KoraMapController` (`data/kora_map_controller.dart`),
+  not `MapLibreMapController` directly: a real `MapLibreMap` widget throws
+  in plain `flutter_test` (no engine behind its platform channel on the
+  host/VM test target), so every test drives the screen through
+  `FakeKoraMapController`/`fakeKoraMapViewBuilder` (`test/fake_map_controller.dart`)
+  instead. That also means the style-load skeleton/timeout/retry UI in
+  `openfreemap_layer.dart` has no widget-test coverage — it needs a real
+  device or simulator to verify.
 - **go_router is pinned to ^17.5** — 18.x needs Flutter ≥3.44 and the captain's local SDK is older. Don't bump without checking his `flutter --version`.
 - **`pubspec.lock` tracks the captain's SDK (Dart 3.11).** A plain `flutter analyze`/`test` in the Codespace runs `pub get` and re-resolves the lock; run `git checkout pubspec.lock` before committing (or pass `--no-pub` once `.dart_tool/` exists). When adding a dependency, restore the SDK-pinned entries (`matcher`, `meta`, `test_api`, `vector_math`) from the previous lock, and keep `sdks: dart` at its old floor by pinning any transitive package that raised it (e.g. `synchronized` 3.4.0).
 - **fakeAsync:** don't `await` a `StreamSubscription.cancel()` or a cancelled `StreamController.close()` in code tested on fake time. Those futures complete in the root zone, so the awaiting code stalls until the test ends.

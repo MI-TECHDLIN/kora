@@ -11,8 +11,8 @@ frontend task.
   GetX, or setState for shared state.
 - **Routing:** go_router. All routes declared in one router file
   (`lib/app/router.dart`).
-- **Map:** `flutter_map` + OpenFreeMap vector tiles (`vector_map_tiles`),
-  no API key. Never `google_maps_flutter`
+- **Map:** `maplibre_gl` rendering OpenFreeMap vector tiles, no API key.
+  Never `flutter_map`, `vector_map_tiles`, or `google_maps_flutter`
 - **Realtime:** `web_socket_channel`
 - **Icons:** `tabler_icons_plus` — never emoji, never Material icons for
   stat cards

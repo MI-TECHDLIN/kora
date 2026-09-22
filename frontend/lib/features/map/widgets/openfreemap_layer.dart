@@ -1,90 +1,186 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' hide LatLng, LatLngBounds;
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../providers/map_style_provider.dart';
+import '../data/kora_map_controller.dart';
 import 'map_chip.dart';
 
-/// Raster mode renders each tile to an image once; a pinch then only scales
-/// images. Vector mode re-renders every visible tile's geometry on every
-/// zoom frame, which measured 20-40x the per-frame cost and janked zooming.
-/// flutter_map keeps loaded parent/child tiles on screen until the next zoom
-/// level's tiles are ready, so raster mode needs no substitution knob.
-const openFreeMapLayerMode = VectorTileLayerMode.raster;
+/// How long the style has to finish loading before the map surface offers a
+/// Retry. MapLibre has no public "style failed to load" callback (unlike
+/// vector_map_tiles' old Future-based loader, whose rejection drove the
+/// error chip directly), so a stall is detected by timeout instead.
+const koraMapStyleLoadTimeout = Duration(seconds: 10);
 
-typedef MapStyleLoader = Future<Style> Function(MapStyle style);
+/// Fired once the map engine hands back a controller. The controller is
+/// wrapped in [KoraMapController], the seam map_screen.dart programs
+/// against, so tests can drive its camera/route-line logic without a real
+/// platform view.
+typedef KoraMapCreatedCallback = void Function(KoraMapController controller);
 
-/// Split out so the loading and retry paths can be exercised without network.
-final openFreeMapStyleLoaderProvider = Provider<MapStyleLoader>(
-  (ref) =>
-      (style) => StyleReader(uri: style.url).read(),
+/// Builds the widget that shows the map surface. A provider (not a plain
+/// widget constant) because map_screen.dart must reach the controller
+/// [onMapCreated] hands back and hear every camera move via [onCameraMove];
+/// a declarative child layer, as flutter_map's `OpenFreeMapLayer` used to
+/// be, can't offer either. Tests override this to stand in a widget that
+/// never touches the platform channel; see test/fake_map_controller.dart.
+typedef KoraMapViewBuilder =
+    Widget Function({
+      required MapStyle style,
+      required LatLng initialCenter,
+      required double initialZoom,
+      required KoraMapCreatedCallback onMapCreated,
+      required VoidCallback onStyleLoaded,
+      required ValueChanged<CameraPosition> onCameraMove,
+    });
+
+final koraMapViewBuilderProvider = Provider<KoraMapViewBuilder>(
+  (ref) => buildMapLibreView,
 );
 
-/// Each style, with its tile sources and sprites, fetched once per app run.
-/// vector_map_tiles caches the tiles themselves on disk.
-final openFreeMapStyleProvider = FutureProvider.family<Style, MapStyle>((
-  ref,
-  mapStyle,
-) async {
-  final style = await ref.watch(openFreeMapStyleLoaderProvider)(mapStyle);
-  return Style(
-    name: style.name,
-    // Every OpenFreeMap style parses with the same theme id ("default").
-    // vector_map_tiles keys its rendered-tile disk cache, sprite atlas and
-    // tile widgets by that id, so without a unique one a switch would show
-    // the other style's cached tiles.
-    theme: style.theme.copyWith(id: openFreeMapThemeId(mapStyle)),
-    providers: style.providers,
-    sprites: style.sprites,
-    center: style.center,
-    zoom: style.zoom,
-  );
-});
-
-String openFreeMapThemeId(MapStyle style) =>
-    'openfreemap-${style.openFreeMapName}';
-
-/// The base map under the route and markers. Tests override this so no
-/// style or tile request leaves the machine.
-final baseMapLayerProvider = Provider<Widget>(
-  (ref) => const OpenFreeMapLayer(),
-);
-
-/// The driver's chosen OpenFreeMap style as a flutter_map layer, over the
+/// The driver's chosen OpenFreeMap style as a `MapLibreMap`, over the
 /// style's own ground colour. A branded skeleton in the same palette shows
-/// while the style loads; if it fails, a chip offers a real provider refresh.
-class OpenFreeMapLayer extends ConsumerWidget {
-  const OpenFreeMapLayer({super.key});
+/// while the style loads; if it stalls, a chip offers a real retry.
+Widget buildMapLibreView({
+  required MapStyle style,
+  required LatLng initialCenter,
+  required double initialZoom,
+  required KoraMapCreatedCallback onMapCreated,
+  required VoidCallback onStyleLoaded,
+  required ValueChanged<CameraPosition> onCameraMove,
+}) {
+  return _KoraMapLibreView(
+    style: style,
+    initialCenter: initialCenter,
+    initialZoom: initialZoom,
+    onMapCreated: onMapCreated,
+    onStyleLoaded: onStyleLoaded,
+    onCameraMove: onCameraMove,
+  );
+}
+
+class _KoraMapLibreView extends StatefulWidget {
+  const _KoraMapLibreView({
+    required this.style,
+    required this.initialCenter,
+    required this.initialZoom,
+    required this.onMapCreated,
+    required this.onStyleLoaded,
+    required this.onCameraMove,
+  });
+
+  final MapStyle style;
+  final LatLng initialCenter;
+  final double initialZoom;
+  final KoraMapCreatedCallback onMapCreated;
+  final VoidCallback onStyleLoaded;
+  final ValueChanged<CameraPosition> onCameraMove;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mapStyle = ref.watch(mapStyleProvider);
-    return ref
-        .watch(openFreeMapStyleProvider(mapStyle))
-        .when(
-          skipLoadingOnRefresh: false,
-          data: (style) => Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(
-                key: const Key('map-ground'),
-                color: mapStyle.ground,
-              ),
-              VectorTileLayer(
-                // A new layer per style: nothing rendered for the previous
-                // style (tiles, caches) survives a switch.
-                key: ValueKey(mapStyle),
-                theme: style.theme,
-                sprites: style.sprites,
-                tileProviders: style.providers,
-                layerMode: openFreeMapLayerMode,
-              ),
-            ],
+  State<_KoraMapLibreView> createState() => _KoraMapLibreViewState();
+}
+
+class _KoraMapLibreViewState extends State<_KoraMapLibreView> {
+  bool _styleLoaded = false;
+  bool _timedOut = false;
+  int _attempt = 0;
+  Timer? _timeoutTimer;
+  MapLibreMapController? _controller;
+  CameraPosition? _lastCameraPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    _armTimeout();
+  }
+
+  @override
+  void didUpdateWidget(covariant _KoraMapLibreView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.style != widget.style) {
+      // A new style: nothing rendered for the previous one (tiles, sprites)
+      // survives a switch, matching the old VectorTileLayer's per-style key.
+      _styleLoaded = false;
+      _timedOut = false;
+      _armTimeout();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timeoutTimer?.cancel();
+    _controller?.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onMapCreated(MapLibreMapController controller) {
+    _controller?.removeListener(_onControllerChanged);
+    _controller = controller;
+    _lastCameraPosition = controller.cameraPosition;
+    controller.addListener(_onControllerChanged);
+    widget.onMapCreated(MapLibreKoraMapController(controller));
+  }
+
+  void _onControllerChanged() {
+    final position = _controller?.cameraPosition;
+    if (position == null || position == _lastCameraPosition) return;
+    _lastCameraPosition = position;
+    widget.onCameraMove(position);
+  }
+
+  void _armTimeout() {
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(koraMapStyleLoadTimeout, () {
+      if (mounted && !_styleLoaded) setState(() => _timedOut = true);
+    });
+  }
+
+  void _retry() {
+    setState(() {
+      _attempt++;
+      _styleLoaded = false;
+      _timedOut = false;
+    });
+    _armTimeout();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(key: const Key('map-ground'), color: widget.style.ground),
+        MapLibreMap(
+          key: ValueKey('${widget.style}-$_attempt'),
+          styleString: widget.style.url,
+          initialCameraPosition: CameraPosition(
+            target: toMaplibreLatLng(widget.initialCenter),
+            zoom: widget.initialZoom,
           ),
-          loading: () => MapLoadingSkeleton(style: mapStyle),
-          error: (error, _) => Align(
+          trackCameraPosition: true,
+          compassEnabled: false,
+          myLocationEnabled: false,
+          // North stays up: easier to read at a glance on a bike mount.
+          // flutter_map never had tilt either, so both stay off to keep the
+          // gesture feel unchanged.
+          rotateGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          onMapCreated: _onMapCreated,
+          onStyleLoadedCallback: () {
+            _timeoutTimer?.cancel();
+            if (mounted) setState(() => _styleLoaded = true);
+            widget.onStyleLoaded();
+          },
+        ),
+        if (!_styleLoaded && !_timedOut)
+          MapLoadingSkeleton(style: widget.style),
+        if (_timedOut)
+          Align(
             alignment: Alignment.center,
             child: Padding(
               padding: const EdgeInsets.all(KoraSpacing.gutter),
@@ -92,12 +188,12 @@ class OpenFreeMapLayer extends ConsumerWidget {
                 icon: TablerIcons.map2,
                 message: "The map didn't load. Your route still works.",
                 actionLabel: 'Retry',
-                onAction: () =>
-                    ref.invalidate(openFreeMapStyleProvider(mapStyle)),
+                onAction: _retry,
               ),
             ),
           ),
-        );
+      ],
+    );
   }
 }
 
@@ -132,9 +228,7 @@ class _StreetGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final minor = Paint()
-      ..color = dark
-          ? KoraColors.divider
-          : KoraColors.mapSkeletonLightRoad
+      ..color = dark ? KoraColors.divider : KoraColors.mapSkeletonLightRoad
       ..strokeWidth = KoraMap.skeletonRoadWidth
       ..style = PaintingStyle.stroke;
     final major = Paint()
@@ -142,9 +236,7 @@ class _StreetGridPainter extends CustomPainter {
       ..strokeWidth = KoraMap.skeletonMainRoadWidth
       ..style = PaintingStyle.stroke;
     final buildings = Paint()
-      ..color = dark
-          ? KoraColors.elevated
-          : KoraColors.mapSkeletonLightBlock
+      ..color = dark ? KoraColors.elevated : KoraColors.mapSkeletonLightBlock
       ..style = PaintingStyle.fill;
 
     for (final rect in <Rect>[

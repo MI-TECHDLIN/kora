@@ -141,12 +141,13 @@ invent tool shapes.
 ## Tech Stack
 
 **Frontend:** Flutter. Canonical dependencies (`frontend/pubspec.yaml`):
-`flutter_riverpod` (state), `go_router` (routing), `flutter_map` with
-OpenFreeMap vector tiles via `vector_map_tiles` (map; no API key, no billing),
-`web_socket_channel`, `tabler_icons_plus`, `google_fonts` (Plus Jakarta
-Sans), `rive` (co-rider swap-in), `supabase_flutter`, `just_audio` (audio
-out), `record` (audio in), and `geolocator` (live position).
-`google_maps_flutter` was dropped for billing and must not come back.
+`flutter_riverpod` (state), `go_router` (routing), `maplibre_gl` rendering
+OpenFreeMap tiles (map; no API key, no billing — see `frontend/AGENTS.md`
+for the map stack details), `web_socket_channel`, `tabler_icons_plus`,
+`google_fonts` (Plus Jakarta Sans), `rive` (co-rider swap-in),
+`supabase_flutter`, `just_audio` (audio out), `record` (audio in), and
+`geolocator` (live position). `google_maps_flutter` was dropped for billing
+and must not come back.
 
 **Backend:** Python FastAPI + asyncio, Supabase (PostgreSQL + auth +
 storage), Render hosting, Firebase FCM.
