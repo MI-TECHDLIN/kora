@@ -24,6 +24,8 @@ import 'package:voiceops/providers/vehicle_mode_provider.dart';
 import 'package:voiceops/providers/voice_onboarding_provider.dart';
 import 'package:voiceops/providers/voice_preview_provider.dart';
 
+import 'fake_map_controller.dart';
+
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
 
@@ -479,6 +481,7 @@ List<Override> offlineOverrides({
   FakeVoiceOnboardingStore? voiceOnboardingStore,
   FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
+  ValueChanged<FakeKoraMapController>? onMapControllerCreated,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
   return [
@@ -509,7 +512,9 @@ List<Override> offlineOverrides({
     voicePreviewPlayerProvider.overrideWithValue(
       voicePreviewPlayer ?? FakeVoicePreviewPlayer(),
     ),
-    baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
+    koraMapViewBuilderProvider.overrideWithValue(
+      fakeKoraMapViewBuilder(onControllerCreated: onMapControllerCreated),
+    ),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
     ),

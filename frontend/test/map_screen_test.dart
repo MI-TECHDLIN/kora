@@ -1,18 +1,13 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/map_route.dart';
+import 'package:voiceops/features/map/data/mercator.dart';
 import 'package:voiceops/features/map/screens/map_screen.dart';
 import 'package:voiceops/features/map/widgets/map_markers.dart';
 import 'package:voiceops/features/map/widgets/map_warmup.dart';
@@ -26,6 +21,7 @@ import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 
 import 'fake_auth.dart';
+import 'fake_map_controller.dart';
 import 'fake_voice.dart';
 import 'map_route_test.dart' show noRoadMapRoute, sampleMapRoute;
 import 'test_fonts.dart';
@@ -45,6 +41,7 @@ void main() {
   late FakeNotificationPreferencesStore notificationPreferencesStore;
   late FakeKoraApi api;
   late ProviderContainer container;
+  late FakeKoraMapController mapController;
 
   setUp(() {
     location = FakeLocationSource();
@@ -80,6 +77,7 @@ void main() {
           notificationPreferencesStore: notificationPreferencesStore,
           coRiderVoiceStore: voiceStore,
           api: api,
+          onMapControllerCreated: (c) => mapController = c,
         ),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(signedIn: true),
@@ -106,20 +104,31 @@ void main() {
     await tester.pump();
   }
 
-  MapCamera camera(WidgetTester tester) =>
-      MapCamera.of(tester.element(find.byType(MarkerLayer).first));
+  /// Where [point] renders given the map's current camera -- MapLibre draws
+  /// the camera on the platform side, invisible to the widget tree, so this
+  /// uses the same projection map_screen.dart itself uses to place markers
+  /// (mercator.dart), fed by the fake controller's recorded camera state.
+  Offset screenPoint(WidgetTester tester, LatLng point) {
+    final camera = mapController.cameraPosition!;
+    return MercatorProjection.project(
+      point,
+      center: LatLng(camera.target.latitude, camera.target.longitude),
+      zoom: camera.zoom,
+      viewportSize: tester.view.physicalSize / tester.view.devicePixelRatio,
+    );
+  }
 
   /// [point] is on screen, below the top controls and clear of the bottom
   /// route card, where the driver can actually see it.
   void expectInClearView(WidgetTester tester, LatLng point) {
-    final onScreen = camera(tester).latLngToScreenPoint(point);
+    final onScreen = screenPoint(tester, point);
     final sheetTop = tester
         .getRect(find.byKey(const Key('map-bottom-sheet')))
         .top;
     final width = tester.view.physicalSize.width;
-    expect(onScreen.x, inInclusiveRange(0, width), reason: '$point x');
+    expect(onScreen.dx, inInclusiveRange(0, width), reason: '$point x');
     expect(
-      onScreen.y,
+      onScreen.dy,
       inInclusiveRange(KoraSize.touchTarget, sheetTop),
       reason: '$point y',
     );
@@ -136,9 +145,8 @@ void main() {
     await pump(tester, const MapScreen());
     expect(find.text('Finding your location…'), findsOneWidget);
     expect(find.text('NO ROUTE YET'), findsOneWidget);
-    expect(find.byType(PolylineLayer), findsNothing);
+    expect(mapController.routeLine, isNull);
     expect(find.byType(PositionMarker), findsNothing);
-    expect(find.textContaining('OpenFreeMap'), findsNothing);
     // Vehicle from GET /v1/driver/profile (faked).
     expect(find.text('Ada Obi'), findsOneWidget);
     expect(find.text('Motorbike'), findsOneWidget);
@@ -149,7 +157,7 @@ void main() {
     expect(find.text('Finding your location…'), findsNothing);
     expect(find.byType(PositionMarker), findsOneWidget);
     expectInClearView(tester, _nearStops);
-    expect(camera(tester).zoom, KoraMap.followZoom);
+    expect(mapController.cameraPosition!.zoom, KoraMap.followZoom);
 
     // A moving position, not a static pin.
     location.emit(const LocationFix(_furtherOn, heading: 90));
@@ -186,7 +194,7 @@ void main() {
 
       showRoute(sampleMapRoute());
       await settle(tester);
-      expect(find.byType(PolylineLayer), findsOneWidget);
+      expect(mapController.routeLine, isNotNull);
       expect(find.byType(StopPin), findsNWidgets(2));
       expect(find.text('NEXT STOP · 4'), findsOneWidget);
       expect(find.text('Amara Johnson'), findsOneWidget);
@@ -200,13 +208,13 @@ void main() {
       for (final point in [...route.coordinates, _nearStops]) {
         expectInClearView(tester, point);
       }
-      expect(camera(tester).zoom, lessThanOrEqualTo(KoraMap.maxFitZoom));
+      expect(mapController.cameraPosition!.zoom, lessThanOrEqualTo(KoraMap.maxFitZoom));
 
       // The camera stays on the route while the driver moves.
-      final framed = camera(tester).center;
+      final framed = mapController.cameraPosition!.target;
       location.emit(const LocationFix(_furtherOn));
       await settle(tester);
-      expect(camera(tester).center, framed);
+      expect(mapController.cameraPosition!.target, framed);
 
       // Tapping another pin shows that stop.
       await tester.tap(find.bySemanticsLabel('Stop 5, Tunde Bakare'));
@@ -254,7 +262,7 @@ void main() {
     showRoute(noRoadMapRoute());
     await settle(tester);
     expect(tester.takeException(), isNull);
-    expect(find.byType(PolylineLayer), findsNothing);
+    expect(mapController.routeLine, isNull);
     expect(find.byType(StopPin), findsOneWidget);
     expect(find.text('Amara Johnson'), findsOneWidget);
     expect(find.byKey(const Key('no-road-route')), findsOneWidget);
@@ -264,7 +272,7 @@ void main() {
       tester,
       MapRoute.fromJson(noRoadMapRoute()).target!.point,
     );
-    expect(camera(tester).zoom, KoraMap.maxFitZoom);
+    expect(mapController.cameraPosition!.zoom, KoraMap.maxFitZoom);
   });
 
   testWidgets('"where am I" follows the driver again; the route stays', (
@@ -279,8 +287,8 @@ void main() {
     container.read(mapFocusProvider.notifier).followDriver();
     await settle(tester);
     expectInClearView(tester, _nearStops);
-    expect(camera(tester).zoom, KoraMap.followZoom);
-    expect(find.byType(PolylineLayer), findsOneWidget);
+    expect(mapController.cameraPosition!.zoom, KoraMap.followZoom);
+    expect(mapController.routeLine, isNotNull);
     location.emit(const LocationFix(_furtherOn));
     await settle(tester);
     expectInClearView(tester, _furtherOn);
@@ -482,13 +490,22 @@ void main() {
   testWidgets('map dependencies warm before the Map tab is built', (
     tester,
   ) async {
-    final requested = <MapStyle>[];
-    final waiting = Completer<Style>();
-
-    Future<Style> loadStyle(MapStyle style) {
-      requested.add(style);
-      return waiting.future;
-    }
+    final preWarmCalls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/maplibre_gl'),
+          (call) async {
+            preWarmCalls.add(call.method);
+            return null;
+          },
+        );
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/maplibre_gl'),
+            null,
+          );
+    });
 
     mapStyleStore.value = MapStyle.detailed;
     await tester.pumpWidget(
@@ -501,7 +518,6 @@ void main() {
             mapStyleStore: mapStyleStore,
             api: api,
           ),
-          openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
         ],
         child: const MaterialApp(home: MapWarmup(child: Text('App started'))),
       ),
@@ -510,215 +526,36 @@ void main() {
 
     expect(find.byType(MapScreen), findsNothing);
     expect(find.text('App started'), findsOneWidget);
-    // The driver's saved style is the one warm when the Map tab opens.
-    expect(requested.last, MapStyle.detailed);
+    // Starts the native engine, independent of which style the driver
+    // picked -- see mapEnginePreWarmProvider's doc comment.
+    expect(preWarmCalls, contains('preWarm'));
     expect(location.watches, 1);
     expect(heading.watches, 1);
-  });
-
-  testWidgets('map style loading uses a skeleton and Retry reloads it', (
-    tester,
-  ) async {
-    var attempts = 0;
-    final waiting = Completer<Style>();
-
-    Future<Style> loadStyle(MapStyle style) {
-      attempts++;
-      if (attempts == 1) return Future.error(StateError('offline'));
-      return waiting.future;
-    }
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          mapStyleStoreProvider.overrideWithValue(mapStyleStore),
-          openFreeMapStyleLoaderProvider.overrideWithValue(loadStyle),
-        ],
-        child: MaterialApp(
-          theme: buildKoraTheme(),
-          home: const Scaffold(body: OpenFreeMapLayer()),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('Retry'), findsOneWidget);
-    expect(attempts, 1);
-
-    await tester.tap(find.text('Retry'));
-    await tester.pump();
-    expect(attempts, 2);
-    expect(find.byKey(const Key('map-loading-skeleton')), findsOneWidget);
-    expect(find.text('Retry'), findsNothing);
   });
 
   testWidgets('the loading skeleton is painted in the chosen map palette', (
     tester,
   ) async {
-    final container = ProviderContainer(
-      overrides: [
-        mapStyleStoreProvider.overrideWithValue(mapStyleStore),
-        openFreeMapStyleLoaderProvider.overrideWithValue(
-          (_) => Completer<Style>().future,
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
     await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: OpenFreeMapLayer()),
-      ),
+      const MaterialApp(home: MapLoadingSkeleton(style: MapStyle.dark)),
     );
-    await tester.pump();
-
     Color skeleton() => tester
         .widget<ColoredBox>(find.byKey(const Key('map-loading-skeleton')))
         .color;
     expect(skeleton(), KoraColors.mapGroundDark);
 
-    container.read(mapStyleProvider.notifier).select(MapStyle.light);
-    await tester.pump();
-    // No dark placeholder flashing ahead of a light map.
+    await tester.pumpWidget(
+      const MaterialApp(home: MapLoadingSkeleton(style: MapStyle.light)),
+    );
     expect(skeleton(), KoraColors.mapGroundLight);
   });
 
-  group('live tiles', () {
-    late HttpServer server;
-    late Style style;
-
-    setUp(() async {
-      // A real Style parsed from a tiny style served on loopback: nothing
-      // leaves the machine, and tile loading stalls on the cache folder
-      // below before any tile is requested.
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..headers.contentType = ContentType.json
-          ..write(
-            jsonEncode({
-              'version': 8,
-              'sources': {
-                'openmaptiles': {
-                  'type': 'vector',
-                  'tiles': [
-                    'http://127.0.0.1:${server.port}/tiles/{z}/{x}/{y}.pbf',
-                  ],
-                },
-              },
-              'layers': [
-                {
-                  'id': 'background',
-                  'type': 'background',
-                  'paint': {'background-color': '#0c0c0c'},
-                },
-                {
-                  'id': 'water',
-                  'type': 'fill',
-                  'source': 'openmaptiles',
-                  'source-layer': 'water',
-                  'paint': {'fill-color': '#1c2b3a'},
-                },
-              ],
-            }),
-          )
-          ..close();
-      });
-      style = await HttpOverrides.runWithHttpOverrides(
-        () => StyleReader(uri: 'http://127.0.0.1:${server.port}/style').read(),
-        _RealHttp(),
-      );
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            (_) => Completer<Object?>().future,
-          );
-    });
-
-    tearDown(() async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            null,
-          );
-      await server.close(force: true);
-    });
-
-    testWidgets('switching the map style swaps in a fresh tile layer', (
-      tester,
-    ) async {
-      final requested = <MapStyle>[];
-      final container = ProviderContainer(
-        overrides: [
-          mapStyleStoreProvider.overrideWithValue(mapStyleStore),
-          openFreeMapStyleLoaderProvider.overrideWithValue((mapStyle) async {
-            requested.add(mapStyle);
-            return style;
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: FlutterMap(
-              options: const MapOptions(
-                initialCenter: MapScreen.fallbackCenter,
-                initialZoom: KoraMap.followZoom,
-              ),
-              children: const [OpenFreeMapLayer()],
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
-
-      VectorTileLayer layer() => tester.widget(find.byType(VectorTileLayer));
-      Color ground() =>
-          tester.widget<ColoredBox>(find.byKey(const Key('map-ground'))).color;
-
-      expect(requested, [MapStyle.dark]);
-      expect(layer().theme.id, openFreeMapThemeId(MapStyle.dark));
-      expect(layer().layerMode, VectorTileLayerMode.raster);
-      expect(ground(), KoraColors.mapGroundDark);
-      // Under live tiles there is only the style's ground: no fake streets
-      // to show through a tile that is still rendering.
-      expect(find.byKey(const Key('map-loading-skeleton')), findsNothing);
-      final darkTiles = tester.state(find.byType(TileLayer));
-
-      container.read(mapStyleProvider.notifier).select(MapStyle.light);
-      await tester.pump();
-      await tester.pump();
-
-      expect(requested, [MapStyle.dark, MapStyle.light]);
-      expect(MapStyle.light.url, endsWith('/styles/positron'));
-      expect(layer().theme.id, openFreeMapThemeId(MapStyle.light));
-      expect(ground(), KoraColors.mapGroundLight);
-      // A new tile layer, so no tile rendered in the dark style lingers.
-      expect(tester.state(find.byType(TileLayer)), isNot(same(darkTiles)));
-
-      // Unmount, then let vector_map_tiles' cache housekeeping timer run.
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(seconds: 4));
-    });
-  });
-
-  test('each map style has its own OpenFreeMap style and cache identity', () {
+  test('each map style has its own OpenFreeMap style URL', () {
     expect(MapStyle.dark.url, 'https://tiles.openfreemap.org/styles/dark');
     expect(MapStyle.light.url, 'https://tiles.openfreemap.org/styles/positron');
     expect(
       MapStyle.detailed.url,
       'https://tiles.openfreemap.org/styles/liberty',
     );
-    // vector_map_tiles keys its rendered-tile disk cache by theme id; every
-    // OpenFreeMap style parses as "default", which would mix styles' tiles.
-    final ids = MapStyle.values.map(openFreeMapThemeId).toSet();
-    expect(ids, hasLength(MapStyle.values.length));
-    expect(ids, isNot(contains('default')));
-    // Raster mode: smooth pinch zoom (vector mode re-renders every frame).
-    expect(openFreeMapLayerMode, VectorTileLayerMode.raster);
   });
 }
-
-class _RealHttp extends HttpOverrides {}
