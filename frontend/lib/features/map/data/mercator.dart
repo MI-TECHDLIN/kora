@@ -28,16 +28,17 @@ class GeoBounds {
 class MercatorProjection {
   const MercatorProjection._();
 
-  /// Total map width/height in pixels at [zoom], per the 256px tile grid
-  /// every OSM-derived renderer (and MapLibre) uses.
-  static double _worldSize(double zoom) => 256 * math.pow(2, zoom).toDouble();
+  /// Total map width/height in logical pixels at [zoom]. MapLibre's camera
+  /// zoom is based on a 512px world at zoom 0, regardless of a source's
+  /// individual tile size.
+  static double _worldSize(double zoom) => 512 * math.pow(2, zoom).toDouble();
 
   static Offset _worldPixel(LatLng point, double zoom) {
     final scale = _worldSize(zoom);
     final x = (point.longitude + 180) / 360 * scale;
-    final sinLat = math.sin(
-      point.latitude * math.pi / 180,
-    ).clamp(-0.9999, 0.9999);
+    final sinLat = math
+        .sin(point.latitude * math.pi / 180)
+        .clamp(-0.9999, 0.9999);
     final y =
         (0.5 - math.log((1 + sinLat) / (1 - sinLat)) / (4 * math.pi)) * scale;
     return Offset(x, y);

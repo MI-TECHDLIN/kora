@@ -11,7 +11,9 @@ Flutter app. Authority: repo-root `CLAUDE.md` and `.firstmate/rules/frontend.md`
 - **OS permissions** are asked only from onboarding's Power screen (`OnboardingFlow`: mic via `VoiceRecorder`, location via `LocationSource.requestPermission`). `LocationSource.watch()` never prompts; after onboarding only a driver tap asks again (the map's "Allow" chip, the mic button). Onboarding completion is read in `main.dart` before the first frame (`onboardingCompletedAtLaunchProvider`) so the router never flashes it.
 - **Map stack: MapLibre Native (`maplibre_gl`), not flutter_map.** Migrated
   2026-09 (`frontend/lib/features/map/`); `flutter_map`/`vector_map_tiles`
-  are gone. `maplibre_gl`, not the newer `maplibre` package, because the
+  are gone. Keep `maplibre_gl` pinned exactly to 0.22.0: 0.23+ requires JDK
+  21 while the project and Android Studio toolchain use JDK 17. Use
+  `maplibre_gl`, not the newer `maplibre` package, because the
   latter needs Flutter ≥3.44/Dart ^3.12.0, above the captain's pinned SDK
   (see the go_router note below) — recheck that constraint before ever
   switching packages. MapLibre renders the camera and base tiles on the

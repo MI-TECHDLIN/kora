@@ -39,10 +39,10 @@ dependencies:
   # key, no billing; OpenFreeMap is MapLibre's own reference tile source, so
   # the style URLs in map_style_provider.dart are unchanged). maplibre_gl,
   # not the newer `maplibre` package: `maplibre` requires Flutter >=3.44.0 /
-  # Dart ^3.12.0, above this project's pinned Dart ^3.11.5 floor (see the
-  # go_router pin note below); maplibre_gl only needs Flutter >=3.29.0 /
-  # Dart >=3.7.0, and is the older, larger, more battle-tested codebase.
-  maplibre_gl: ^0.27.1
+  # Dart ^3.12.0, above this project's pinned Dart ^3.11.5 floor. Keep this
+  # exact pin: maplibre_gl 0.23+ requires JDK 21, while the project toolchain
+  # and Android Studio runtime use JDK 17.
+  maplibre_gl: 0.22.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   flutter_compass: ^0.8.1

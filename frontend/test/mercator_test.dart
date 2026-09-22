@@ -36,6 +36,19 @@ void main() {
       expect(north.dy, lessThan(400));
     });
 
+    test('uses MapLibre camera zoom scale', () {
+      final offset = MercatorProjection.project(
+        const LatLng(0, 90),
+        center: const LatLng(0, 0),
+        zoom: 0,
+        viewportSize: const Size(400, 800),
+      );
+      // At zoom 0 MapLibre's world is 512 logical pixels wide, so a quarter
+      // turn east is 128 pixels from the camera centre.
+      expect(offset.dx, closeTo(328, 0.001));
+      expect(offset.dy, closeTo(400, 0.001));
+    });
+
     test('doubling the zoom doubles the pixel distance from centre', () {
       const center = LatLng(6.46, 3.39);
       const point = LatLng(6.46, 3.41);

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -17,18 +16,6 @@ import 'map_chip.dart';
 /// vector_map_tiles' old Future-based loader, whose rejection drove the
 /// error chip directly), so a stall is detected by timeout instead.
 const koraMapStyleLoadTimeout = Duration(seconds: 10);
-
-/// Starts the native map engine before the Map tab is built, so its
-/// start-up overlaps the rest of app start-up instead of delaying the first
-/// map (see map_warmup.dart). `MapLibreMap.preWarm()` only starts the engine
-/// itself (GL context, thread pool); there is no public API to prefetch a
-/// specific style's tiles or sprites ahead of the first `MapLibreMap` mount,
-/// unlike vector_map_tiles' old `StyleReader`, which fetched the style JSON
-/// as a plain, warmable `Future`.
-final mapEnginePreWarmProvider = Provider<void>((ref) {
-  unawaited(MapLibreMap.preWarm());
-  if (kIsWeb) unawaited(MapLibreMap.ensureWebLibraryLoaded());
-});
 
 /// Fired once the map engine hands back a controller. The controller is
 /// wrapped in [KoraMapController], the seam map_screen.dart programs
@@ -103,6 +90,8 @@ class _KoraMapLibreViewState extends State<_KoraMapLibreView> {
   bool _timedOut = false;
   int _attempt = 0;
   Timer? _timeoutTimer;
+  MapLibreMapController? _controller;
+  CameraPosition? _lastCameraPosition;
 
   @override
   void initState() {
@@ -125,7 +114,23 @@ class _KoraMapLibreViewState extends State<_KoraMapLibreView> {
   @override
   void dispose() {
     _timeoutTimer?.cancel();
+    _controller?.removeListener(_onControllerChanged);
     super.dispose();
+  }
+
+  void _onMapCreated(MapLibreMapController controller) {
+    _controller?.removeListener(_onControllerChanged);
+    _controller = controller;
+    _lastCameraPosition = controller.cameraPosition;
+    controller.addListener(_onControllerChanged);
+    widget.onMapCreated(MapLibreKoraMapController(controller));
+  }
+
+  void _onControllerChanged() {
+    final position = _controller?.cameraPosition;
+    if (position == null || position == _lastCameraPosition) return;
+    _lastCameraPosition = position;
+    widget.onCameraMove(position);
   }
 
   void _armTimeout() {
@@ -165,14 +170,12 @@ class _KoraMapLibreViewState extends State<_KoraMapLibreView> {
           // gesture feel unchanged.
           rotateGesturesEnabled: false,
           tiltGesturesEnabled: false,
-          onMapCreated: (controller) =>
-              widget.onMapCreated(MapLibreKoraMapController(controller)),
+          onMapCreated: _onMapCreated,
           onStyleLoadedCallback: () {
             _timeoutTimer?.cancel();
             if (mounted) setState(() => _styleLoaded = true);
             widget.onStyleLoaded();
           },
-          onCameraMove: widget.onCameraMove,
         ),
         if (!_styleLoaded && !_timedOut)
           MapLoadingSkeleton(style: widget.style),
@@ -225,9 +228,7 @@ class _StreetGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final minor = Paint()
-      ..color = dark
-          ? KoraColors.divider
-          : KoraColors.mapSkeletonLightRoad
+      ..color = dark ? KoraColors.divider : KoraColors.mapSkeletonLightRoad
       ..strokeWidth = KoraMap.skeletonRoadWidth
       ..style = PaintingStyle.stroke;
     final major = Paint()
@@ -235,9 +236,7 @@ class _StreetGridPainter extends CustomPainter {
       ..strokeWidth = KoraMap.skeletonMainRoadWidth
       ..style = PaintingStyle.stroke;
     final buildings = Paint()
-      ..color = dark
-          ? KoraColors.elevated
-          : KoraColors.mapSkeletonLightBlock
+      ..color = dark ? KoraColors.elevated : KoraColors.mapSkeletonLightBlock
       ..style = PaintingStyle.fill;
 
     for (final rect in <Rect>[

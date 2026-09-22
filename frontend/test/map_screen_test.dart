@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -208,7 +207,10 @@ void main() {
       for (final point in [...route.coordinates, _nearStops]) {
         expectInClearView(tester, point);
       }
-      expect(mapController.cameraPosition!.zoom, lessThanOrEqualTo(KoraMap.maxFitZoom));
+      expect(
+        mapController.cameraPosition!.zoom,
+        lessThanOrEqualTo(KoraMap.maxFitZoom),
+      );
 
       // The camera stays on the route while the driver moves.
       final framed = mapController.cameraPosition!.target;
@@ -490,23 +492,6 @@ void main() {
   testWidgets('map dependencies warm before the Map tab is built', (
     tester,
   ) async {
-    final preWarmCalls = <String>[];
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/maplibre_gl'),
-          (call) async {
-            preWarmCalls.add(call.method);
-            return null;
-          },
-        );
-    addTearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/maplibre_gl'),
-            null,
-          );
-    });
-
     mapStyleStore.value = MapStyle.detailed;
     await tester.pumpWidget(
       ProviderScope(
@@ -526,9 +511,6 @@ void main() {
 
     expect(find.byType(MapScreen), findsNothing);
     expect(find.text('App started'), findsOneWidget);
-    // Starts the native engine, independent of which style the driver
-    // picked -- see mapEnginePreWarmProvider's doc comment.
-    expect(preWarmCalls, contains('preWarm'));
     expect(location.watches, 1);
     expect(heading.watches, 1);
   });

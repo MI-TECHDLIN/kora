@@ -4,8 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:maplibre_gl/maplibre_gl.dart'
-    show CameraPosition, CameraUpdate;
+import 'package:maplibre_gl/maplibre_gl.dart' show CameraPosition, CameraUpdate;
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/theme/tokens.dart';
@@ -117,6 +116,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _onMapCreated(KoraMapController controller) {
     _controller = controller;
     _mapReady = true;
+    // A style switch creates a fresh native controller. Do not send route
+    // annotations to it until that controller reports its style ready.
+    _styleLoaded = false;
     _apply(ref.read(mapFocusProvider));
   }
 
@@ -145,7 +147,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _reframe() {
     if (!_mapReady) return;
     if (_framingRoute) {
-      if (ref.read(mapRouteProvider) case final route?) unawaited(_fitRoute(route));
+      if (ref.read(mapRouteProvider) case final route?)
+        unawaited(_fitRoute(route));
     } else if (_following) {
       if (ref.read(locationProvider).valueOrNull case final fix?) {
         unawaited(_moveTo(fix.point));
@@ -172,8 +175,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final height = MediaQuery.sizeOf(context).height;
     final top = insets.top + KoraMap.fitPadding + KoraSize.touchTarget;
     final sheet = _sheetKey.currentContext?.size?.height ?? height * 0.4;
-    final bottom =
-        insets.bottom + KoraSpacing.sm + sheet + KoraSpacing.lg;
+    final bottom = insets.bottom + KoraSpacing.sm + sheet + KoraSpacing.lg;
     return EdgeInsets.fromLTRB(
       KoraMap.fitPadding,
       top,
@@ -334,10 +336,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // so status chips start after it; recenter sits at the right.
         Positioned(
           top: insets.top + KoraSpacing.md,
-          left:
-              KoraSpacing.gutter +
-              KoraSize.orbBubble +
-              KoraSpacing.sm,
+          left: KoraSpacing.gutter + KoraSize.orbBubble + KoraSpacing.sm,
           right: KoraSpacing.gutter,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
