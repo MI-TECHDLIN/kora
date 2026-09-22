@@ -95,9 +95,10 @@ class Settings(BaseSettings):
     # Production URL (for frontend configuration reference)
     production_url: str = "https://voiceops-ll41.onrender.com"
     
-    # Self-pinging to keep Render instance awake
-    self_ping_enabled: bool = True  # Enable self-ping in production to prevent spin-down
-    self_ping_interval_seconds: float = 30.0  # Ping every 30 seconds (more frequent than 1 min for safety)
+    # Self-pinging to keep Render instance awake - DISABLED
+    # Use external ping service (UptimeRobot, cron-job.org, etc.) instead
+    self_ping_enabled: bool = False  # Disabled to save bandwidth
+    self_ping_interval_seconds: float = 300.0  # Kept for reference but not used
 
     # Simulated customer call demo (demo-only, no real calls)
     demo_simulated_customer: bool = False  # Enable simulated customer calls for demo
