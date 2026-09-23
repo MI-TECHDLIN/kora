@@ -53,6 +53,7 @@ async def get_preferences(parameters: Dict[str, Any], context: Dict[str, Any]) -
             "max_deliveries_per_shift": f"End shift after {preferences.get('max_deliveries_per_shift')} deliveries" if preferences.get("max_deliveries_per_shift") else None,
             "auto_announce_next_stop": "Auto-announce next stop" if preferences.get("auto_announce_next_stop") == "true" else "No auto-announcement",
             "proactive_traffic_alerts": "Show proactive traffic alerts" if preferences.get("proactive_traffic_alerts") == "true" else "No proactive alerts",
+            "daily_delivery_target": f"Today's delivery target is {preferences.get('daily_delivery_target')}" if preferences.get("daily_delivery_target") else None,
         }
         
         # Filter out None values
@@ -97,6 +98,9 @@ async def set_preference(parameters: Dict[str, Any], context: Dict[str, Any]) ->
     try:
         success = await preference_service.set_preference(driver_id, key, value)
         if success:
+            if key == "daily_delivery_target":
+                from app.services.order_queue_service import notify_active_queue_changed
+                await notify_active_queue_changed(driver_id, context.get("shift_id"))
             return {
                 "success": True,
                 "message": f"Preference set: {key} = {value}"
@@ -138,6 +142,9 @@ async def clear_preference(parameters: Dict[str, Any], context: Dict[str, Any]) 
     try:
         success = await preference_service.clear_preference(driver_id, key)
         if success:
+            if key == "daily_delivery_target":
+                from app.services.order_queue_service import notify_active_queue_changed
+                await notify_active_queue_changed(driver_id, context.get("shift_id"))
             return {
                 "success": True,
                 "message": f"Preference cleared: {key}"
@@ -172,6 +179,8 @@ async def reset_preferences(parameters: Dict[str, Any], context: Dict[str, Any])
     try:
         success = await preference_service.reset_preferences(driver_id)
         if success:
+            from app.services.order_queue_service import notify_active_queue_changed
+            await notify_active_queue_changed(driver_id, context.get("shift_id"))
             return {
                 "success": True,
                 "message": "All preferences have been reset to defaults. Your co-rider will use standard behavior."

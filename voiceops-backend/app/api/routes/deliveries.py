@@ -4,6 +4,7 @@ from typing import Optional
 from app.dependencies import get_current_driver
 from app.services.delivery_state_machine import assert_transition
 from app.services.location_service import location_service
+from app.services.order_queue_service import notify_queue_changed
 from app.db.queries import (
     get_shift_deliveries,
     get_delivery_by_id,
@@ -100,6 +101,11 @@ async def update_delivery_status_endpoint(
                 "notes": request.notes,
                 "failure_reason": request.failure_reason,
             }
+        )
+
+        await notify_queue_changed(
+            (updated or delivery or {}).get("shift_id"),
+            driver_id,
         )
 
         return updated

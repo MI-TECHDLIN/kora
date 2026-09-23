@@ -17,6 +17,7 @@ from app.db.queries import (
 from app.integrations.n8n_client import trigger_post_shift_report_background
 from app.intelligence.lemur_pipeline import run_shift_intelligence
 from app.api.websocket.voice import stream_summary
+from app.services.order_queue_service import build_queue_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,18 @@ class ShiftEndResponse(BaseModel):
     shift_id: str
     status: str
     message: str
+
+
+@router.get("/{shift_id}/queue")
+async def get_shift_queue(
+    shift_id: str,
+    current_user: dict = Depends(get_current_driver),
+):
+    """Return the driver-facing queue, including completed stops and daily target."""
+    shift = await get_shift_by_id(shift_id)
+    if not shift or str(shift.get("driver_id")) != str(current_user["id"]):
+        raise HTTPException(status_code=404, detail="Shift not found")
+    return await build_queue_snapshot(shift_id, str(current_user["id"]))
 
 
 @router.post("/start", response_model=ShiftStartResponse)
@@ -227,4 +240,3 @@ async def analyze_shift_lemur(
     """
     result = await run_shift_intelligence_and_stream(shift_id, current_user.get("id"))
     return result
-
