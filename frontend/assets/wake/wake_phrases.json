@@ -1,32 +1,31 @@
 {
   "_readme": [
-    "Draft wake-phrase list for Kora. Nothing here is trained yet: each enabled phrase must be trained as its own custom keyword in the Picovoice Console (Porcupine), which produces one .ppn file per phrase and platform.",
-    "Save each trained file under frontend/assets/wake/ using the file name in the 'ppn' field, one per platform (for example hey_kora_android.ppn and hey_kora_ios.ppn).",
-    "To add your own phrase, copy any entry, change 'phrase', 'id' and 'ppn', and set 'enabled' to true. The app should load only entries that are enabled AND whose file exists, so an entry without a trained file is safely skipped.",
-    "Porcupine matches only the exact trained phrase. It cannot detect arbitrary greeting words, so every greeting a rider might use needs its own entry.",
-    "Guidance: phrases of 3 to 4 syllables or more give the fewest false triggers and misses. A bare 'Kora' is only 2 syllables and may fire on similar sounds or on road and cab noise, so train it, but start with a sensitivity around 0.5 and raise it only if it misses. Check your Picovoice plan for how many custom keywords you may train and run at once, and start with the tier 1 entries.",
-    "Say the phrase the way your riders say it. If riders pronounce it differently (KOH-ra versus KOR-ah), train both spellings as separate entries, or set the pronunciation in the Console."
+    "Sherpa-onnx detects enabled phrases from this manifest using English phone tokens from the bundled zh-en KWS model.",
+    "To add or change a phrase, edit id/phrase/enabled here, then run: python3 tool/generate_wake_keywords.py",
+    "Sensitivity is 0.0 to 1.0. The app maps it to sherpa keyword score 1.0 to 3.0 and threshold 0.35 to 0.15; higher values are easier to trigger and may raise false accepts.",
+    "Use a lowercase snake_case id without spaces. Token generation fails if a word is absent from the model's English phone lexicon.",
+    "Multi-word phrases are safer in road and cab noise. Keep bare Kora disabled unless phone testing shows an acceptable false-accept rate."
   ],
   "sensitivity_default": 0.5,
   "phrases": [
-    { "id": "hey_kora", "phrase": "Hey Kora", "tier": 1, "enabled": true, "ppn": "hey_kora.ppn", "note": "Recommended primary. Natural, clear syllable count, the pattern people already know from other assistants." },
-    { "id": "okay_kora", "phrase": "Okay Kora", "tier": 1, "enabled": true, "ppn": "okay_kora.ppn", "note": "Second most common way people summon an assistant." },
-    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": true, "ppn": "kora.ppn", "note": "Exactly what you asked for. Short, so watch for false triggers in a noisy cab." },
+    { "id": "hey_kora", "phrase": "Hey Kora", "tier": 1, "enabled": true, "note": "Recommended primary phrase; 6/6 synthetic spike hits with the phone-token model." },
+    { "id": "okay_kora", "phrase": "Okay Kora", "tier": 1, "enabled": true, "note": "Recommended alternate phrase; 6/6 synthetic spike hits with the phone-token model." },
+    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": false, "note": "Disabled by default: the isolated word scored 0/6 hits and falsely fired on Cora and corner in the synthetic spike." },
 
-    { "id": "hi_kora", "phrase": "Hi Kora", "tier": 2, "enabled": true, "ppn": "hi_kora.ppn", "note": "Greeting." },
-    { "id": "hello_kora", "phrase": "Hello Kora", "tier": 2, "enabled": true, "ppn": "hello_kora.ppn", "note": "Greeting." },
-    { "id": "good_morning_kora", "phrase": "Good morning Kora", "tier": 2, "enabled": true, "ppn": "good_morning_kora.ppn", "note": "Start-of-shift greeting. Long phrase, very few false triggers." },
-    { "id": "good_afternoon_kora", "phrase": "Good afternoon Kora", "tier": 2, "enabled": true, "ppn": "good_afternoon_kora.ppn", "note": "Greeting." },
-    { "id": "good_evening_kora", "phrase": "Good evening Kora", "tier": 2, "enabled": true, "ppn": "good_evening_kora.ppn", "note": "Greeting." },
-    { "id": "yo_kora", "phrase": "Yo Kora", "tier": 2, "enabled": false, "ppn": "yo_kora.ppn", "note": "Casual. Enable if your riders talk like this." },
-    { "id": "wake_up_kora", "phrase": "Wake up Kora", "tier": 2, "enabled": true, "ppn": "wake_up_kora.ppn", "note": "Literal wake-up phrase." },
+    { "id": "hi_kora", "phrase": "Hi Kora", "tier": 2, "enabled": true, "note": "Greeting." },
+    { "id": "hello_kora", "phrase": "Hello Kora", "tier": 2, "enabled": true, "note": "Greeting." },
+    { "id": "good_morning_kora", "phrase": "Good morning Kora", "tier": 2, "enabled": true, "note": "Start-of-shift greeting." },
+    { "id": "good_afternoon_kora", "phrase": "Good afternoon Kora", "tier": 2, "enabled": true, "note": "Greeting." },
+    { "id": "good_evening_kora", "phrase": "Good evening Kora", "tier": 2, "enabled": true, "note": "Greeting." },
+    { "id": "yo_kora", "phrase": "Yo Kora", "tier": 2, "enabled": false, "note": "Casual greeting; enable after device testing." },
+    { "id": "wake_up_kora", "phrase": "Wake up Kora", "tier": 2, "enabled": true, "note": "Literal wake-up phrase." },
 
-    { "id": "kora_are_you_there", "phrase": "Kora are you there", "tier": 3, "enabled": false, "ppn": "kora_are_you_there.ppn", "note": "Rider checking she is listening. Long, precise phrase." },
-    { "id": "kora_im_back", "phrase": "Kora I'm back", "tier": 3, "enabled": false, "ppn": "kora_im_back.ppn", "note": "Rider returning from a break." },
-    { "id": "kora_lets_go", "phrase": "Kora let's go", "tier": 3, "enabled": false, "ppn": "kora_lets_go.ppn", "note": "Rider ready to start driving." },
-    { "id": "kora_help_me", "phrase": "Kora help me", "tier": 3, "enabled": false, "ppn": "kora_help_me.ppn", "note": "Rider needs help. The wake phrase consumes these words, so Kora should answer by asking what is needed." },
-    { "id": "kora_i_need_help", "phrase": "Kora I need help", "tier": 3, "enabled": false, "ppn": "kora_i_need_help.ppn", "note": "Same intent, longer and steadier to detect." },
+    { "id": "kora_are_you_there", "phrase": "Kora are you there", "tier": 3, "enabled": false, "note": "Rider checking Kora is listening." },
+    { "id": "kora_im_back", "phrase": "Kora I'm back", "tier": 3, "enabled": false, "note": "Rider returning from a break." },
+    { "id": "kora_lets_go", "phrase": "Kora let's go", "tier": 3, "enabled": false, "note": "Rider ready to start driving." },
+    { "id": "kora_help_me", "phrase": "Kora help me", "tier": 3, "enabled": false, "note": "The phrase consumes the help intent, so Kora should ask what is needed." },
+    { "id": "kora_i_need_help", "phrase": "Kora I need help", "tier": 3, "enabled": false, "note": "Longer help greeting." },
 
-    { "id": "custom_1", "phrase": "", "tier": 4, "enabled": false, "ppn": "", "note": "Your own phrase goes here. Copy this entry for more." }
+    { "id": "custom_1", "phrase": "", "tier": 4, "enabled": false, "note": "Add a phrase here, then regenerate keywords.txt." }
   ]
 }

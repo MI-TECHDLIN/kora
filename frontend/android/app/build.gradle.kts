@@ -48,6 +48,18 @@ android {
         versionName = flutter.versionName
     }
 
+    // sherpa-onnx bundles ONNX Runtime for several architectures. Keep APKs
+    // per-ABI so a phone never receives every native runtime. Play App Bundles
+    // preserve this split; x86_64 remains available for local emulators.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     signingConfigs {
         create("release") {
             if (hasReleaseKeystore) {
