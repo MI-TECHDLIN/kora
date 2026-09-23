@@ -15,12 +15,13 @@ class FakeAuthRepository implements AuthRepository {
   bool signedIn;
   SignUpResult signUpResult = SignUpResult.signedIn;
 
-  /// Thrown by the next sign-up / sign-in / Google call while set.
+  /// Thrown by the next auth call while set.
   AuthFailure? failure;
 
   SignUpDetails? lastSignUp;
   ({String email, String password})? lastSignIn;
   int googleCalls = 0;
+  int signOutCalls = 0;
 
   final _changes = StreamController<AuthChangeEvent>.broadcast();
 
@@ -30,8 +31,11 @@ class FakeAuthRepository implements AuthRepository {
     _changes.add(AuthChangeEvent.signedIn);
   }
 
-  /// The session ends, as on sign-out.
-  void signOut() {
+  /// The session ends and Supabase's signed-out event reaches every listener.
+  @override
+  Future<void> signOut() async {
+    signOutCalls++;
+    _failIfScripted();
     signedIn = false;
     _changes.add(AuthChangeEvent.signedOut);
   }

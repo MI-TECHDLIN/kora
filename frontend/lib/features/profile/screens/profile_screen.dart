@@ -8,9 +8,11 @@ import '../../../core/api/voiceops_api.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/company_connection_provider.dart';
 import '../../../providers/driver_details_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../auth/widgets/auth_text_field.dart';
 
 /// The driver's own details (`GET`/`PUT /v1/driver/profile`) and their
@@ -85,9 +87,148 @@ class ProfileScreen extends ConsumerWidget {
                 _CompanyCard(driverId: driver.id),
               ],
             ),
+            const SizedBox(height: KoraSpacing.xl),
+            Text('ACCOUNT', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            const _SignOutCard(),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Ends the authenticated session after an explicit destructive confirmation.
+class _SignOutCard extends ConsumerStatefulWidget {
+  const _SignOutCard();
+
+  @override
+  ConsumerState<_SignOutCard> createState() => _SignOutCardState();
+}
+
+class _SignOutCardState extends ConsumerState<_SignOutCard> {
+  bool _signingOut = false;
+  String? _error;
+
+  Future<void> _confirmAndSignOut() async {
+    if (_signingOut) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'Your active voice session will end and you’ll return to the welcome screen.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('profile-sign-out-cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('profile-sign-out-confirm'),
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: KoraColors.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _signingOut = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _signingOut = false;
+        _error = error.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GlassCard(
+          key: const Key('profile-sign-out'),
+          shadow: false,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: _signingOut ? null : _confirmAndSignOut,
+              borderRadius: BorderRadius.circular(KoraRadius.card),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: KoraSize.control),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: KoraSpacing.lg,
+                    vertical: KoraSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        TablerIcons.logout,
+                        size: KoraSize.iconMd,
+                        color: KoraColors.danger,
+                      ),
+                      const SizedBox(width: KoraSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _signingOut ? 'Signing out…' : 'Sign out',
+                              style: KoraText.label.copyWith(
+                                color: KoraColors.danger,
+                              ),
+                            ),
+                            Text(
+                              'End this session on this device',
+                              style: KoraText.caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_signingOut)
+                        const SizedBox.square(
+                          dimension: KoraSize.iconMd,
+                          child: CircularProgressIndicator(
+                            strokeWidth: KoraGlass.borderWidth,
+                            color: KoraColors.danger,
+                          ),
+                        )
+                      else
+                        const Icon(
+                          TablerIcons.chevronRight,
+                          size: KoraSize.iconMd,
+                          color: KoraColors.danger,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_error case final error?) ...[
+          const SizedBox(height: KoraSpacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              error,
+              key: const Key('profile-sign-out-error'),
+              style: KoraText.label.copyWith(color: KoraColors.danger),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -444,9 +585,7 @@ class _OutcomeLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = outcome.succeeded
-        ? KoraColors.success
-        : KoraColors.danger;
+    final color = outcome.succeeded ? KoraColors.success : KoraColors.danger;
     return Semantics(
       liveRegion: true,
       child: Row(
@@ -501,9 +640,7 @@ class _ReadOnlyRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: KoraText.label.copyWith(
-                  color: KoraColors.textMuted,
-                ),
+                style: KoraText.label.copyWith(color: KoraColors.textMuted),
               ),
               Text(value, style: KoraText.body),
               if (note != null) Text(note!, style: KoraText.caption),
