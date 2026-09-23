@@ -60,6 +60,9 @@ abstract interface class AuthRepository {
   /// Starts Google sign-in in the browser. The session arrives later, through
   /// the [SupabaseConfig.authRedirectUrl] deep link, as a [changes] event.
   Future<void> signInWithGoogle();
+
+  /// Clears the Supabase session and emits [AuthChangeEvent.signedOut].
+  Future<void> signOut();
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -107,6 +110,9 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signIn({required String email, required String password}) =>
       _guard(() => _auth.signInWithPassword(email: email, password: password));
+
+  @override
+  Future<void> signOut() => _guard(() => _auth.signOut());
 
   @override
   Future<void> signInWithGoogle() async {
