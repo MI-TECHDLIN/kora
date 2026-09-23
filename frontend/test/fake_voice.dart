@@ -167,6 +167,17 @@ class FakeKoraApi implements KoraApi {
   int profileCalls = 0;
   int shiftCalls = 0;
 
+  /// Thrown by the next [ensureDriverProfile] while set.
+  ApiException? ensureProfileFailure;
+  int ensureProfileCalls = 0;
+
+  @override
+  Future<DriverProfile> ensureDriverProfile() async {
+    ensureProfileCalls++;
+    if (ensureProfileFailure case final f?) throw f;
+    return profile ??= const DriverProfile(id: 'driver-1');
+  }
+
   /// Every GPS ping the app has posted, in order.
   final pings = <LocationPing>[];
 
@@ -215,6 +226,16 @@ class FakeKoraApi implements KoraApi {
     shiftCalls++;
     if (shiftFailure case final f?) throw f;
     return 'shift-1';
+  }
+
+  /// Every shift id sent to [endShift], in order.
+  final endShiftCalls = <String>[];
+  ApiException? endShiftFailure;
+
+  @override
+  Future<void> endShift(String shiftId) async {
+    endShiftCalls.add(shiftId);
+    if (endShiftFailure case final f?) throw f;
   }
 
   @override

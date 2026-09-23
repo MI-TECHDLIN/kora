@@ -13,7 +13,8 @@ from app.agents.tools.delivery import (
     get_next_order,
     accept_order,
     decline_order,
-    get_shift_summary
+    get_shift_summary,
+    end_shift
 )
 from app.agents.tools.navigation import (
     APP_SCREENS,
@@ -300,6 +301,12 @@ def get_tools() -> List[Dict[str, Any]]:
         },
         {
             "type": "function",
+            "name": "end_shift",
+            "description": "End the driver's shift for the day: marks it complete and generates the post-shift summary report. Trigger phrases: 'end my shift', 'I'm done for the day', 'clock out', 'that's it for today'. Different from end_conversation, which only closes the mic and has no effect on the shift - use end_shift whenever the driver means they're done working, not just done talking.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        },
+        {
+            "type": "function",
             "name": "get_preferences",
             "description": "Get all the driver's current preferences. Use when the driver asks to see their settings or preferences.",
             "parameters": {"type": "object", "properties": {}, "required": []}
@@ -361,6 +368,7 @@ TOOL_EXECUTORS = {
     "accept_order": accept_order,
     "decline_order": decline_order,
     "get_shift_summary": get_shift_summary,
+    "end_shift": end_shift,
     "alert_dispatcher": alert_dispatcher,
     "show_screen": show_screen,
     "end_conversation": end_conversation,

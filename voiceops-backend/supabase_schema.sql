@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Drivers table
 CREATE TABLE drivers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    phone VARCHAR(20) UNIQUE NOT NULL,
+    phone VARCHAR(20) UNIQUE,
     name VARCHAR(255),
     vehicle_type VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -348,4 +348,10 @@ CREATE INDEX IF NOT EXISTS idx_agent_audit_trail_created_at ON agent_audit_trail
 ALTER TABLE agent_audit_trail ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role full access on agent_audit_trail" ON agent_audit_trail
   FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- 9. Relax drivers.phone NOT NULL (kora-full-audit report §2.1): Google sign-in never
+-- puts a phone in user_metadata, and the backend-owned POST /v1/driver/ensure-profile
+-- must be able to create a driver row without one. UNIQUE still holds — Postgres allows
+-- multiple NULLs in a UNIQUE column.
+ALTER TABLE drivers ALTER COLUMN phone DROP NOT NULL;
 

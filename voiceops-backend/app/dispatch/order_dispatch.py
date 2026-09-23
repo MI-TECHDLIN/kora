@@ -475,14 +475,18 @@ class OrderDispatcher:
             if accept_result.get("success"):
                 logger.info(f"[Dispatch] Successfully auto-accepted order {order.external_id}")
 
-                # The driver didn't ask for this: tell them out loud via Kora's proactive-alert
-                # path (never silent). Reuses accept()'s own confirmation message rather than
-                # re-describing the order, so the two can never say something different.
+                # Announce to the driver via Kora — build natural spoken instructions
+                category_str = f"{order.category} order" if order.category else "order"
+                dist_str = f"{candidate.distance_km:.1f} km away" if candidate.distance_km else "nearby"
+                area_str = order.area if order.address else ""
+                recipient_str = order.recipient_name or "the customer"
+                area_clause = f" in {area_str}" if area_str else ""
+
                 spoken_instructions = (
-                    "You just auto-accepted a new delivery order on the driver's behalf because it "
-                    "matched their preferences. They did not ask for this one, so tell them now, "
-                    f"naturally, in your own words: {accept_result['message']} Let them know they "
-                    "can say \"show me the route\" or \"navigate there\" whenever they're ready."
+                    f"You've just had an order auto-accepted for you because it matched your preferences. "
+                    f"It's a {category_str} for {recipient_str}{area_clause}, {dist_str}. "
+                    f"Let the driver know naturally and tell them they can say "
+                    f"'show me the route' or 'navigate there' whenever they're ready."
                 )
 
                 try:
@@ -490,9 +494,9 @@ class OrderDispatcher:
                     alert_service = ProactiveAlertService()
                     await alert_service.emit_voice_alert(
                         driver_id=candidate.driver_id,
-                        message=accept_result["message"],
+                        message=f"Auto-accepted {category_str} for {recipient_str}{area_clause} ({dist_str})",
                         severity="normal",
-                        risk_type="auto_accept",
+                        risk_type=f"auto_accept_announce:{open_order.delivery_id}",
                         delivery_id=open_order.delivery_id,
                         shift_id=candidate.shift_id,
                         spoken_instructions=spoken_instructions,

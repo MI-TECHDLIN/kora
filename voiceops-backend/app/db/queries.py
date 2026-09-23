@@ -49,6 +49,34 @@ async def get_driver_by_id(driver_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+async def create_driver_profile(
+    driver_id: str, *, phone: Optional[str] = None, name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Idempotently insert a `drivers` row for an already-authenticated Supabase user.
+
+    Runs with the service-role client (see app/db/client.py), so it is not subject to
+    the anon-key RLS INSERT policy (kora-full-audit report §2.1). `phone` is optional:
+    Google sign-in never puts one in user_metadata, and drivers.phone is nullable.
+    Safe to call concurrently — a duplicate-key error on the `id` primary key (another
+    call won the race) is treated as success, not a failure.
+    """
+    existing = await get_driver_by_id(driver_id)
+    if existing:
+        return existing
+    try:
+        response = (
+            get_supabase().table("drivers")
+            .insert({"id": driver_id, "phone": phone, "name": name})
+            .execute()
+        )
+        return response.data[0] if response.data else await get_driver_by_id(driver_id)
+    except Exception:
+        existing = await get_driver_by_id(driver_id)
+        if existing:
+            return existing
+        raise
+
+
 async def get_next_pending_delivery(shift_id: str, driver_id: str) -> Optional[Dict[str, Any]]:
     """Get next pending delivery for a shift."""
     response = (
