@@ -142,6 +142,19 @@ abstract interface class KoraApi {
   /// `GET /v1/shift/{shift_id}/report`; null while the report is still
   /// being generated (`{"status": "processing"}`).
   Future<ShiftReport?> fetchShiftReport(String shiftId);
+
+  /// `GET /v1/driver/preferences`: every preference the driver has set, by
+  /// either voice or this Settings screen, as raw stored strings (the same
+  /// `driver_preferences` table `app/agents/tools/preferences.py` writes to).
+  /// A key with no row set is simply absent.
+  Future<Map<String, String>> fetchDriverPreferences();
+
+  /// `PUT /v1/driver/preferences/{key}`. Voice tools write the exact same
+  /// keys, so this is the one place either surface changes driver state.
+  Future<void> setDriverPreference(String key, Object value);
+
+  /// `DELETE /v1/driver/preferences/{key}`: back to "not set".
+  Future<void> clearDriverPreference(String key);
 }
 
 /// The backend base URL ([BackendConfig.baseUri]); production by default.
@@ -240,6 +253,29 @@ class HttpKoraApi implements KoraApi {
     );
     if (body['status'] == 'processing') return null;
     return ShiftReport.fromJson(body);
+  }
+
+  @override
+  Future<Map<String, String>> fetchDriverPreferences() async {
+    final body = await _send('GET', 'v1/driver/preferences');
+    if (body['preferences'] case final Map<String, dynamic> raw) {
+      return raw.map((key, value) => MapEntry(key, value.toString()));
+    }
+    return const {};
+  }
+
+  @override
+  Future<void> setDriverPreference(String key, Object value) async {
+    await _send(
+      'PUT',
+      'v1/driver/preferences/${Uri.encodeComponent(key)}',
+      body: {'value': value},
+    );
+  }
+
+  @override
+  Future<void> clearDriverPreference(String key) async {
+    await _send('DELETE', 'v1/driver/preferences/${Uri.encodeComponent(key)}');
   }
 
   Future<Map<String, dynamic>> _send(

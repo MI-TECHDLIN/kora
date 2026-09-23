@@ -109,6 +109,7 @@ class Candidate:
     shift_id: str
     driver_name: Optional[str]
     distance_km: float  # straight line from the driver to the drop-off
+    origin: Tuple[float, float] = (0.0, 0.0)  # the driver's own lat/lng used for distance_km
 
 
 @dataclass
@@ -308,7 +309,7 @@ class OrderDispatcher:
             else:
                 origin = self.fallback_origin
             candidate = Candidate(driver_id, p["shift_id"], p.get("driver_name"),
-                                  round(haversine_km(*origin, order.latitude, order.longitude), 2))
+                                  round(haversine_km(*origin, order.latitude, order.longitude), 2), origin)
             current = best.get(driver_id)
             if current is None or candidate.distance_km < current.distance_km:  # one shift per driver
                 best[driver_id] = candidate
@@ -402,15 +403,12 @@ class OrderDispatcher:
         If auto-accept is enabled and the order meets all preferences, accept it immediately.
         """
         try:
-            from app.services.preference_service import PreferenceService
+            from app.services.preference_service import preference_service
             from app.utils.geo_preferences import is_order_acceptable_by_location
             from app.utils.order_type_preferences import is_order_type_accepted
             from app.utils.time_preferences import should_accept_order_by_time
             from datetime import datetime
-            
-            # Get preference service
-            preference_service = PreferenceService()
-            
+
             # Get basic preferences
             basic_prefs = await preference_service.get_preferences(candidate.driver_id)
             
@@ -433,7 +431,7 @@ class OrderDispatcher:
             # Check geographic preferences
             location_acceptable, location_reason = is_order_acceptable_by_location(
                 order.latitude, order.longitude,
-                candidate.distance_km, 0,  # Use distance from candidate calculation
+                *candidate.origin,
                 max_distance_km=basic_prefs.get("max_order_distance_km"),
                 pickup_radius_km=enhanced_prefs.pickup_radius_km,
                 zones=enhanced_prefs.geographic_zones
@@ -468,14 +466,44 @@ class OrderDispatcher:
             # All checks passed - auto-accept the order
             logger.info(f"[Dispatch] Auto-accepting order {order.external_id} for driver {candidate.driver_id}")
             
-            # Accept the order
-            accept_result = await self.accept(candidate.driver_id, candidate.shift_id, open_order.delivery_id)
-            
+            # Accept the order. `_maybe_auto_accept` always runs under `self._lock` already
+            # (via `_make_offer`, called from `ingest`/`_offer_next`/`redispatch`), so this must
+            # call the lock-free `_accept_locked` — `accept()` itself would deadlock on the
+            # non-reentrant lock it's already holding.
+            accept_result = await self._accept_locked(candidate.driver_id, candidate.shift_id, open_order.delivery_id)
+
             if accept_result.get("success"):
                 logger.info(f"[Dispatch] Successfully auto-accepted order {order.external_id}")
+
+                # The driver didn't ask for this: tell them out loud via Kora's proactive-alert
+                # path (never silent). Reuses accept()'s own confirmation message rather than
+                # re-describing the order, so the two can never say something different.
+                spoken_instructions = (
+                    "You just auto-accepted a new delivery order on the driver's behalf because it "
+                    "matched their preferences. They did not ask for this one, so tell them now, "
+                    f"naturally, in your own words: {accept_result['message']} Let them know they "
+                    "can say \"show me the route\" or \"navigate there\" whenever they're ready."
+                )
+
+                try:
+                    from app.services.proactive_alert_service import ProactiveAlertService
+                    alert_service = ProactiveAlertService()
+                    await alert_service.emit_voice_alert(
+                        driver_id=candidate.driver_id,
+                        message=accept_result["message"],
+                        severity="normal",
+                        risk_type="auto_accept",
+                        delivery_id=open_order.delivery_id,
+                        shift_id=candidate.shift_id,
+                        spoken_instructions=spoken_instructions,
+                    )
+                except Exception as ann_err:
+                    # Never let the announcement failure roll back the accepted order
+                    logger.warning(f"[Dispatch] Auto-accept announcement failed: {ann_err}")
+
             else:
                 logger.warning(f"[Dispatch] Auto-accept failed for order {order.external_id}: {accept_result.get('error')}")
-                
+
         except Exception as e:
             logger.warning(f"[Dispatch] Auto-accept check failed for order {open_order.order.external_id}: {e}")
             # Continue with normal offer flow if auto-accept check fails
@@ -569,45 +597,54 @@ class OrderDispatcher:
     async def accept(self, driver_id: str, shift_id: str, order_id: Optional[str] = None) -> Dict[str, Any]:
         """The driver takes the order: it becomes the last pending stop on their shift."""
         async with self._lock:
-            open_order = self._find(driver_id, order_id)
-            if open_order is None:
-                logger.warning(
-                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=no_matching_order pid=%s",
-                    order_id or "-", shift_id or "-", os.getpid(),
-                )
-                return {"success": False, "error": "No order is waiting for you right now."}
-            holder = open_order.offered_to
-            if holder and holder.driver_id != driver_id:
-                logger.warning(
-                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=offered_to_other_driver pid=%s",
-                    open_order.delivery_id, shift_id or "-", os.getpid(),
-                )
-                return {"success": False, "error": "That order is offered to another driver right now."}
-            try:
-                row = await _db(assign_order_to_shift, open_order.delivery_id, shift_id)
-            except Exception as e:
-                logger.warning(
-                    "[Dispatch] accept_failed order_id=%s shift_id=%s "
-                    "reason=database_error error_type=%s pid=%s",
-                    open_order.delivery_id, shift_id or "-", type(e).__name__, os.getpid(),
-                )
-                return {"success": False, "error": "Couldn't reach the order system. Try accepting again."}
+            return await self._accept_locked(driver_id, shift_id, order_id)
 
-            self._release(open_order)
-            del self._orders[open_order.delivery_id]
-            if holder:
-                await self.hub.close_offer(holder.shift_id, open_order.delivery_id,
-                                           "accepted" if row else "withdrawn")
-            if row is None:
-                logger.warning(
-                    "[Dispatch] accept_failed order_id=%s shift_id=%s reason=already_assigned pid=%s",
-                    open_order.delivery_id, shift_id or "-", os.getpid(),
-                )
-                return {"success": False, "error": "Someone else already took that order."}
-            try:
-                await self.adapter.order_assigned(open_order.order, open_order.delivery_id, driver_id)
-            except Exception:
-                logger.exception("[Dispatch] Platform write-back failed")
+    async def _accept_locked(self, driver_id: str, shift_id: str, order_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        `accept()`'s body, for a caller that already holds `self._lock` — namely
+        `_maybe_auto_accept`, reached through `_make_offer` from `ingest`/`_offer_next`/
+        `redispatch`, all of which hold the lock for their whole duration. `asyncio.Lock` isn't
+        reentrant, so `accept()` itself must never be called from in here.
+        """
+        open_order = self._find(driver_id, order_id)
+        if open_order is None:
+            logger.warning(
+                "[Dispatch] accept_failed order_id=%s shift_id=%s reason=no_matching_order pid=%s",
+                order_id or "-", shift_id or "-", os.getpid(),
+            )
+            return {"success": False, "error": "No order is waiting for you right now."}
+        holder = open_order.offered_to
+        if holder and holder.driver_id != driver_id:
+            logger.warning(
+                "[Dispatch] accept_failed order_id=%s shift_id=%s reason=offered_to_other_driver pid=%s",
+                open_order.delivery_id, shift_id or "-", os.getpid(),
+            )
+            return {"success": False, "error": "That order is offered to another driver right now."}
+        try:
+            row = await _db(assign_order_to_shift, open_order.delivery_id, shift_id)
+        except Exception as e:
+            logger.warning(
+                "[Dispatch] accept_failed order_id=%s shift_id=%s "
+                "reason=database_error error_type=%s pid=%s",
+                open_order.delivery_id, shift_id or "-", type(e).__name__, os.getpid(),
+            )
+            return {"success": False, "error": "Couldn't reach the order system. Try accepting again."}
+
+        self._release(open_order)
+        del self._orders[open_order.delivery_id]
+        if holder:
+            await self.hub.close_offer(holder.shift_id, open_order.delivery_id,
+                                       "accepted" if row else "withdrawn")
+        if row is None:
+            logger.warning(
+                "[Dispatch] accept_failed order_id=%s shift_id=%s reason=already_assigned pid=%s",
+                open_order.delivery_id, shift_id or "-", os.getpid(),
+            )
+            return {"success": False, "error": "Someone else already took that order."}
+        try:
+            await self.adapter.order_assigned(open_order.order, open_order.delivery_id, driver_id)
+        except Exception:
+            logger.exception("[Dispatch] Platform write-back failed")
 
         self._spawn(self.redispatch())
         order = open_order.order
