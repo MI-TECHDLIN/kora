@@ -291,19 +291,61 @@ async def accept_order(parameters: dict, context: dict) -> dict:
     order_id is optional and defaults to the order currently offered to the driver.
 
     Trigger phrases: "yes, I'll take it", "accept", "add it to my run"
+    
+    Prefers to check driver preferences for auto_accept_orders and max_order_distance_km.
     """
     order_id = parameters.get("order_id")
     shift_id = context.get("shift_id")
+    driver_id = context.get("driver_id")
+    
     try:
-        if not context.get("driver_id") or not shift_id:
+        if not driver_id or not shift_id:
             logger.warning(
                 "[Tool:accept_order] accept_failed order_id=%s shift_id=%s "
                 "reason=missing_active_shift",
                 order_id or "-", shift_id or "-",
             )
             return {"success": False, "error": "No active shift to add the order to."}
-        result = await get_order_dispatcher().accept(
-            context["driver_id"], shift_id, order_id)
+        
+        # Check driver preferences
+        from app.services.preference_service import preference_service
+        preferences = await preference_service.get_preferences(driver_id)
+        
+        # If auto_decline_orders is set, reject the acceptance
+        if preferences.get("auto_decline_orders") == "true":
+            logger.info(
+                "[Tool:accept_order] accept_rejected_by_preference driver_id=%s "
+                "preference=auto_decline_orders",
+                driver_id,
+            )
+            return {
+                "success": False,
+                "error": "Cannot accept order: auto-decline preference is enabled."
+            }
+        
+        # Check max_order_distance_km preference
+        max_distance = preferences.get("max_order_distance_km")
+        if max_distance:
+            try:
+                max_distance_km = float(max_distance)
+                # Get order details to check distance
+                dispatcher = get_order_dispatcher()
+                order = await dispatcher.get_order(order_id) if order_id else context.get("offered_order")
+                if order and order.get("distance_km"):
+                    if order["distance_km"] > max_distance_km:
+                        logger.info(
+                            "[Tool:accept_order] accept_rejected_by_distance driver_id=%s "
+                            "order_distance=%s max_allowed=%s",
+                            driver_id, order["distance_km"], max_distance_km,
+                        )
+                        return {
+                            "success": False,
+                            "error": f"Order distance ({order['distance_km']:.1f} km) exceeds your preference of {max_distance_km} km."
+                        }
+            except (ValueError, TypeError):
+                logger.warning(f"[Tool:accept_order] Invalid max_order_distance_km value: {max_distance}")
+        
+        result = await get_order_dispatcher().accept(driver_id, shift_id, order_id)
         if not result.get("success"):
             logger.warning(
                 "[Tool:accept_order] accept_failed order_id=%s shift_id=%s "
@@ -327,12 +369,33 @@ async def decline_order(parameters: dict, context: dict) -> dict:
     order_id is optional and defaults to the order currently offered to the driver.
 
     Trigger phrases: "no", "pass", "decline it", "I can't take it"
+    
+    Checks driver preferences for auto_accept_orders - if enabled, decline is rejected.
     """
+    driver_id = context.get("driver_id")
+    
     try:
-        if not context.get("driver_id"):
+        if not driver_id:
             return {"success": False, "error": "No driver on this session."}
+        
+        # Check driver preferences
+        from app.services.preference_service import preference_service
+        preferences = await preference_service.get_preferences(driver_id)
+        
+        # If auto_accept_orders is set, reject the decline
+        if preferences.get("auto_accept_orders") == "true":
+            logger.info(
+                "[Tool:decline_order] decline_rejected_by_preference driver_id=%s "
+                "preference=auto_accept_orders",
+                driver_id,
+            )
+            return {
+                "success": False,
+                "error": "Cannot decline order: auto-accept preference is enabled."
+            }
+        
         return await get_order_dispatcher().decline(
-            context["driver_id"], parameters.get("order_id"), parameters.get("reason"),
+            driver_id, parameters.get("order_id"), parameters.get("reason"),
             shift_id=context.get("shift_id"))
 
     except Exception as e:

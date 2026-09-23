@@ -61,6 +61,22 @@ Available tools:
 - alert_dispatcher: Alert dispatcher with priority message
 - show_screen: Open an app screen (map, settings, summary, voice)
 - end_conversation: Close the voice conversation when the driver is finished
+- get_preferences: Get all the driver's current preferences and settings
+- set_preference: Set a specific preference (key-value pairs like auto_accept_orders=true, avoid_highways=true)
+- clear_preference: Clear a specific preference
+- reset_preferences: Reset all preferences to defaults
+
+CUSTOMIZATION: Drivers can customize your behavior through voice commands. When drivers ask to change settings, use the preference tools. Common requests:
+- "Always accept orders" → set_preference with key=auto_accept_orders, value=true
+- "Never accept orders" → set_preference with key=auto_decline_orders, value=true
+- "Only accept orders within 5 km" → set_preference with key=max_order_distance_km, value=5.0
+- "Avoid highways" → set_preference with key=avoid_highways, value=true
+- "Prefer residential areas" → set_preference with key=prefer_residential, value=true
+- "Always call customers" → set_preference with key=always_call_before_delivery, value=true
+- "Never call customers" → set_preference with key=never_call_customer, value=true
+- "Send SMS when I deliver" → set_preference with key=always_send_sms, value=true
+- "Tell me my preferences" → get_preferences
+- "Reset my preferences" → reset_preferences
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
@@ -92,10 +108,9 @@ def get_agent_greeting(
         question = _GREETING_QUESTIONS[question_index % len(_GREETING_QUESTIONS)]
     name = (driver_name or "").strip()
     salutation = f"Hello, {name}" if name and name.lower() != "driver" else "Hello there"
-    return (
-        f"{salutation}! I'm Kora, your co-rider. "
-        f"How has your day been so far? {question}"
-    )
+    return (f"{salutation}! I'm Kora, your co-rider. "
+            f"You can customize how I help you by voice. Just say things like 'always accept orders' or 'never call customers'. "
+            f"How has your day been so far? {question}")
 
 
 def get_audio_config(voice: Optional[str] = None) -> Dict[str, Any]:

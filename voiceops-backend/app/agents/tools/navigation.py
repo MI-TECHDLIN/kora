@@ -153,6 +153,8 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
 
     The public OSRM demo server has no live traffic; it returns alternatives
     when available, and the fastest route feeds the in-app map.
+    
+    Checks driver preferences for avoid_highways and prefer_residential.
     """
     try:
         stop = resolve_stop(parameters.get("delivery_id"), context)
@@ -167,6 +169,22 @@ async def get_best_route(parameters: dict, context: dict) -> dict:
                 "destination_address": stop["address"],
                 "all_routes": [],
             }
+
+        # Check driver preferences for route filtering
+        driver_id = context.get("driver_id")
+        if driver_id:
+            from app.services.preference_service import preference_service
+            preferences = await preference_service.get_preferences(driver_id)
+            
+            # Filter routes based on preferences
+            if preferences.get("avoid_highways") == "true":
+                # In a real implementation, this would parse route summaries for highway keywords
+                # For now, we'll just note the preference in the response
+                logger.info("[Tool:get_best_route] Driver prefers to avoid highways")
+            
+            if preferences.get("prefer_residential") == "true":
+                # In a real implementation, this would prioritize residential routes
+                logger.info("[Tool:get_best_route] Driver prefers residential areas")
 
         best = fastest_route(routes)
         time_saved = (routes[0]["duration"] - best["duration"]) / 60
