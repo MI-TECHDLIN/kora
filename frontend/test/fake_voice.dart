@@ -167,6 +167,17 @@ class FakeKoraApi implements KoraApi {
   int profileCalls = 0;
   int shiftCalls = 0;
 
+  /// Thrown by the next [ensureDriverProfile] while set.
+  ApiException? ensureProfileFailure;
+  int ensureProfileCalls = 0;
+
+  @override
+  Future<DriverProfile> ensureDriverProfile() async {
+    ensureProfileCalls++;
+    if (ensureProfileFailure case final f?) throw f;
+    return profile ??= const DriverProfile(id: 'driver-1');
+  }
+
   /// Every GPS ping the app has posted, in order.
   final pings = <LocationPing>[];
 

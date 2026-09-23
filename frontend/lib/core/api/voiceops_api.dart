@@ -121,6 +121,12 @@ class ApiException implements Exception {
 /// The backend REST endpoints the app uses (contract §2). Every call carries
 /// the §4 `Authorization: Bearer` header.
 abstract interface class KoraApi {
+  /// `POST /v1/driver/ensure-profile`; idempotently creates the signed-in
+  /// driver's `drivers` row on the backend if it doesn't exist yet. Safe to
+  /// call repeatedly — on every sign-in and on session restore, not just
+  /// once — since it always returns the row, new or existing.
+  Future<DriverProfile> ensureDriverProfile();
+
   Future<DriverProfile> fetchDriverProfile();
 
   /// `PUT /v1/driver/profile` with a new name; returns the updated row.
@@ -180,6 +186,11 @@ class HttpKoraApi implements KoraApi {
   final http.Client _client;
 
   static const _timeout = Duration(seconds: 15);
+
+  @override
+  Future<DriverProfile> ensureDriverProfile() async => DriverProfile.fromJson(
+    await _send('POST', 'v1/driver/ensure-profile'),
+  );
 
   @override
   Future<DriverProfile> fetchDriverProfile() async =>

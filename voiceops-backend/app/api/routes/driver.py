@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 from app.dependencies import get_current_driver
-from app.db.queries import get_driver_by_id
+from app.db.queries import get_driver_by_id, create_driver_profile
 from app.db.client import get_supabase_client
 from app.integrations.n8n_client import trigger_driver_onboarding_background
 import logging
@@ -33,6 +33,28 @@ class ConnectPlatformRequest(BaseModel):
     platform: str
     connect_code: Optional[str] = None
     credentials: Optional[dict] = None
+
+
+@router.post("/ensure-profile")
+async def ensure_profile(current_user: dict = Depends(get_current_driver)):
+    """
+    Idempotently create the signed-in driver's `drivers` row if it doesn't exist yet.
+    Safe to call on every sign-in and session restore (kora-full-audit report §2.1).
+
+    Runs with the service-role Supabase client, so creation succeeds regardless of the
+    anon-key RLS INSERT policy state. Phone comes from Supabase Auth user_metadata when
+    present; Google sign-in never sets one, and drivers.phone is nullable so that no
+    longer blocks account setup.
+    """
+    driver_id = current_user["id"]
+    existing = await get_driver_by_id(driver_id)
+    if existing:
+        return existing
+
+    metadata = current_user.get("user_metadata") or {}
+    phone = metadata.get("phone") or current_user.get("phone")
+    name = metadata.get("full_name") or metadata.get("name")
+    return await create_driver_profile(driver_id, phone=phone, name=name)
 
 
 @router.get("/profile")
