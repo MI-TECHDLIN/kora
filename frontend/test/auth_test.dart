@@ -413,46 +413,34 @@ void main() {
     );
   });
 
-  testWidgets(
-    'a drivers row that cannot be confirmed is reported persistently, with a working retry',
-    (tester) async {
-      final logs = <String>[];
-      final originalDebugPrint = debugPrint;
-      debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
+  testWidgets('a driver profile sync failure stays off-screen', (tester) async {
+    final logs = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
 
-      const failure = ApiException(
-        "You're signed in, but your driver profile couldn't be set up yet.",
-        statusCode: 500,
-      );
-      api.ensureProfileFailure = failure;
-      await pumpApp(tester);
-      await tap(tester, toSignIn);
-      await enter(tester, 'Email', 'ada@voiceops.test');
-      await enter(tester, 'Password', 'correct-horse');
-      await tap(tester, signIn);
+    const failure = ApiException(
+      "You're signed in, but your driver profile couldn't be set up yet.",
+      statusCode: 500,
+    );
+    api.ensureProfileFailure = failure;
+    await pumpApp(tester);
+    await tap(tester, toSignIn);
+    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Password', 'correct-horse');
+    await tap(tester, signIn);
 
-      // Auth itself succeeded, so the driver moves on…
-      expect(find.byType(MainShell), findsOneWidget);
-      // …but the missing profile is on screen — persistently, not a
-      // one-shot SnackBar — and in the log.
-      expect(find.text(failure.message), findsOneWidget);
-      expect(api.ensureProfileCalls, 1);
-      expect(logs, contains(contains(failure.message)));
+    // Auth itself succeeded, so the driver moves on. Profile sync failures
+    // are logged for diagnosis without covering the app with an error card.
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(find.text(failure.message), findsNothing);
+    expect(api.ensureProfileCalls, 1);
+    expect(logs, contains(contains(failure.message)));
 
-      // Unlike the old SnackBar, waiting does not dismiss it.
-      await tester.pump(KoraMotion.notice);
-      await settle(tester);
-      expect(find.text(failure.message), findsOneWidget);
-      debugPrint = originalDebugPrint;
-
-      // Tapping Retry re-runs ensure-profile; once it succeeds, the banner
-      // clears without any further driver action.
-      api.ensureProfileFailure = null;
-      await tap(tester, find.byKey(const Key('driver-profile-retry')));
-      expect(api.ensureProfileCalls, 2);
-      expect(find.text(failure.message), findsNothing);
-    },
-  );
+    await tester.pump(KoraMotion.notice);
+    await settle(tester);
+    expect(find.text(failure.message), findsNothing);
+    debugPrint = originalDebugPrint;
+  });
 
   testWidgets(
     'a restored session confirms the driver row without a fresh sign-in',
