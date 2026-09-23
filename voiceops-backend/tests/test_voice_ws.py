@@ -183,7 +183,7 @@ def backend(monkeypatch):
     monkeypatch.setattr("app.db.queries.get_next_pending_delivery", get_tool_next_delivery)
     monkeypatch.setattr("app.db.queries.get_shift_stats", get_shift_stats)
 
-    async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng):
+    async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng, vehicle_type=None):
         record["directions"].append(((origin_lat, origin_lng), (dest_lat, dest_lng)))
         return [
             {"summary": "Third Mainland Bridge", "distance": 5400, "duration": 1260, "polyline": "slow"},

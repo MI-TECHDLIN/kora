@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from app.dependencies import get_current_driver
 from app.services.routing_service import routing_service
+from app.services.vehicle_modes import get_driver_vehicle_mode
 
 router = APIRouter()
 
@@ -23,11 +24,13 @@ async def calculate_route_endpoint(
     req: RouteRequest,
     current_user: dict = Depends(get_current_driver),
 ):
-    """Calculate driving route between two GPS coordinates."""
+    """Calculate a route between two GPS coordinates, timed for the driver's vehicle."""
     try:
+        mode = await get_driver_vehicle_mode(current_user.get("id"))
         route = await routing_service.calculate_route(
             (req.origin_lat, req.origin_lng),
-            (req.dest_lat, req.dest_lng)
+            (req.dest_lat, req.dest_lng),
+            vehicle_type=mode.value,
         )
         return route
     except Exception as e:

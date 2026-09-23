@@ -8,12 +8,19 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import '../core/api/voiceops_api.dart';
 import 'driver_details_provider.dart';
 
-/// The map marker the driver prefers. A motorbike and a pedal bicycle are
-/// deliberately separate because Kora serves both kinds of rider.
+/// The map marker the driver prefers, and how the backend times their trips.
+/// A motorbike and a pedal bicycle are deliberately separate because Kora
+/// serves both kinds of rider, and dispatch riders on foot are a third.
+///
+/// [name] is the `vehicle_type` sent to `PUT /v1/driver/profile`; the backend's
+/// `VehicleMode` (`app/services/vehicle_modes.py`) uses the same four values to
+/// pick each mode's ETA.
 enum VehicleMode {
   car('Car', TablerIcons.carFilled),
   motorbike('Motorbike', TablerIcons.motorbikeFilled),
-  bicycle('Bicycle', TablerIcons.bikeFilled);
+  bicycle('Bicycle', TablerIcons.bikeFilled),
+  // Tabler ships no filled walking icon, so this one is the outline glyph.
+  walking('Walking', TablerIcons.walk);
 
   const VehicleMode(this.label, this.icon);
 
@@ -22,6 +29,11 @@ enum VehicleMode {
 
   static VehicleMode fromProfile(String? value) {
     final type = value?.toLowerCase() ?? '';
+    if (type.contains('walk') ||
+        type.contains('foot') ||
+        type.contains('pedestrian')) {
+      return walking;
+    }
     if (type.contains('motor') ||
         type.contains('scooter') ||
         type.contains('okada')) {
@@ -97,6 +109,20 @@ class VehicleModeController extends StateNotifier<VehicleMode> {
     _hasSavedMode = true;
     state = mode;
     unawaited(_save(mode));
+    unawaited(_syncToBackend(mode));
+  }
+
+  /// The backend times every ETA (Kora's voice, the route card, proactive
+  /// alerts) from the driver's stored `vehicle_type`, so the picker has to
+  /// update it or the ETAs would keep using the old vehicle.
+  Future<void> _syncToBackend(VehicleMode mode) async {
+    try {
+      await _ref.read(koraApiProvider).updateDriverVehicle(mode.name);
+      _ref.invalidate(driverDetailsProvider);
+    } catch (_) {
+      // Offline or signed out: the local choice still drives the map marker,
+      // and the next selection retries the sync.
+    }
   }
 
   Future<void> _save(VehicleMode mode) async {

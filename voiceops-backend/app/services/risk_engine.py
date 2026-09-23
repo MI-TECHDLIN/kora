@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from app.services.eta_service import eta_service
 from app.services.location_service import haversine_distance
+from app.services.vehicle_modes import get_driver_vehicle_mode
 from app.db.queries import (
     get_next_pending_delivery,
     get_recent_location_pings,
@@ -202,12 +203,14 @@ class RiskEngine:
 
         if dest_lat is not None and dest_lng is not None and origin_lat is not None and origin_lng is not None:
             speed = float(location_update.get("speed", 30.0) or 30.0)
-            # Use traffic-aware ETA with fallback to haversine
+            # Use traffic-aware ETA with fallback to haversine, for the driver's vehicle
+            mode = await get_driver_vehicle_mode(driver_id)
             eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                 (float(origin_lat), float(origin_lng)),
                 (float(dest_lat), float(dest_lng)),
                 delivery_id=delivery["id"],
-                current_speed_kmh=speed
+                current_speed_kmh=speed,
+                vehicle_type=mode.value,
             )
             eta = eta_result["eta_minutes"]
 
@@ -277,9 +280,11 @@ class RiskEngine:
                 return None
 
             # Get traffic-aware route (this should return the best available route)
+            mode = await get_driver_vehicle_mode(driver_id)
             alternate_route = await traffic_routing_client.get_traffic_aware_eta(
                 (float(origin_lat), float(origin_lng)),
-                (float(dest_lat), float(dest_lng))
+                (float(dest_lat), float(dest_lng)),
+                vehicle_type=mode.value,
             )
 
             if alternate_route and alternate_route.get("success"):

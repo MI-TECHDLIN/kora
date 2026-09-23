@@ -356,12 +356,15 @@ class OrderDispatcher:
                 except Exception as e:
                     logger.warning(f"[Dispatch] Could not fetch driver location for traffic ETA: {e}")
                 
-                # Calculate traffic-aware ETA
+                # Calculate traffic-aware ETA for the candidate's own vehicle
+                from app.services.vehicle_modes import get_driver_vehicle_mode
+                mode = await get_driver_vehicle_mode(candidate.driver_id)
                 destination = (order.latitude, order.longitude)
                 eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                     driver_origin,
                     destination,
                     delivery_id=open_order.delivery_id,
+                    vehicle_type=mode.value,
                 )
                 
                 if eta_result:
