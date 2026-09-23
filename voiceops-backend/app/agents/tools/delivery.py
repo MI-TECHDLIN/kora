@@ -119,6 +119,18 @@ async def update_delivery_status(parameters: dict, context: dict) -> dict:
                 except ValueError as ve:
                     return {"success": False, "error": str(ve)}
                 current["status"] = status
+                
+                # Trigger summary generation on delivery completion
+                if status == "delivered":
+                    shift_id = context.get("shift_id")
+                    driver_id = context.get("driver_id")
+                    if shift_id and driver_id:
+                        from app.intelligence.lemur_pipeline import run_shift_intelligence
+                        from app.api.websocket.voice import stream_summary
+                        # Trigger intelligence analysis in background
+                        import asyncio
+                        asyncio.create_task(_trigger_delivery_summary(shift_id, driver_id))
+                
                 return {
                     "success": True,
                     "delivery_id": delivery_id,
@@ -311,6 +323,10 @@ async def accept_order(parameters: dict, context: dict) -> dict:
         from app.services.preference_service import preference_service
         preferences = await preference_service.get_preferences(driver_id)
         
+        # Resolve any preference conflicts
+        from app.services.preference_models import PreferenceConflictResolver
+        preferences = PreferenceConflictResolver.resolve_all_conflicts(preferences)
+        
         # If auto_decline_orders is set, reject the acceptance
         if preferences.get("auto_decline_orders") == "true":
             logger.info(
@@ -323,25 +339,93 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                 "error": "Cannot accept order: auto-decline preference is enabled."
             }
         
-        # Check max_order_distance_km preference
+        # Get enhanced preferences for advanced checks
+        enhanced_prefs = await preference_service.get_enhanced_preferences(driver_id)
+        
+        # Get order details for comprehensive checking
+        dispatcher = get_order_dispatcher()
+        order = await dispatcher.get_order(order_id) if order_id else context.get("offered_order")
+        
+        if order:
+            # Check geographic zone preferences
+            from app.utils.geo_preferences import is_order_acceptable_by_location
+            order_lat = order.get("pickup_latitude") or order.get("latitude")
+            order_lon = order.get("pickup_longitude") or order.get("longitude")
+            driver_lat = context.get("latitude") or context.get("current_latitude")
+            driver_lon = context.get("longitude") or context.get("current_longitude")
+            
+            if order_lat and order_lon and driver_lat and driver_lon:
+                location_acceptable, location_reason = is_order_acceptable_by_location(
+                    order_lat, order_lon, driver_lat, driver_lon,
+                    max_distance_km=preferences.get("max_order_distance_km"),
+                    pickup_radius_km=enhanced_prefs.pickup_radius_km,
+                    zones=enhanced_prefs.geographic_zones
+                )
+                
+                if not location_acceptable:
+                    logger.info(
+                        "[Tool:accept_order] accept_rejected_by_location driver_id=%s reason=%s",
+                        driver_id, location_reason,
+                    )
+                    return {
+                        "success": False,
+                        "error": f"Cannot accept order: {location_reason}"
+                    }
+            
+            # Check order type preferences
+            from app.utils.order_type_preferences import is_order_type_accepted
+            order_category = order.get("category", "delivery")
+            order_weight = order.get("weight_kg")
+            order_dimensions = order.get("dimensions")
+            order_value = order.get("value")
+            
+            type_acceptable, type_reason = is_order_type_accepted(
+                order_category, order_weight, order_dimensions, order_value,
+                enhanced_prefs.order_type_prefs
+            )
+            
+            if not type_acceptable:
+                logger.info(
+                    "[Tool:accept_order] accept_rejected_by_type driver_id=%s reason=%s",
+                    driver_id, type_reason,
+                )
+                return {
+                    "success": False,
+                    "error": f"Cannot accept order: {type_reason}"
+                }
+            
+            # Check time-based preferences
+            from app.utils.time_preferences import should_accept_order_by_time
+            from datetime import datetime
+            time_acceptable, time_reason = should_accept_order_by_time(
+                datetime.now(), enhanced_prefs.time_based_prefs
+            )
+            
+            if not time_acceptable:
+                logger.info(
+                    "[Tool:accept_order] accept_rejected_by_time driver_id=%s reason=%s",
+                    driver_id, time_reason,
+                )
+                return {
+                    "success": False,
+                    "error": f"Cannot accept order: {time_reason}"
+                }
+        
+        # Legacy max_order_distance_km check (fallback)
         max_distance = preferences.get("max_order_distance_km")
-        if max_distance:
+        if max_distance and order and order.get("distance_km"):
             try:
                 max_distance_km = float(max_distance)
-                # Get order details to check distance
-                dispatcher = get_order_dispatcher()
-                order = await dispatcher.get_order(order_id) if order_id else context.get("offered_order")
-                if order and order.get("distance_km"):
-                    if order["distance_km"] > max_distance_km:
-                        logger.info(
-                            "[Tool:accept_order] accept_rejected_by_distance driver_id=%s "
-                            "order_distance=%s max_allowed=%s",
-                            driver_id, order["distance_km"], max_distance_km,
-                        )
-                        return {
-                            "success": False,
-                            "error": f"Order distance ({order['distance_km']:.1f} km) exceeds your preference of {max_distance_km} km."
-                        }
+                if order["distance_km"] > max_distance_km:
+                    logger.info(
+                        "[Tool:accept_order] accept_rejected_by_distance driver_id=%s "
+                        "order_distance=%s max_allowed=%s",
+                        driver_id, order["distance_km"], max_distance_km,
+                    )
+                    return {
+                        "success": False,
+                        "error": f"Order distance ({order['distance_km']:.1f} km) exceeds your preference of {max_distance_km} km."
+                    }
             except (ValueError, TypeError):
                 logger.warning(f"[Tool:accept_order] Invalid max_order_distance_km value: {max_distance}")
         
@@ -452,3 +536,24 @@ async def get_shift_summary(parameters: dict, context: dict) -> dict:
     except Exception as e:
         logger.error(f"[Tool:get_shift_summary] {e}")
         return {"success": False, "error": str(e)}
+
+
+async def _trigger_delivery_summary(shift_id: str, driver_id: str):
+    """
+    Background task to trigger intelligence analysis after delivery completion.
+    """
+    try:
+        from app.intelligence.lemur_pipeline import run_shift_intelligence
+        from app.api.websocket.voice import stream_summary
+        
+        logger.info(f"[Delivery Summary] Triggering intelligence analysis for shift {shift_id}")
+        result = await run_shift_intelligence(shift_id, driver_id)
+        
+        # Stream summary to open voice socket if available
+        summary = result.get("analysis", {}).get("executive_summary", "")
+        if summary:
+            await stream_summary(shift_id, summary)
+            
+        logger.info(f"[Delivery Summary] Intelligence analysis completed for shift {shift_id}")
+    except Exception as e:
+        logger.error(f"[Delivery Summary] Failed to trigger intelligence analysis: {e}")
