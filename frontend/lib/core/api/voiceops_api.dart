@@ -40,7 +40,7 @@ class DriverProfile {
   /// The sign-up number. Read-only in the app: it identifies the driver.
   final String? phone;
 
-  /// When the driver row was created, i.e. when they joined VoiceOps.
+  /// When the driver row was created, i.e. when they joined Kora.
   final DateTime? createdAt;
 }
 
@@ -120,7 +120,13 @@ class ApiException implements Exception {
 
 /// The backend REST endpoints the app uses (contract §2). Every call carries
 /// the §4 `Authorization: Bearer` header.
-abstract interface class VoiceOpsApi {
+abstract interface class KoraApi {
+  /// `POST /v1/driver/ensure-profile`; idempotently creates the signed-in
+  /// driver's `drivers` row on the backend if it doesn't exist yet. Safe to
+  /// call repeatedly — on every sign-in and on session restore, not just
+  /// once — since it always returns the row, new or existing.
+  Future<DriverProfile> ensureDriverProfile();
+
   Future<DriverProfile> fetchDriverProfile();
 
   /// `PUT /v1/driver/profile` with a new name; returns the updated row.
@@ -134,6 +140,12 @@ abstract interface class VoiceOpsApi {
   /// `POST /v1/shift/start`; returns the new shift's id.
   Future<String> startShift();
 
+  /// `POST /v1/shift/{shift_id}/end`. Marks the shift complete and triggers
+  /// post-shift report generation. The voice tool `end_shift` is the
+  /// primary way a driver reaches this; this method exists for a future
+  /// UI affordance to call the same endpoint.
+  Future<void> endShift(String shiftId);
+
   /// `POST /v1/locations/ping`. This is what feeds the backend's proactive
   /// risk engine, which runs on every ping and is the only thing that can
   /// raise a `PROACTIVE_ALERT`.
@@ -142,27 +154,40 @@ abstract interface class VoiceOpsApi {
   /// `GET /v1/shift/{shift_id}/report`; null while the report is still
   /// being generated (`{"status": "processing"}`).
   Future<ShiftReport?> fetchShiftReport(String shiftId);
+
+  /// `GET /v1/driver/preferences`: every preference the driver has set, by
+  /// either voice or this Settings screen, as raw stored strings (the same
+  /// `driver_preferences` table `app/agents/tools/preferences.py` writes to).
+  /// A key with no row set is simply absent.
+  Future<Map<String, String>> fetchDriverPreferences();
+
+  /// `PUT /v1/driver/preferences/{key}`. Voice tools write the exact same
+  /// keys, so this is the one place either surface changes driver state.
+  Future<void> setDriverPreference(String key, Object value);
+
+  /// `DELETE /v1/driver/preferences/{key}`: back to "not set".
+  Future<void> clearDriverPreference(String key);
 }
 
 /// The backend base URL ([BackendConfig.baseUri]); production by default.
 final backendUriProvider = Provider<Uri?>((ref) => BackendConfig.baseUri);
 
-final _voiceOpsHttpClientProvider = Provider<http.Client>((ref) {
+final _koraHttpClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
   return client;
 });
 
-final voiceOpsApiProvider = Provider<VoiceOpsApi>((ref) {
-  return HttpVoiceOpsApi(
+final koraApiProvider = Provider<KoraApi>((ref) {
+  return HttpKoraApi(
     baseUri: ref.watch(backendUriProvider),
     auth: ref.watch(authRepositoryProvider),
-    client: ref.watch(_voiceOpsHttpClientProvider),
+    client: ref.watch(_koraHttpClientProvider),
   );
 });
 
-class HttpVoiceOpsApi implements VoiceOpsApi {
-  HttpVoiceOpsApi({
+class HttpKoraApi implements KoraApi {
+  HttpKoraApi({
     required this.baseUri,
     required AuthRepository auth,
     required http.Client client,
@@ -174,6 +199,11 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   final http.Client _client;
 
   static const _timeout = Duration(seconds: 15);
+
+  @override
+  Future<DriverProfile> ensureDriverProfile() async => DriverProfile.fromJson(
+    await _send('POST', 'v1/driver/ensure-profile'),
+  );
 
   @override
   Future<DriverProfile> fetchDriverProfile() async =>
@@ -229,6 +259,10 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   }
 
   @override
+  Future<void> endShift(String shiftId) async =>
+      _send('POST', 'v1/shift/${Uri.encodeComponent(shiftId)}/end');
+
+  @override
   Future<void> sendLocationPing(LocationPing ping) async =>
       _send('POST', 'v1/locations/ping', body: ping.toJson());
 
@@ -240,6 +274,29 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
     );
     if (body['status'] == 'processing') return null;
     return ShiftReport.fromJson(body);
+  }
+
+  @override
+  Future<Map<String, String>> fetchDriverPreferences() async {
+    final body = await _send('GET', 'v1/driver/preferences');
+    if (body['preferences'] case final Map<String, dynamic> raw) {
+      return raw.map((key, value) => MapEntry(key, value.toString()));
+    }
+    return const {};
+  }
+
+  @override
+  Future<void> setDriverPreference(String key, Object value) async {
+    await _send(
+      'PUT',
+      'v1/driver/preferences/${Uri.encodeComponent(key)}',
+      body: {'value': value},
+    );
+  }
+
+  @override
+  Future<void> clearDriverPreference(String key) async {
+    await _send('DELETE', 'v1/driver/preferences/${Uri.encodeComponent(key)}');
   }
 
   Future<Map<String, dynamic>> _send(
@@ -288,8 +345,8 @@ class HttpVoiceOpsApi implements VoiceOpsApi {
   }
 
   static const _offlineMessage =
-      "Can't reach VoiceOps right now. Check your connection and try again.";
+      "Can't reach Kora right now. Check your connection and try again.";
   static const _timeoutMessage =
-      'VoiceOps is taking longer than usual. Try again in a moment.';
-  static const _serverMessage = 'VoiceOps had a problem. Try again.';
+      'Kora is taking longer than usual. Try again in a moment.';
+  static const _serverMessage = 'Kora had a problem. Try again.';
 }

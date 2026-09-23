@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// VoiceOps design tokens — the single source for every colour, spacing,
+/// Kora design tokens — the single source for every colour, spacing,
 /// radius, size, duration and text style. Widgets reference these; they
 /// never hardcode a value. Authority: CLAUDE.md § Design System and
 /// `.firstmate/rules/frontend.md`. Dark-mode-first.
@@ -40,6 +40,8 @@ class KoraColors {
   static const textPrimary = Color(0xFFF4F1FF);
   static const textMuted = Color(0xFFA7A1C4);
   static const textFaint = Color(0xFF7C7797); // ≥4.5:1 on canvas
+  static const taskReasoningActive = Color(0x99F4F1FF); // on-surface @ 60%
+  static const taskReasoningDone = Color(0xB3F4F1FF); // on-surface @ 70%
   static const onPrimary = Color(0xFFFFFFFF);
   static const onAccent = canvas; // dark ink on pastel accents
 
@@ -215,6 +217,7 @@ class KoraSize {
   static const taskCardBottom = 140.0;
   static const taskStatus = 22.0;
   static const taskStatusStroke = 2.0;
+  static const taskReasoningExpandedMaxHeight = 120.0;
 
   /// Height of buttons and single-line controls.
   static const control = 52.0;
@@ -222,11 +225,6 @@ class KoraSize {
   /// Push-to-talk diameter. Never below [pushToTalkMin] (frontend rules).
   static const pushToTalk = 88.0;
   static const pushToTalkMin = 80.0;
-
-  /// Main driver-screen map preview heights. The compact height keeps the
-  /// operational cards reachable on short phones without crowding the orb.
-  static const mapPreview = 288.0;
-  static const mapPreviewCompact = 224.0;
 
   /// Co-rider orb sizes. [orbOnboarding] is the Hook screen's waking orb;
   /// [orbVoice] is the active co-rider on the driver screen, and the welcome
@@ -303,6 +301,13 @@ class KoraMotion {
   static const base = Duration(milliseconds: 250);
   static const slow = Duration(milliseconds: 400);
 
+  /// Map motion is intentionally paced by intent: framing the whole route
+  /// gets a cinematic beat, while following a live driver stays responsive.
+  static const routeReveal = Duration(milliseconds: 900);
+  static const routeCamera = Duration(milliseconds: 850);
+  static const followCamera = Duration(milliseconds: 550);
+  static const markerGlide = Duration(milliseconds: 180);
+
   /// Co-rider orb morph between agent states.
   static const orbMorph = Duration(milliseconds: 600);
 
@@ -326,7 +331,13 @@ class KoraMotion {
   /// Keep completed reasoning visible long enough to notice and inspect.
   static const taskReasoningCompleteHold = Duration(seconds: 8);
 
-  /// Return task reasoning to its glanceable one-line state.
+  /// Bring active reasoning in without flashing during rapid step updates.
+  static const taskReasoningFadeIn = fast;
+
+  /// Smoothly reveal or fold a completed step's result explanation.
+  static const taskReasoningResize = Duration(milliseconds: 200);
+
+  /// Return task reasoning to its glanceable collapsed state.
   static const taskReasoningExpanded = Duration(seconds: 30);
 
   /// Order-offer countdown refresh. The server remains authoritative for
@@ -429,7 +440,7 @@ class KoraText {
   static final numericCompact = numeric.copyWith(fontSize: 22);
 }
 
-ThemeData buildVoiceOpsTheme() {
+ThemeData buildKoraTheme() {
   // `live` is deliberately absent from the ColorScheme so no Material
   // component can pick it up as an accent.
   final colorScheme = ColorScheme.fromSeed(

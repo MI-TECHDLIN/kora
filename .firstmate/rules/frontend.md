@@ -11,13 +11,13 @@ frontend task.
   GetX, or setState for shared state.
 - **Routing:** go_router. All routes declared in one router file
   (`lib/app/router.dart`).
-- **Map:** `flutter_map` + OpenFreeMap vector tiles (`vector_map_tiles`),
-  no API key. Never `google_maps_flutter`
+- **Map:** `maplibre_gl` rendering OpenFreeMap vector tiles, no API key.
+  Never `flutter_map`, `vector_map_tiles`, or `google_maps_flutter`
 - **Realtime:** `web_socket_channel`
 - **Icons:** `tabler_icons_plus` — never emoji, never Material icons for
   stat cards
 - **Type:** `google_fonts` (Plus Jakarta Sans)
-- **Co-rider:** `rive`, for the planned `.riv` swap-in
+- **Co-rider:** `rive`, plays the co-rider `.riv`
 - **Auth / data:** `supabase_flutter`
 - **Audio out:** `just_audio`, **Audio in:** `record`, **Location:**
   `geolocator`
@@ -40,14 +40,14 @@ to match.
 - **Orb materials:** holographic bubble orb in onboarding,
   chrome/mercury orb in the main app. These are two distinct moods; do
   not unify them.
-- **Mascot implementation:** an orb placeholder (`MascotDisplay`) for now.
-  A Rive `.riv` swap-in comes later per SDD §6.1 and touches only that
-  widget.
+- **Mascot implementation:** `MascotDisplay` plays
+  `assets/rive/corider.riv` and falls back to a drawn orb if it cannot
+  load. Ez authors the `.riv` files; do not edit them.
 
 Design tokens live in a single tokens file
 (`lib/core/theme/tokens.dart`, summarised in SDD §8). Never hardcode a
 colour, spacing value, or font size in a widget — reference the token.
-Lime (`VoiceOpsColors.live`) is reserved for the mic-hot state.
+Lime (`KoraColors.live`) is reserved for the mic-hot state.
 
 ---
 

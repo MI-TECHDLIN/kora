@@ -24,7 +24,7 @@ void main() {
   late FakeVoicePreviewPlayer player;
   late FakeVoiceConnector connector;
   late FakeRecorder recorder;
-  late FakeVoiceOpsApi api;
+  late FakeKoraApi api;
   late FakeCoRiderVoiceStore store;
   late FakeVoiceOnboardingStore onboardingStore;
   late ProviderContainer container;
@@ -34,7 +34,7 @@ void main() {
     player = FakeVoicePreviewPlayer();
     connector = FakeVoiceConnector();
     recorder = FakeRecorder();
-    api = FakeVoiceOpsApi();
+    api = FakeKoraApi();
     store = FakeCoRiderVoiceStore();
     onboardingStore = FakeVoiceOnboardingStore();
     fileReads = 0;
@@ -74,7 +74,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: Scaffold(body: screen),
         ),
       ),

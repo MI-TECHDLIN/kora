@@ -35,17 +35,21 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   flutter_riverpod: ^2.5.1
   rive: ^0.14.11
-  # Map: flutter_map + OpenFreeMap vector tiles (no API key, no billing).
-  # vector_map_tiles renders the vector tiles; 8.x is its stable line and
-  # pins flutter_map to 7.x.
-  flutter_map: ^7.0.2
-  vector_map_tiles: ^8.0.0
+  # Map: MapLibre Native (GPU vector rendering) + OpenFreeMap tiles (no API
+  # key, no billing; OpenFreeMap is MapLibre's own reference tile source, so
+  # the style URLs in map_style_provider.dart are unchanged). maplibre_gl,
+  # not the newer `maplibre` package: `maplibre` requires Flutter >=3.44.0 /
+  # Dart ^3.12.0, above this project's pinned Dart ^3.11.5 floor. Keep this
+  # exact pin: maplibre_gl 0.23+ requires JDK 21, while the project toolchain
+  # and Android Studio runtime use JDK 17.
+  maplibre_gl: 0.22.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   flutter_compass: ^0.8.1
   shared_preferences: ^2.5.5
   # record 7.x needs Flutter >= 3.44; the captain's local SDK is older.
   record: ^6.2.1
+  porcupine_flutter: ^4.0.0
   just_audio: ^0.10.5
   http: ^1.2.1
   supabase_flutter: ^2.5.6
@@ -83,6 +87,9 @@ flutter:
     - assets/rive/ # co-rider orb, played by lib/mascot/mascot_display.dart
     - assets/legal/
     - assets/audio/voice_previews/ # per-voice preview clips, see its README
+    - assets/wake/
+    - assets/wake/android/
+    - assets/wake/ios/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

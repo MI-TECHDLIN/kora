@@ -6,23 +6,22 @@ import 'package:voiceops/features/auth/data/auth_repository.dart';
 import 'package:voiceops/providers/auth_provider.dart';
 
 /// An offline stand-in for Supabase Auth: no network, no platform channels.
-/// Records every call; set [failure] or [profileFailure] to script errors.
+/// Records every call; set [failure] to script errors. Driver-row creation
+/// is a backend call now (`KoraApi.ensureDriverProfile`, see `fake_voice.dart`'s
+/// `FakeKoraApi`), not part of this fake.
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({this.signedIn = false});
 
   bool signedIn;
   SignUpResult signUpResult = SignUpResult.signedIn;
 
-  /// Thrown by the next sign-up / sign-in / Google call while set.
+  /// Thrown by the next auth call while set.
   AuthFailure? failure;
-
-  /// Thrown by [ensureDriverProfile] while set.
-  DriverProfileException? profileFailure;
 
   SignUpDetails? lastSignUp;
   ({String email, String password})? lastSignIn;
   int googleCalls = 0;
-  int profileChecks = 0;
+  int signOutCalls = 0;
 
   final _changes = StreamController<AuthChangeEvent>.broadcast();
 
@@ -32,8 +31,11 @@ class FakeAuthRepository implements AuthRepository {
     _changes.add(AuthChangeEvent.signedIn);
   }
 
-  /// The session ends, as on sign-out.
-  void signOut() {
+  /// The session ends and Supabase's signed-out event reaches every listener.
+  @override
+  Future<void> signOut() async {
+    signOutCalls++;
+    _failIfScripted();
     signedIn = false;
     _changes.add(AuthChangeEvent.signedOut);
   }
@@ -70,12 +72,6 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> signInWithGoogle() async {
     googleCalls++;
     _failIfScripted();
-  }
-
-  @override
-  Future<void> ensureDriverProfile() async {
-    profileChecks++;
-    if (profileFailure case final f?) throw f;
   }
 }
 

@@ -3,6 +3,10 @@
 **For:** Maria (backend owner) - **From:** Ez / Firstmate - **Date:** 2026-09-19
 **Status:** proposal. No backend code changed. Review together before building.
 
+> **Status update (2026-09-21, checked against `staging`):** the 11 clips are now committed as
+> `frontend/assets/audio/voice_previews/<voice>.mp3` (commit `2d51693`), so the "no clip has ever been
+> committed" claim below no longer holds. The rest of this note is the original rationale.
+
 ## What is missing and why it matters
 
 The onboarding voice step and the Settings voice picker have a "hear this voice" button. It plays

@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/app/router.dart';
+import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/audio/voice_recorder.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/core/widgets/primary_button.dart';
@@ -36,6 +37,12 @@ import 'test_fonts.dart';
 void main() {
   setUpAll(disableGoogleFontsFetching);
 
+  // The driver-row-confirmation flow (DriverProfileNotice) sits above every
+  // route KoraApp renders, so every pumpApp call below runs it against this
+  // fake — a real koraApiProvider would otherwise reach for the network.
+  late FakeKoraApi api;
+  setUp(() => api = FakeKoraApi());
+
   // The co-rider and background animate forever, so step time explicitly
   // instead of pumpAndSettle.
   Future<void> settle(WidgetTester tester) async {
@@ -47,12 +54,15 @@ void main() {
   /// view, against a fake Supabase: nothing touches the network. Onboarding
   /// comes before the gate, so it starts already completed unless
   /// [onboarded] is false (test/onboarding_test.dart covers each screen).
+  /// [signedIn] simulates a restored session already live when the app
+  /// launches, as opposed to an interactive sign-in during the test.
   Future<FakeAuthRepository> pumpApp(
     WidgetTester tester, {
     Size logical = phone,
     bool onboarded = true,
+    bool signedIn = false,
   }) async {
-    final auth = FakeAuthRepository();
+    final auth = FakeAuthRepository(signedIn: signedIn);
     tester.view.physicalSize = logical * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -60,6 +70,7 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
+          koraApiProvider.overrideWithValue(api),
           onboardingCompletedAtLaunchProvider.overrideWithValue(onboarded),
           onboardingStoreProvider.overrideWithValue(
             FakeOnboardingStore(completed: onboarded),
@@ -258,7 +269,7 @@ void main() {
     );
     await settle(tester);
     expect(
-      find.text('VoiceOps — Privacy Policy', findRichText: true),
+      find.text('Kora — Privacy Policy', findRichText: true),
       findsOneWidget,
     );
     expect(
@@ -289,7 +300,7 @@ void main() {
 
     await tap(tester, find.text('Continue'));
     expect(find.byType(MainShell), findsOneWidget);
-    expect(auth.profileChecks, 1);
+    expect(api.ensureProfileCalls, 1);
   });
 
   testWidgets('the terms link opens the matching bundled document', (
@@ -319,12 +330,12 @@ void main() {
     );
     await settle(tester);
     expect(
-      find.text('VoiceOps — Terms of Service', findRichText: true),
+      find.text('Kora — Terms of Service', findRichText: true),
       findsOneWidget,
     );
     expect(
       find.textContaining(
-        'VoiceOps is a voice-driven delivery driver assistant',
+        'Kora is a voice-driven delivery driver assistant',
         findRichText: true,
       ),
       findsOneWidget,
@@ -340,8 +351,7 @@ void main() {
   testWidgets('sign up waiting on email confirmation stays signed out', (
     tester,
   ) async {
-    final auth = await pumpApp(tester)
-      ..signUpResult = SignUpResult.confirmEmail;
+    (await pumpApp(tester)).signUpResult = SignUpResult.confirmEmail;
     await tap(tester, find.text('Get started'));
     await fillSignUp(tester);
     await tap(tester, find.byType(Checkbox));
@@ -350,7 +360,7 @@ void main() {
     expect(find.text('Check your inbox'), findsOneWidget);
     expect(find.textContaining('ada@voiceops.test'), findsOneWidget);
     expect(find.byType(MainShell), findsNothing);
-    expect(auth.profileChecks, 0);
+    expect(api.ensureProfileCalls, 0);
 
     await tap(tester, find.text('Go to sign in'));
     expect(find.byType(SignInScreen), findsOneWidget);
@@ -403,37 +413,58 @@ void main() {
     );
   });
 
-  testWidgets('a drivers row that cannot be created is reported, not hidden', (
-    tester,
-  ) async {
-    final logs = <String>[];
-    final originalDebugPrint = debugPrint;
-    debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
+  testWidgets(
+    'a drivers row that cannot be confirmed is reported persistently, with a working retry',
+    (tester) async {
+      final logs = <String>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
 
-    const failure = DriverProfileException(
-      "You're signed in, but your driver profile couldn't be set up yet.",
-      detail: 'drivers INSERT rejected by RLS (no INSERT policy)',
-    );
-    final auth = await pumpApp(tester)
-      ..profileFailure = failure;
-    await tap(tester, toSignIn);
-    await enter(tester, 'Email', 'ada@voiceops.test');
-    await enter(tester, 'Password', 'correct-horse');
-    await tap(tester, signIn);
-    debugPrint = originalDebugPrint; // must be restored inside the test body
+      const failure = ApiException(
+        "You're signed in, but your driver profile couldn't be set up yet.",
+        statusCode: 500,
+      );
+      api.ensureProfileFailure = failure;
+      await pumpApp(tester);
+      await tap(tester, toSignIn);
+      await enter(tester, 'Email', 'ada@voiceops.test');
+      await enter(tester, 'Password', 'correct-horse');
+      await tap(tester, signIn);
 
-    // Auth itself succeeded, so the driver moves on…
-    expect(find.byType(MainShell), findsOneWidget);
-    // …but the missing profile is on screen and in the log.
-    expect(find.text(failure.message), findsOneWidget);
-    expect(auth.profileChecks, 1);
-    expect(logs, contains(contains(failure.detail)));
+      // Auth itself succeeded, so the driver moves on…
+      expect(find.byType(MainShell), findsOneWidget);
+      // …but the missing profile is on screen — persistently, not a
+      // one-shot SnackBar — and in the log.
+      expect(find.text(failure.message), findsOneWidget);
+      expect(api.ensureProfileCalls, 1);
+      expect(logs, contains(contains(failure.message)));
 
-    // Let the notice time out so no timer outlives the test.
-    await tester.pump(KoraMotion.notice);
-    await settle(tester);
-    expect(find.text(failure.message), findsNothing);
-  });
+      // Unlike the old SnackBar, waiting does not dismiss it.
+      await tester.pump(KoraMotion.notice);
+      await settle(tester);
+      expect(find.text(failure.message), findsOneWidget);
+      debugPrint = originalDebugPrint;
+
+      // Tapping Retry re-runs ensure-profile; once it succeeds, the banner
+      // clears without any further driver action.
+      api.ensureProfileFailure = null;
+      await tap(tester, find.byKey(const Key('driver-profile-retry')));
+      expect(api.ensureProfileCalls, 2);
+      expect(find.text(failure.message), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a restored session confirms the driver row without a fresh sign-in',
+    (tester) async {
+      await pumpApp(tester, signedIn: true);
+
+      // No sign-in happened in this test — the session was already live
+      // when the provider was created, as on a plain app restart.
+      expect(find.byType(MainShell), findsOneWidget);
+      expect(api.ensureProfileCalls, 1);
+    },
+  );
 
   for (final size in [const Size(320, 568), phone]) {
     testWidgets('auth screens lay out at $size without overflow', (

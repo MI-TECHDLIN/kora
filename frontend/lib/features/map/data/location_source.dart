@@ -31,9 +31,9 @@ class LocationUnavailable implements Exception {
     LocationProblem.serviceOff =>
       'Location is off. Turn it on to see where you are.',
     LocationProblem.denied =>
-      'VoiceOps needs your location to show you on the map.',
+      'Kora needs your location to show you on the map.',
     LocationProblem.deniedForever =>
-      'Location is blocked for VoiceOps. Allow it in Settings.',
+      'Location is blocked for Kora. Allow it in Settings.',
     LocationProblem.unavailable => "Can't find your location right now.",
   };
 

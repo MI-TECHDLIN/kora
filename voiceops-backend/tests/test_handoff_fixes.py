@@ -24,7 +24,7 @@ def test_lemur_fallback_honest_sentiment():
     # Transcript mentions Lavaca St and an incident, but NOT Lagos
     transcript = (
         "Driver: Next stop.\n"
-        "VoiceOps Assistant: Stop 1 is Lavaca St.\n"
+        "Kora: Stop 1 is Lavaca St.\n"
         "Driver: There is a lot of traffic on Lavaca St and the gate is locked.\n"
     )
     result = pipeline._fallback_nlp_analysis(transcript, shift_stats, deliveries=deliveries)

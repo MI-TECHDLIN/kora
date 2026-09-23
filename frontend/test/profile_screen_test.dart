@@ -8,10 +8,14 @@ import 'package:http/testing.dart';
 import 'package:voiceops/app/main_shell.dart';
 import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/theme/tokens.dart';
+import 'package:voiceops/features/auth/screens/welcome_screen.dart';
 import 'package:voiceops/features/profile/screens/profile_screen.dart';
 import 'package:voiceops/features/voice/screens/voice_screen.dart';
 import 'package:voiceops/main.dart';
+import 'package:voiceops/providers/auth_provider.dart';
 import 'package:voiceops/providers/onboarding_provider.dart';
+import 'package:voiceops/providers/shift_provider.dart';
+import 'package:voiceops/providers/voice_session_provider.dart';
 
 import 'fake_auth.dart';
 import 'fake_voice.dart';
@@ -28,11 +32,11 @@ void main() {
     await tester.pump(KoraMotion.slow * 2);
   }
 
-  late FakeVoiceOpsApi api;
+  late FakeKoraApi api;
   late FakeCompanyConnectionStore connections;
 
   setUp(() {
-    api = FakeVoiceOpsApi(
+    api = FakeKoraApi(
       profile: DriverProfile(
         id: 'driver-1',
         name: 'Ada Obi',
@@ -55,7 +59,7 @@ void main() {
           ...offlineOverrides(api: api, companyConnectionStore: connections),
         ],
         child: MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: const Scaffold(body: ProfileScreen()),
         ),
       ),
@@ -95,10 +99,7 @@ void main() {
     addTearDown(container.dispose);
     container.read(onboardingProvider.notifier).complete();
     await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const KoraApp(),
-      ),
+      UncontrolledProviderScope(container: container, child: const KoraApp()),
     );
     await settle(tester);
     expect(find.byType(VoiceScreen), findsOneWidget);
@@ -125,6 +126,77 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'sign out confirms, clears the active session and shift, then shows welcome',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      final auth = FakeAuthRepository(signedIn: true);
+      final connector = FakeVoiceConnector();
+      final recorder = FakeRecorder();
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(auth),
+          onboardingCompletedAtLaunchProvider.overrideWithValue(true),
+          ...offlineOverrides(
+            connector: connector,
+            recorder: recorder,
+            api: api,
+            companyConnectionStore: connections,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const KoraApp()),
+      );
+      await settle(tester);
+
+      await container.read(voiceSessionProvider.notifier).startConversation();
+      await tester.pump();
+      expect(container.read(shiftProvider), 'shift-1');
+      expect(
+        container.read(voiceSessionProvider).connection,
+        VoiceConnection.connected,
+      );
+      expect(connector.last.closedByClient, isFalse);
+
+      await tester.tap(find.byKey(const Key('profile-button')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('profile-sign-out')));
+      await tester.tap(find.byKey(const Key('profile-sign-out')));
+      await tester.pump();
+      expect(find.text('Sign out?'), findsOneWidget);
+
+      // Dismissing the destructive confirmation leaves everything intact.
+      await tester.tap(find.byKey(const Key('profile-sign-out-cancel')));
+      await tester.pump();
+      expect(auth.signOutCalls, 0);
+      expect(container.read(shiftProvider), 'shift-1');
+      expect(find.byType(ProfileScreen), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('profile-sign-out')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('profile-sign-out-confirm')));
+      await settle(tester);
+
+      expect(auth.signOutCalls, 1);
+      expect(auth.hasValidSession, isFalse);
+      expect(connector.last.closedByClient, isTrue);
+      expect(
+        container.read(voiceSessionProvider).connection,
+        VoiceConnection.disconnected,
+      );
+      expect(container.read(shiftProvider), isNull);
+      expect(find.byType(ProfileScreen), findsNothing);
+      expect(find.byType(WelcomeScreen), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('shows loading, then details with a read-only phone', (
     tester,
@@ -181,11 +253,11 @@ void main() {
   });
 
   testWidgets('a failed load offers a retry', (tester) async {
-    api.profileFailure = const ApiException("Can't reach VoiceOps right now.");
+    api.profileFailure = const ApiException("Can't reach Kora right now.");
     await pumpProfile(tester);
     await tester.pump();
     expect(find.byKey(const Key('profile-error')), findsOneWidget);
-    expect(find.text("Can't reach VoiceOps right now."), findsOneWidget);
+    expect(find.text("Can't reach Kora right now."), findsOneWidget);
 
     api.profileFailure = null;
     await tester.tap(find.text('Retry'));
@@ -229,16 +301,14 @@ void main() {
       findsOneWidget,
     );
 
-    api.updateFailure = const ApiException(
-      'VoiceOps had a problem. Try again.',
-    );
+    api.updateFailure = const ApiException('Kora had a problem. Try again.');
     await enter(tester, 'profile-name', 'Ada O.');
     await tapKey(tester, 'profile-save');
     expect(api.nameUpdates, ['Ada O.']);
     expect(
       find.descendant(
         of: find.byKey(const Key('profile-save-result')),
-        matching: find.text('VoiceOps had a problem. Try again.'),
+        matching: find.text('Kora had a problem. Try again.'),
       ),
       findsOneWidget,
     );
@@ -297,8 +367,8 @@ void main() {
     expect(find.text('Linked 10 September 2026'), findsOneWidget);
   });
 
-  group('HttpVoiceOpsApi', () {
-    HttpVoiceOpsApi apiWith(MockClientHandler handler) => HttpVoiceOpsApi(
+  group('HttpKoraApi', () {
+    HttpKoraApi apiWith(MockClientHandler handler) => HttpKoraApi(
       baseUri: Uri.parse('https://api.voiceops.test'),
       auth: FakeAuthRepository(signedIn: true),
       client: MockClient(handler),

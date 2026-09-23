@@ -3,9 +3,12 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 from app.dependencies import get_current_driver
-from app.db.queries import get_driver_by_id
+from app.db.queries import get_driver_by_id, create_driver_profile
 from app.db.client import get_supabase_client
 from app.integrations.n8n_client import trigger_driver_onboarding_background
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -23,7 +26,7 @@ class OnboardDriverRequest(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     vehicle_type: Optional[str] = None
-    operator_name: Optional[str] = "VoiceOps"
+    operator_name: Optional[str] = "Kora"
 
 
 class ConnectPlatformRequest(BaseModel):
@@ -32,16 +35,70 @@ class ConnectPlatformRequest(BaseModel):
     credentials: Optional[dict] = None
 
 
+@router.post("/ensure-profile")
+async def ensure_profile(current_user: dict = Depends(get_current_driver)):
+    """
+    Idempotently create the signed-in driver's `drivers` row if it doesn't exist yet.
+    Safe to call on every sign-in and session restore (kora-full-audit report §2.1).
+
+    Runs with the service-role Supabase client, so creation succeeds regardless of the
+    anon-key RLS INSERT policy state. Phone comes from Supabase Auth user_metadata when
+    present; Google sign-in never sets one, and drivers.phone is nullable so that no
+    longer blocks account setup.
+    """
+    driver_id = current_user["id"]
+    existing = await get_driver_by_id(driver_id)
+    if existing:
+        return existing
+
+    metadata = current_user.get("user_metadata") or {}
+    phone = metadata.get("phone") or current_user.get("phone")
+    name = metadata.get("full_name") or metadata.get("name")
+    return await create_driver_profile(driver_id, phone=phone, name=name)
+
+
 @router.get("/profile")
 async def get_profile(current_user: dict = Depends(get_current_driver)):
-    """Get current driver profile."""
-    driver = await get_driver_by_id(current_user["id"])
-    if not driver:
+    """Get current driver profile with enhanced data loading and error handling."""
+    try:
+        driver = await get_driver_by_id(current_user["id"])
+        if not driver:
+            logger.warning(f"[Driver Profile] Profile not found for user: {current_user.get('id')}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Driver profile not found"
+            )
+        
+        # Ensure all expected fields are present with defaults
+        profile = {
+            "id": driver.get("id"),
+            "name": driver.get("name") or driver.get("full_name") or "Driver",
+            "full_name": driver.get("full_name") or driver.get("name") or "Driver",
+            "email": driver.get("email") or current_user.get("email", ""),
+            "phone": driver.get("phone") or "",
+            "vehicle_type": driver.get("vehicle_type") or "vehicle",
+            "created_at": driver.get("created_at"),
+            "updated_at": driver.get("updated_at"),
+            "connect_code": driver.get("connect_code"),
+            "platform": driver.get("platform"),
+        }
+        
+        # Add any additional fields that might exist
+        for key, value in driver.items():
+            if key not in profile:
+                profile[key] = value
+        
+        logger.info(f"[Driver Profile] Successfully loaded profile for driver: {profile.get('id')}")
+        return profile
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Driver Profile] Error loading profile: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Driver profile not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load profile: {str(e)}"
         )
-    return driver
 
 
 @router.put("/profile")
@@ -83,6 +140,27 @@ async def update_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update profile: {str(e)}"
+        )
+
+
+@router.post("/signout")
+async def sign_out(current_user: dict = Depends(get_current_driver)):
+    """Sign out current driver and clear session."""
+    try:
+        # In a real implementation, this would invalidate the JWT token
+        # For now, we'll return success and let the frontend handle session clearing
+        logger.info(f"[Driver Sign Out] Driver {current_user.get('id')} signing out")
+        
+        return {
+            "success": True,
+            "message": "Signed out successfully",
+            "redirect_to": "/welcome"
+        }
+    except Exception as e:
+        logger.error(f"[Driver Sign Out] Error during sign out: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to sign out: {str(e)}"
         )
 
 
@@ -171,7 +249,7 @@ async def onboard_driver(
 
     # Defaults for onboarding
     driver_id = driver_id or f"drv_{int(datetime.now(timezone.utc).timestamp())}"
-    driver_name = driver_name or "VoiceOps Driver"
+    driver_name = driver_name or "Kora Driver"
 
     # Fire-and-forget onboarding trigger
     trigger_driver_onboarding_background(
@@ -180,7 +258,7 @@ async def onboard_driver(
         phone=phone,
         email=email,
         vehicle_type=vehicle_type,
-        operator_name=request.operator_name or "VoiceOps"
+        operator_name=request.operator_name or "Kora"
     )
 
     return {

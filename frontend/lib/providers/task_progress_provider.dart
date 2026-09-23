@@ -14,6 +14,7 @@ class TaskStep {
   });
 
   static const reasoningMaxLength = 140;
+  static const reasoningExpansionHintLength = 100;
 
   final String label;
   final TaskStepStatus status;

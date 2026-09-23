@@ -69,10 +69,13 @@ async def call_customer(parameters: dict, context: dict) -> dict:
     """
     Call the customer via Twilio Voice API.
     Trigger phrases: "call the customer", "ring the customer", "call them"
+    
+    Checks driver preferences for never_call_customer and always_call_before_delivery.
     """
     try:
         delivery_id = parameters.get("delivery_id")
         message = parameters.get("message", "Your delivery driver is calling regarding your delivery.")
+        driver_id = context.get("driver_id")
 
         customer_phone, customer_name, resolved_del_id = await _resolve_customer_info(delivery_id, context)
 
@@ -81,6 +84,31 @@ async def call_customer(parameters: dict, context: dict) -> dict:
                 "success": False,
                 "error": "No customer phone number on file for this delivery."
             }
+
+        # Check driver preferences
+        if driver_id:
+            from app.services.preference_service import preference_service
+            preferences = await preference_service.get_preferences(driver_id)
+            
+            # If never_call_customer is set, reject the call
+            if preferences.get("never_call_customer") == "true":
+                logger.info(
+                    "[Tool:call_customer] call_rejected_by_preference driver_id=%s "
+                    "preference=never_call_customer",
+                    driver_id,
+                )
+                return {
+                    "success": False,
+                    "error": "Cannot call customer: never-call preference is enabled."
+                }
+            
+            # Log if always_call_before_delivery is set (informational)
+            if preferences.get("always_call_before_delivery") == "true":
+                logger.info(
+                    "[Tool:call_customer] call_enabled_by_preference driver_id=%s "
+                    "preference=always_call_before_delivery",
+                    driver_id,
+                )
 
         # Simulated customer call demo (demo-only, no real calls)
         if settings.demo_simulated_customer:
@@ -172,11 +200,14 @@ async def notify_customer(parameters: dict, context: dict) -> dict:
     """
     Send SMS notification to customer via Twilio.
     Trigger phrases: "message the customer", "tell customer I'm close", "send ETA", "I'm 5 minutes away"
+    
+    Checks driver preferences for always_send_sms.
     """
     try:
         delivery_id = parameters.get("delivery_id")
         message_type = parameters.get("message_type")
         custom_message = parameters.get("custom_message", "")
+        driver_id = context.get("driver_id")
 
         customer_phone, customer_name, resolved_del_id = await _resolve_customer_info(delivery_id, context)
 
@@ -185,6 +216,20 @@ async def notify_customer(parameters: dict, context: dict) -> dict:
                 "success": False,
                 "error": "No customer phone number on file for this delivery."
             }
+
+        # Check driver preferences
+        if driver_id:
+            from app.services.preference_service import preference_service
+            preferences = await preference_service.get_preferences(driver_id)
+            
+            # If always_send_sms is not set and this is an automatic call, skip it
+            # (This would be determined by the caller - for now we log the preference)
+            if preferences.get("always_send_sms") == "true":
+                logger.info(
+                    "[Tool:notify_customer] sms_enabled_by_preference driver_id=%s "
+                    "preference=always_send_sms",
+                    driver_id,
+                )
 
         # Build message based on type
         message_templates = {

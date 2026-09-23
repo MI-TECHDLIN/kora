@@ -27,7 +27,7 @@ final shiftReportPollingConfigProvider = Provider<ShiftReportPollingConfig>(
 /// to the Summary tab after a new summary refetches; `ref.invalidate` retries.
 final shiftReportProvider = FutureProvider.autoDispose
     .family<ShiftReport?, String>((ref, shiftId) async {
-      final api = ref.watch(voiceOpsApiProvider);
+      final api = ref.watch(koraApiProvider);
       final config = ref.watch(shiftReportPollingConfigProvider);
       var disposed = false;
       ref.onDispose(() => disposed = true);

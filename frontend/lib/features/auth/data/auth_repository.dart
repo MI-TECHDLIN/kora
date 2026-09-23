@@ -38,17 +38,6 @@ class AuthFailure implements Exception {
   String toString() => 'AuthFailure: $message';
 }
 
-/// The Supabase Auth account is fine, but the driver's `drivers` row could
-/// not be created. [message] is for the driver; [detail] is for developers.
-class DriverProfileException implements Exception {
-  const DriverProfileException(this.message, {required this.detail});
-  final String message;
-  final String detail;
-
-  @override
-  String toString() => 'DriverProfileException: $detail';
-}
-
 /// Email + password and Google auth, straight against Supabase Auth. The
 /// backend's phone-OTP routes (`/v1/auth/otp/*`) are a separate path and are
 /// not used here.
@@ -72,9 +61,8 @@ abstract interface class AuthRepository {
   /// the [SupabaseConfig.authRedirectUrl] deep link, as a [changes] event.
   Future<void> signInWithGoogle();
 
-  /// Creates the signed-in user's `drivers` row from their sign-up metadata
-  /// if it does not exist yet. Throws [DriverProfileException] on failure.
-  Future<void> ensureDriverProfile();
+  /// Clears the Supabase session and emits [AuthChangeEvent.signedOut].
+  Future<void> signOut();
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -124,6 +112,9 @@ class SupabaseAuthRepository implements AuthRepository {
       _guard(() => _auth.signInWithPassword(email: email, password: password));
 
   @override
+  Future<void> signOut() => _guard(() => _auth.signOut());
+
+  @override
   Future<void> signInWithGoogle() async {
     final launched = await _guard(
       () =>
@@ -133,63 +124,6 @@ class SupabaseAuthRepository implements AuthRepository {
       throw const AuthFailure("Couldn't open Google sign-in. Try again.");
     }
   }
-
-  @override
-  Future<void> ensureDriverProfile() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-    final drivers = _client.from('drivers');
-    final metadata = user.userMetadata ?? const {};
-
-    final existing = await _profileCall(
-      () => drivers.select('id').eq('id', user.id).maybeSingle(),
-    );
-    if (existing != null) return;
-
-    final phone = metadata['phone'] as String?;
-    if (phone == null || phone.isEmpty) {
-      // Google accounts never went through the sign-up form, and
-      // drivers.phone is NOT NULL.
-      throw const DriverProfileException(
-        _profileMessage,
-        detail: 'no phone in user metadata; drivers.phone is NOT NULL',
-      );
-    }
-
-    await _profileCall(
-      () => drivers.insert({
-        'id': user.id,
-        'phone': phone,
-        'name': metadata['full_name'],
-      }),
-    );
-  }
-
-  /// Runs a `drivers` query and turns every failure into a
-  /// [DriverProfileException].
-  Future<T> _profileCall<T>(Future<T> Function() call) async {
-    try {
-      return await call();
-    } on PostgrestException catch (e) {
-      throw DriverProfileException(
-        _profileMessage,
-        detail: switch (e.code) {
-          // Known gap: drivers has SELECT/UPDATE RLS policies but no INSERT
-          // policy, so the backend has to add one (or an endpoint).
-          '42501' =>
-            'drivers INSERT rejected by RLS (no INSERT policy): ${e.message}',
-          '23505' => 'phone already belongs to another driver: ${e.message}',
-          _ => 'drivers query failed (${e.code}): ${e.message}',
-        },
-      );
-    } catch (e) {
-      throw DriverProfileException(_profileMessage, detail: '$e');
-    }
-  }
-
-  static const _profileMessage =
-      "You're signed in, but your driver profile couldn't be set up yet. "
-      'Deliveries stay unavailable until it is.';
 
   /// Runs an auth call and turns every failure into an [AuthFailure].
   Future<T> _guard<T>(Future<T> Function() call) async {
@@ -216,5 +150,5 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   static const _offlineMessage =
-      "Can't reach VoiceOps right now. Check your connection and try again.";
+      "Can't reach Kora right now. Check your connection and try again.";
 }

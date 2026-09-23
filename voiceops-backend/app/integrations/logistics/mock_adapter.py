@@ -59,6 +59,7 @@ NOTES = (
     "Side entrance by the garage.",
     "Customer asked for no-contact drop-off.",
 )
+CATEGORIES = ("food", "packages", "documents", "furniture", "groceries")
 
 
 def _local_tz() -> tzinfo:
@@ -245,6 +246,14 @@ class MockAdapter(LogisticsAdapter):
             "dropoff": {"address": order_address, "latitude": latitude, "longitude": longitude},
             "time_window": {"start": start.isoformat(), "end": end.isoformat()},
             "package_count": rng.randint(1, 3),
+            "category": rng.choice(CATEGORIES),
+            "weight_kg": round(rng.uniform(0.5, 50.0), 1),
+            "dimensions": {
+                "length": round(rng.uniform(10, 100), 1),
+                "width": round(rng.uniform(10, 80), 1),
+                "height": round(rng.uniform(5, 50), 1),
+            },
+            "value": round(rng.uniform(5.0, 200.0), 2),
         }
         note = rng.choice(NOTES)
         if note:

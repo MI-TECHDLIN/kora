@@ -466,6 +466,124 @@ def test_accept_puts_the_order_on_the_drivers_shift_as_pending(store, adapter):
     assert "phone" not in result and "+1512" not in json.dumps(result)
 
 
+def _enable_auto_accept(monkeypatch, driver_id, max_order_distance_km=None):
+    """Make `_maybe_auto_accept` see this driver as opted in, without touching Supabase."""
+    from app.services import preference_service as preference_service_module
+    from app.services.preference_models import EnhancedPreferences
+
+    basic_prefs = {"auto_accept_orders": "true"}
+    if max_order_distance_km is not None:
+        basic_prefs["max_order_distance_km"] = max_order_distance_km
+
+    async def fake_get_preferences(for_driver_id):
+        return basic_prefs if for_driver_id == driver_id else {}
+
+    async def fake_get_enhanced_preferences(for_driver_id):
+        return EnhancedPreferences()
+
+    monkeypatch.setattr(preference_service_module.preference_service, "get_preferences", fake_get_preferences)
+    monkeypatch.setattr(preference_service_module.preference_service, "get_enhanced_preferences",
+                        fake_get_enhanced_preferences)
+
+
+def _fake_alert_service(monkeypatch):
+    """Stand in for ProactiveAlertService so a test can see what `_maybe_auto_accept` would
+    have told the driver, without a real Supabase table or voice socket."""
+    import app.services.proactive_alert_service as alert_service_module
+
+    calls = []
+
+    class FakeAlertService:
+        async def emit_voice_alert(self, **kwargs):
+            calls.append(kwargs)
+            return True
+
+    monkeypatch.setattr(alert_service_module, "ProactiveAlertService", FakeAlertService)
+    return calls
+
+
+def test_auto_accept_takes_the_order_and_announces_it_unprompted(monkeypatch, store, adapter):
+    """Captain's ask: never silent. The driver didn't ask, so the co-rider must say so out loud."""
+    calls = _fake_alert_service(monkeypatch)
+    store.add_driver(REAL)
+    _enable_auto_accept(monkeypatch, REAL["driver_id"])
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        placed = await dispatcher.ingest(make_order())
+        await dispatcher.stop()
+        return placed
+
+    placed = run(scenario())
+    row = store.delivery(placed["order_id"])
+    assert (row["shift_id"], row["status"]) == (REAL["shift_id"], "pending")  # taken, not just offered
+    assert hub.offers and hub.offers[0][0] == REAL["shift_id"]  # the offer was still shown...
+    assert hub.closed == [(REAL["shift_id"], placed["order_id"], "accepted")]  # ...then closed at once
+
+    [call] = calls
+    assert call["driver_id"] == REAL["driver_id"] and call["shift_id"] == REAL["shift_id"]
+    assert call["delivery_id"] == placed["order_id"]
+    assert "812 Lavaca St" in call["message"]  # reuses accept()'s own message, not new wording
+    assert "812 Lavaca St" in call["spoken_instructions"]
+    assert "did not ask" in call["spoken_instructions"]  # told the agent this must be unprompted
+
+
+def test_auto_accept_respects_the_drivers_max_distance_preference(monkeypatch, store, adapter):
+    """A distance cap the driver set must actually be enforced, not silently ignored."""
+    calls = _fake_alert_service(monkeypatch)
+    store.add_driver(REAL)  # ~0.5 km from make_order()'s drop-off
+    _enable_auto_accept(monkeypatch, REAL["driver_id"], max_order_distance_km="0.05")
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        placed = await dispatcher.ingest(make_order())
+        await dispatcher.stop()
+        return placed
+
+    placed = run(scenario())
+    row = store.delivery(placed["order_id"])
+    assert row["shift_id"] is None and row["status"] == "offered"  # too far: falls through to a manual offer
+    assert calls == []
+
+
+def test_auto_accepted_order_cannot_be_declined_back_to_the_pool(store, adapter):
+    """
+    Known gap (see PR description): decline_order only knows about orders still in the
+    dispatcher's offer queue. Once accepted (auto or manual) the order becomes a plain
+    delivery row and decline() can no longer find it, so it cannot be handed to another driver.
+    """
+    store.add_driver(REAL)
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        placed = await dispatcher.ingest(make_order())
+        accepted = await dispatcher.accept(REAL["driver_id"], REAL["shift_id"], placed["order_id"])
+        declined = await dispatcher.decline(REAL["driver_id"], placed["order_id"])
+        await dispatcher.stop()
+        return accepted, declined
+
+    accepted, declined = run(scenario())
+    assert accepted["success"] is True
+    assert declined == {"success": False, "error": "No order is offered to you right now."}
+
+
+def test_accepted_delivery_cannot_go_straight_to_rescheduled(store, adapter):
+    """
+    Known gap (see PR description): the delivery state machine has no `pending` -> `rescheduled`
+    transition, so a driver backing out of an auto-accepted stop must mark it `failed` first;
+    there is no one-step "give this back" action for an already-accepted order.
+    """
+    from app.services.delivery_state_machine import assert_transition
+
+    with pytest.raises(ValueError):
+        assert_transition("pending", "rescheduled")
+    assert_transition("pending", "failed")  # the actual path a driver has today
+    assert_transition("failed", "rescheduled")
+
+
 def test_accept_of_an_order_assigned_elsewhere_is_withdrawn(store, adapter):
     store.add_driver(REAL)
     hub = online(REAL)

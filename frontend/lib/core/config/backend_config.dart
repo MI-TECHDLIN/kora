@@ -1,4 +1,4 @@
-/// Where the VoiceOps FastAPI backend lives.
+/// Where the Kora FastAPI backend lives.
 ///
 /// Builds use the production Render deployment by default. Override it at
 /// compile time for local development with:

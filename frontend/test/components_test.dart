@@ -10,7 +10,7 @@ import 'package:voiceops/core/widgets/section_header.dart';
 import 'test_fonts.dart';
 
 Widget _host(Widget child) => MaterialApp(
-  theme: buildVoiceOpsTheme(),
+  theme: buildKoraTheme(),
   home: Scaffold(body: Center(child: child)),
 );
 

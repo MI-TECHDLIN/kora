@@ -1,5 +1,8 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.7 (draft), 2026-09-23. 1.7 adds `POST /v1/driver/ensure-profile`, an
+idempotent driver-row-creation endpoint (§2), and makes `drivers.phone` nullable so Google
+sign-in (which never provides one) no longer fails account setup. See "Changes in 1.7".
 **Version:** 1.6 (draft), 2026-09-21. 1.6 adds optional `reasoning` field to `task_step` event for result-backed explanations (§1).
 **Version:** 1.5 (draft), 2026-09-16. 1.5 adds co-rider voice selection via optional `voice` query parameter on `WS /ws/voice/{shift_id}` with allowlist validation and `anna` fallback (§1).
 **Version:** 1.4 (draft), 2026-09-14. 1.4 adds traffic-aware routing and proactive reroute suggestions: new `PROACTIVE_ALERT` event with `route_suggestion` field for ROUTE_DEVIATION alerts, and traffic-aware ETA integration in order offers.
@@ -343,6 +346,7 @@ match the backend README:
 
 | Method | Path | Request | Response |
 |---|---|---|---|
+| POST | `/v1/driver/ensure-profile` | none | driver row (`id, phone, name, vehicle_type, …`). Idempotent: creates it if missing, else returns the existing row unchanged. `phone` may be `null` |
 | GET | `/v1/driver/profile` | none | driver row (`id, phone, name, vehicle_type, …`) |
 | PUT | `/v1/driver/profile` | `{"name"?, "vehicle_type"?}` | updated driver row |
 | POST | `/v1/driver/connect` | `{"platform", "connect_code"?, "credentials"?}` | `{"message", "connection"}`. A 6-digit `connect_code` resolves the platform via `operator_codes` |
@@ -513,6 +517,28 @@ Additive: co-rider voice selection and report timings.
 | Shift report response optional fields (`status: "ready"`, `shift_started_at`, `shift_ended_at`) | §2 |
 
 **Frontend:** Settings co-rider voice picker passes `?voice=<voice_id>` on the voice WebSocket URI. Unrecognized or missing voices fall back to Anna on the server.
+
+---
+
+## Changes in 1.7
+
+Additive, and one shape relaxation.
+
+| Change | Where |
+|---|---|
+| `POST /v1/driver/ensure-profile` — idempotent driver-row creation | §2 |
+| `drivers.phone` is now nullable (was `NOT NULL`) | `supabase_schema.sql` |
+
+**Why:** the app's only driver-row-creation path used to run client-side against Supabase
+directly, once, on sign-in, and threw for any Google sign-in because Google never provides a
+phone number that the old code hard-required (kora-full-audit report §2.1). Driver-row
+creation now runs backend-side with the service-role client, so it succeeds regardless of the
+anon-key RLS INSERT policy, and no longer depends on OAuth metadata carrying a phone.
+
+**Frontend:** call `POST /v1/driver/ensure-profile` on every sign-in and on session restore
+(not only the `signedIn` auth event), and give the driver a persistent, retryable notice on
+failure instead of a one-shot SnackBar. `DriverProfile.phone` was already nullable in the app
+model, so no other frontend change is required to handle a driver with no phone on file.
 
 ---
 

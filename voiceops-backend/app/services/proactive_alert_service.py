@@ -61,6 +61,9 @@ class ProactiveAlertService:
         """
         logger.info(f"[AlertService] 📢 Proactive Alert [{severity.upper()}] to driver {driver_id}: {message}")
 
+        # The audit-trail write is a nice-to-have; it must never be able to silence the driver
+        # announcement below (this is the only mechanism auto-accept and other proactive
+        # alerts use to speak up, so a Supabase hiccup here must not suppress it).
         try:
             get_supabase().table("dispatcher_alerts").insert({
                 "driver_id": str(driver_id),
@@ -70,7 +73,10 @@ class ProactiveAlertService:
                 "is_critical": (severity.lower() in ["high", "critical"]),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }).execute()
+        except Exception as e:
+            logger.warning(f"[AlertService] Failed to record alert to DB: {e}")
 
+        try:
             from app.api.websocket import events
             from app.api.websocket.voice import present_proactive_alert
 
@@ -104,7 +110,7 @@ class ProactiveAlertService:
 
             return True
         except Exception as e:
-            logger.warning(f"[AlertService] Failed to record alert to DB: {e}")
+            logger.warning(f"[AlertService] Failed to push proactive alert: {e}")
             return False
 
 

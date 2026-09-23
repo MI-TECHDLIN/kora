@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../providers/home_preferences_provider.dart';
 import '../../../providers/map_style_provider.dart';
 import '../../../providers/notification_preferences_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
+import '../../../providers/wake_word_provider.dart';
+import '../widgets/auto_accept_preferences_card.dart';
 import '../widgets/co_rider_voice_picker.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
@@ -19,7 +22,9 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicleMode = ref.watch(vehicleModeProvider);
     final mapStyle = ref.watch(mapStyleProvider);
+    final homePreferences = ref.watch(homePreferencesProvider);
     final notificationPreferences = ref.watch(notificationPreferencesProvider);
+    final wakeWordEnabled = ref.watch(wakeWordEnabledProvider);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -32,6 +37,49 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Settings', style: KoraText.headline),
+            const SizedBox(height: KoraSpacing.lg),
+            Text('HOME', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            GlassCard(
+              key: const Key('home-preferences'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: KoraSpacing.lg,
+                vertical: KoraSpacing.sm,
+              ),
+              child: Column(
+                children: [
+                  _SettingsToggle(
+                    key: const Key('quick-actions-toggle'),
+                    title: 'Quick Actions',
+                    description: 'Show common voice prompts on Home',
+                    enabled: homePreferences.quickActionsEnabled,
+                    onChanged: (enabled) => ref
+                        .read(homePreferencesProvider.notifier)
+                        .setQuickActions(enabled: enabled),
+                  ),
+                  const Divider(height: KoraSpacing.sm),
+                  _SettingsToggle(
+                    key: const Key('conversation-toggle'),
+                    title: 'Conversation',
+                    description: 'Show your latest conversation on Home',
+                    enabled: homePreferences.conversationEnabled,
+                    onChanged: (enabled) => ref
+                        .read(homePreferencesProvider.notifier)
+                        .setConversation(enabled: enabled),
+                  ),
+                  const Divider(height: KoraSpacing.sm),
+                  _SettingsToggle(
+                    key: const Key('location-toggle'),
+                    title: 'Location',
+                    description: 'Show your live location status on Home',
+                    enabled: homePreferences.locationEnabled,
+                    onChanged: (enabled) => ref
+                        .read(homePreferencesProvider.notifier)
+                        .setLocation(enabled: enabled),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: KoraSpacing.lg),
             Text('YOUR VEHICLE', style: KoraText.caption),
             const SizedBox(height: KoraSpacing.sm),
@@ -91,7 +139,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  _NotificationToggle(
+                  _SettingsToggle(
                     key: const Key('proactive-alerts-toggle'),
                     title: 'Proactive alerts',
                     description: 'Traffic, reroutes, and delivery check-ins',
@@ -101,7 +149,7 @@ class SettingsScreen extends ConsumerWidget {
                         .setProactiveAlerts(enabled: enabled),
                   ),
                   const Divider(height: KoraSpacing.sm),
-                  _NotificationToggle(
+                  _SettingsToggle(
                     key: const Key('shift-summary-ready-toggle'),
                     title: 'Shift summary ready',
                     description: 'Open your report when it is ready',
@@ -111,6 +159,33 @@ class SettingsScreen extends ConsumerWidget {
                         .setShiftSummaryReady(enabled: enabled),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: KoraSpacing.lg),
+            Text('AUTO-ACCEPT ORDERS', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            GlassCard(
+              key: const Key('auto-accept-preferences'),
+              padding: const EdgeInsets.all(KoraSpacing.lg),
+              child: const AutoAcceptPreferencesCard(),
+            ),
+            const SizedBox(height: KoraSpacing.lg),
+            Text('HANDS-FREE VOICE', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            GlassCard(
+              key: const Key('wake-word-preference'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: KoraSpacing.lg,
+                vertical: KoraSpacing.sm,
+              ),
+              child: _SettingsToggle(
+                key: const Key('wake-word-toggle'),
+                title: '“Kora” wake word',
+                description: 'Say a trained Kora phrase while the app is open',
+                enabled: wakeWordEnabled,
+                onChanged: (enabled) => ref
+                    .read(wakeWordEnabledProvider.notifier)
+                    .setEnabled(enabled: enabled),
               ),
             ),
             const SizedBox(height: KoraSpacing.lg),
@@ -133,10 +208,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: KoraSpacing.lg),
-            Text(
-              'More settings are on the way.',
-              style: KoraText.bodyMuted,
-            ),
+            Text('More settings are on the way.', style: KoraText.bodyMuted),
           ],
         ),
       ),
@@ -144,8 +216,8 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _NotificationToggle extends StatelessWidget {
-  const _NotificationToggle({
+class _SettingsToggle extends StatelessWidget {
+  const _SettingsToggle({
     super.key,
     required this.title,
     required this.description,
@@ -208,22 +280,16 @@ class _Choice extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: KoraMotion.fast,
-          constraints: const BoxConstraints(
-            minHeight: KoraSize.touchTarget,
-          ),
+          constraints: const BoxConstraints(minHeight: KoraSize.touchTarget),
           padding: const EdgeInsets.symmetric(
             horizontal: KoraSpacing.md,
             vertical: KoraSpacing.sm,
           ),
           decoration: BoxDecoration(
-            color: selected
-                ? KoraColors.primaryTint
-                : KoraColors.elevated,
+            color: selected ? KoraColors.primaryTint : KoraColors.elevated,
             borderRadius: BorderRadius.circular(KoraRadius.pill),
             border: Border.all(
-              color: selected
-                  ? KoraColors.primaryLight
-                  : KoraColors.divider,
+              color: selected ? KoraColors.primaryLight : KoraColors.divider,
               width: KoraGlass.borderWidth,
             ),
           ),

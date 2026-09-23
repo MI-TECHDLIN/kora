@@ -56,7 +56,7 @@ class LemurIntelligencePipeline:
                     tool_name = tc.get("name") if isinstance(tc, dict) else str(tc)
                     lines.append(f"[Action: Executed tool '{tool_name}']")
             if agent_text.strip():
-                lines.append(f"VoiceOps Assistant: {agent_text.strip()}")
+                lines.append(f"Kora: {agent_text.strip()}")
 
         if lines:
             return "\n".join(lines)
@@ -71,20 +71,20 @@ class LemurIntelligencePipeline:
                 failure = d.get("failure_reason")
 
                 lines.append(f"Driver: What is stop {idx}?")
-                lines.append(f"VoiceOps Assistant: Stop {idx} is for {recipient} at {addr}.")
+                lines.append(f"Kora: Stop {idx} is for {recipient} at {addr}.")
                 if status == "failed":
                     lines.append(f"Driver: Unable to deliver. Reason: {failure or 'Recipient unavailable'}.")
-                    lines.append(f"VoiceOps Assistant: Delivery marked as failed. Logged exception.")
+                    lines.append(f"Kora: Delivery marked as failed. Logged exception.")
                 else:
                     lines.append(f"Driver: Package delivered to {recipient}.")
-                    lines.append(f"VoiceOps Assistant: Marked stop {idx} as delivered successfully.")
+                    lines.append(f"Kora: Marked stop {idx} as delivered successfully.")
         else:
             lines.append("Driver: Start shift. All deliveries loaded.")
-            lines.append("VoiceOps Assistant: Shift started. 12 stops planned.")
+            lines.append("Kora: Shift started. 12 stops planned.")
             lines.append("Driver: Next stop please.")
-            lines.append("VoiceOps Assistant: Stop 1 is 812 Lavaca St, Austin.")
+            lines.append("Kora: Stop 1 is 812 Lavaca St, Austin.")
             lines.append("Driver: Delivered. Next stop.")
-            lines.append("VoiceOps Assistant: Marked delivered. Proceeding to stop 2.")
+            lines.append("Kora: Marked delivered. Proceeding to stop 2.")
 
         return "\n".join(lines)
 
@@ -99,7 +99,7 @@ class LemurIntelligencePipeline:
         Falls back to specialized NLP heuristic analyzer if LeMUR endpoint is unavailable.
         """
         prompt = (
-            "You are the VoiceOps AI Fleet Analyst. Analyze the following delivery driver shift transcript.\n"
+            "You are the Kora AI Fleet Analyst. Analyze the following delivery driver shift transcript.\n"
             "Return a clean JSON object with the following fields:\n"
             "{\n"
             "  \"executive_summary\": \"A concise 2-3 sentence overview of the shift performance.\",\n"
@@ -209,7 +209,7 @@ class LemurIntelligencePipeline:
 
         recommendations = (
             "1. Pre-verify customer gate codes via automated SMS before arriving in congested zones. "
-            "2. Utilize VoiceOps traffic-aware rerouting earlier when approaching known bottlenecks. "
+            "2. Utilize Kora traffic-aware rerouting earlier when approaching known bottlenecks. "
             "3. Maintain voice assistant usage for hands-free status updates to minimize delivery dwell times."
         )
 

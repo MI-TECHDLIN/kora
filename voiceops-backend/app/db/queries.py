@@ -1,5 +1,8 @@
 from typing import Optional, Dict, List, Any
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 UUID_REGEX = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
 
@@ -15,12 +18,63 @@ def get_supabase():
 
 
 async def get_driver_by_id(driver_id: str) -> Optional[Dict[str, Any]]:
-    """Get driver by ID."""
-    supabase = get_supabase()
-    response = supabase.table("drivers").select("*").eq("id", driver_id).execute()
-    if response.data:
-        return response.data[0]
-    return None
+    """Get driver by ID with enhanced error handling and field validation."""
+    if not is_valid_uuid(driver_id):
+        logger.warning(f"[DB Queries] Invalid driver ID format: {driver_id}")
+        return None
+    
+    try:
+        supabase = get_supabase()
+        response = supabase.table("drivers").select("*").eq("id", driver_id).execute()
+        
+        if response.data:
+            driver = response.data[0]
+            # Ensure critical fields exist
+            if not driver.get("id"):
+                logger.warning(f"[DB Queries] Driver record missing ID field: {driver_id}")
+                return None
+            
+            # Normalize common field names for consistency
+            if "full_name" not in driver and "name" in driver:
+                driver["full_name"] = driver["name"]
+            if "name" not in driver and "full_name" in driver:
+                driver["name"] = driver["full_name"]
+            
+            return driver
+        else:
+            logger.warning(f"[DB Queries] Driver not found: {driver_id}")
+            return None
+    except Exception as e:
+        logger.error(f"[DB Queries] Error fetching driver {driver_id}: {e}")
+        return None
+
+
+async def create_driver_profile(
+    driver_id: str, *, phone: Optional[str] = None, name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Idempotently insert a `drivers` row for an already-authenticated Supabase user.
+
+    Runs with the service-role client (see app/db/client.py), so it is not subject to
+    the anon-key RLS INSERT policy (kora-full-audit report §2.1). `phone` is optional:
+    Google sign-in never puts one in user_metadata, and drivers.phone is nullable.
+    Safe to call concurrently — a duplicate-key error on the `id` primary key (another
+    call won the race) is treated as success, not a failure.
+    """
+    existing = await get_driver_by_id(driver_id)
+    if existing:
+        return existing
+    try:
+        response = (
+            get_supabase().table("drivers")
+            .insert({"id": driver_id, "phone": phone, "name": name})
+            .execute()
+        )
+        return response.data[0] if response.data else await get_driver_by_id(driver_id)
+    except Exception:
+        existing = await get_driver_by_id(driver_id)
+        if existing:
+            return existing
+        raise
 
 
 async def get_next_pending_delivery(shift_id: str, driver_id: str) -> Optional[Dict[str, Any]]:

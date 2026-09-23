@@ -52,7 +52,7 @@ class ExceptionWorkflowService:
         if phone:
             call_res = await make_call(
                 to_phone=phone,
-                message=f"Hello {name}, your VoiceOps delivery driver is waiting outside {address}. Please come to receive your delivery.",
+                message=f"Hello {name}, your Kora delivery driver is waiting outside {address}. Please come to receive your delivery.",
                 delivery_id=delivery_id,
                 recipient_name=name,
             )

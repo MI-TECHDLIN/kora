@@ -59,6 +59,10 @@ class OrderDetails(BaseModel):
     notes: Optional[str] = None
     time_window: Optional[OrderTimeWindow] = None
     package_count: Optional[int] = Field(None, ge=1)
+    category: Optional[str] = Field(None, max_length=50)
+    weight_kg: Optional[float] = Field(None, ge=0)
+    dimensions: Optional[dict] = None
+    value: Optional[float] = Field(None, ge=0)
 
 
 class OrderCreatedEvent(BaseModel):

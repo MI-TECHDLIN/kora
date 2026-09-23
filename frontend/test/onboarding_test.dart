@@ -358,7 +358,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: MediaQuery(
             data: MediaQueryData(
               size: size,
@@ -482,7 +482,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
-          theme: buildVoiceOpsTheme(),
+          theme: buildKoraTheme(),
           home: Scaffold(
             body: OnboardingPower(
               driverName: 'Mary',

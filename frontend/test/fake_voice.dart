@@ -14,6 +14,7 @@ import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
 import 'package:voiceops/features/summary/data/shift_report.dart';
 import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/company_connection_provider.dart';
+import 'package:voiceops/providers/home_preferences_provider.dart';
 import 'package:voiceops/providers/location_provider.dart';
 import 'package:voiceops/providers/map_style_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
@@ -22,6 +23,9 @@ import 'package:voiceops/providers/heading_provider.dart';
 import 'package:voiceops/providers/vehicle_mode_provider.dart';
 import 'package:voiceops/providers/voice_onboarding_provider.dart';
 import 'package:voiceops/providers/voice_preview_provider.dart';
+import 'package:voiceops/providers/wake_word_provider.dart';
+
+import 'fake_map_controller.dart';
 
 /// Offline stand-ins for everything the voice session and the Map tab talk
 /// to: no socket, no mic, no speaker, no HTTP, no GPS, no tiles.
@@ -154,14 +158,25 @@ class FakePlayback implements VoicePlayback {
   Future<void> dispose() async {}
 }
 
-class FakeVoiceOpsApi implements VoiceOpsApi {
-  FakeVoiceOpsApi({this.profile, this.profileFailure});
+class FakeKoraApi implements KoraApi {
+  FakeKoraApi({this.profile, this.profileFailure});
 
   DriverProfile? profile;
   ApiException? profileFailure;
   ApiException? shiftFailure;
   int profileCalls = 0;
   int shiftCalls = 0;
+
+  /// Thrown by the next [ensureDriverProfile] while set.
+  ApiException? ensureProfileFailure;
+  int ensureProfileCalls = 0;
+
+  @override
+  Future<DriverProfile> ensureDriverProfile() async {
+    ensureProfileCalls++;
+    if (ensureProfileFailure case final f?) throw f;
+    return profile ??= const DriverProfile(id: 'driver-1');
+  }
 
   /// Every GPS ping the app has posted, in order.
   final pings = <LocationPing>[];
@@ -213,6 +228,16 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     return 'shift-1';
   }
 
+  /// Every shift id sent to [endShift], in order.
+  final endShiftCalls = <String>[];
+  ApiException? endShiftFailure;
+
+  @override
+  Future<void> endShift(String shiftId) async {
+    endShiftCalls.add(shiftId);
+    if (endShiftFailure case final f?) throw f;
+  }
+
   @override
   Future<void> sendLocationPing(LocationPing ping) async {
     pings.add(ping);
@@ -233,6 +258,33 @@ class FakeVoiceOpsApi implements VoiceOpsApi {
     reportRequests.add(shiftId);
     if (reportFailure case final f?) throw f;
     return report;
+  }
+
+  /// Backs `GET`/`PUT`/`DELETE /v1/driver/preferences`, as if it were the
+  /// real `driver_preferences` table: every key voice or Settings has set.
+  final Map<String, String> preferences = {};
+  ApiException? preferencesFailure;
+
+  /// Every `(key, value)` written through [setDriverPreference], in order.
+  final preferenceWrites = <(String, Object)>[];
+
+  @override
+  Future<Map<String, String>> fetchDriverPreferences() async {
+    if (preferencesFailure case final f?) throw f;
+    return Map.of(preferences);
+  }
+
+  @override
+  Future<void> setDriverPreference(String key, Object value) async {
+    if (preferencesFailure case final f?) throw f;
+    preferenceWrites.add((key, value));
+    preferences[key] = value.toString();
+  }
+
+  @override
+  Future<void> clearDriverPreference(String key) async {
+    if (preferencesFailure case final f?) throw f;
+    preferences.remove(key);
   }
 }
 
@@ -337,6 +389,50 @@ class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
   }
 }
 
+class FakeWakeWordPreferencesStore implements WakeWordPreferencesStore {
+  FakeWakeWordPreferencesStore({this.enabled = true});
+
+  bool enabled;
+
+  @override
+  Future<bool> load() async => enabled;
+
+  @override
+  Future<void> save({required bool enabled}) async => this.enabled = enabled;
+}
+
+class FakeHomePreferencesStore implements HomePreferencesStore {
+  FakeHomePreferencesStore({
+    bool quickActionsEnabled = false,
+    bool conversationEnabled = false,
+    bool locationEnabled = false,
+  }) : value = HomePreferences(
+         quickActionsEnabled: quickActionsEnabled,
+         conversationEnabled: conversationEnabled,
+         locationEnabled: locationEnabled,
+       );
+
+  HomePreferences value;
+
+  @override
+  Future<HomePreferences> load() async => value;
+
+  @override
+  Future<void> saveQuickActions({required bool enabled}) async {
+    value = value.copyWith(quickActionsEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveConversation({required bool enabled}) async {
+    value = value.copyWith(conversationEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveLocation({required bool enabled}) async {
+    value = value.copyWith(locationEnabled: enabled);
+  }
+}
+
 /// The bundled preview clips: no just_audio, no asset bundle. A clip plays
 /// until the test calls [finish] or the app stops it.
 class FakeVoicePreviewPlayer implements VoicePreviewPlayer {
@@ -433,25 +529,28 @@ List<Override> offlineOverrides({
   FakeVoiceConnector? connector,
   FakeRecorder? recorder,
   FakePlayback? playback,
-  FakeVoiceOpsApi? api,
+  FakeKoraApi? api,
   FakeLocationSource? location,
   FakeHeadingSource? heading,
   FakeVehicleModeStore? vehicleModeStore,
   FakeMapStyleStore? mapStyleStore,
+  FakeHomePreferencesStore? homePreferencesStore,
   FakeNotificationPreferencesStore? notificationPreferencesStore,
+  FakeWakeWordPreferencesStore? wakeWordPreferencesStore,
   FakeCoRiderVoiceStore? coRiderVoiceStore,
   FakeVoicePreviewPlayer? voicePreviewPlayer,
   FakeOnboardingStore? onboardingStore,
   FakeVoiceOnboardingStore? voiceOnboardingStore,
   FakeCompanyConnectionStore? companyConnectionStore,
   bool backendConfigured = true,
+  ValueChanged<FakeKoraMapController>? onMapControllerCreated,
 }) {
   final sockets = connector ?? FakeVoiceConnector();
   return [
     backendUriProvider.overrideWithValue(
       backendConfigured ? Uri.parse('https://api.voiceops.test') : null,
     ),
-    voiceOpsApiProvider.overrideWithValue(api ?? FakeVoiceOpsApi()),
+    koraApiProvider.overrideWithValue(api ?? FakeKoraApi()),
     voiceSocketConnectorProvider.overrideWithValue(sockets.connect),
     voiceRecorderProvider.overrideWithValue(recorder ?? FakeRecorder()),
     voicePlaybackProvider.overrideWithValue(playback ?? FakePlayback()),
@@ -463,8 +562,14 @@ List<Override> offlineOverrides({
     mapStyleStoreProvider.overrideWithValue(
       mapStyleStore ?? FakeMapStyleStore(),
     ),
+    homePreferencesStoreProvider.overrideWithValue(
+      homePreferencesStore ?? FakeHomePreferencesStore(),
+    ),
     notificationPreferencesStoreProvider.overrideWithValue(
       notificationPreferencesStore ?? FakeNotificationPreferencesStore(),
+    ),
+    wakeWordPreferencesStoreProvider.overrideWithValue(
+      wakeWordPreferencesStore ?? FakeWakeWordPreferencesStore(),
     ),
     coRiderVoiceStoreProvider.overrideWithValue(
       coRiderVoiceStore ?? FakeCoRiderVoiceStore(),
@@ -472,7 +577,9 @@ List<Override> offlineOverrides({
     voicePreviewPlayerProvider.overrideWithValue(
       voicePreviewPlayer ?? FakeVoicePreviewPlayer(),
     ),
-    baseMapLayerProvider.overrideWithValue(const SizedBox.shrink()),
+    koraMapViewBuilderProvider.overrideWithValue(
+      fakeKoraMapViewBuilder(onControllerCreated: onMapControllerCreated),
+    ),
     onboardingStoreProvider.overrideWithValue(
       onboardingStore ?? FakeOnboardingStore(),
     ),

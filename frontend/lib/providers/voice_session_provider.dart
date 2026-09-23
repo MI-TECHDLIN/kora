@@ -166,7 +166,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     try {
       if (!await _recorder.ensurePermission()) {
         _setIssue(
-          'VoiceOps needs the microphone to hear you. Allow it in Settings.',
+          'Kora needs the microphone to hear you. Allow it in Settings.',
         );
         return;
       }
