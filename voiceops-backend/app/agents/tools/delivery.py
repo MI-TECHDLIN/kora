@@ -1,6 +1,6 @@
 """
 Delivery tools for VoiceOps agent — wired to live Supabase.
-Tools: get_next_delivery, update_delivery_status, log_exception, get_next_order, accept_order, decline_order, get_shift_summary
+Tools: get_next_delivery, update_delivery_status, log_exception, get_next_order, accept_order, decline_order, get_shift_summary, end_shift
 """
 import logging
 from typing import Dict, Any
@@ -501,16 +501,6 @@ async def get_shift_summary(parameters: dict, context: dict) -> dict:
             return {"success": False, "error": "No active shift found."}
 
         stats = await get_shift_stats(shift_id)
-        if not stats.get("total"):
-            stats = {
-                "total": 22,
-                "delivered": 14,
-                "failed": 2,
-                "remaining": 6,
-                "pending": 6,
-                "en_route": 0,
-                "success_rate": 87.5,
-            }
         total = stats.get("total", 0)
         delivered = stats.get("delivered", 0)
         failed = stats.get("failed", 0)
@@ -535,6 +525,42 @@ async def get_shift_summary(parameters: dict, context: dict) -> dict:
 
     except Exception as e:
         logger.error(f"[Tool:get_shift_summary] {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def end_shift(parameters: dict, context: dict) -> dict:
+    """
+    End the driver's current shift: marks it completed, persists shift stats and timing,
+    and triggers the post-shift LeMUR intelligence report and n8n notification. This is
+    the only driver-reachable trigger for `POST /v1/shift/{shift_id}/end` today - distinct
+    from `end_conversation`, which only closes the voice socket and has no DB effect.
+
+    Trigger phrases: "end my shift", "I'm done for the day", "clock out", "that's it for today"
+    """
+    try:
+        shift_id = context.get("shift_id")
+        driver_id = context.get("driver_id")
+        if not shift_id or not driver_id:
+            return {"success": False, "error": "No active shift to end."}
+
+        from app.api.routes.shift import end_shift_core, run_shift_intelligence_and_stream
+
+        driver_name = context.get("driver_name") or "Driver"
+        result = await end_shift_core(shift_id, driver_id, driver_name)
+
+        import asyncio
+        asyncio.create_task(run_shift_intelligence_and_stream(shift_id, driver_id))
+
+        return {
+            "success": True,
+            "shift_id": shift_id,
+            "status": result.get("status", "completed"),
+            "shift_duration_min": result.get("shift_duration_min", 0),
+            "message": "Shift ended. I'm putting together your summary now.",
+        }
+
+    except Exception as e:
+        logger.error(f"[Tool:end_shift] {e}")
         return {"success": False, "error": str(e)}
 
 

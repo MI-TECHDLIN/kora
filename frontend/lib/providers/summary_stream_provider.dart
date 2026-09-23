@@ -22,4 +22,8 @@ class SummaryStreamNotifier extends StateNotifier<SummaryStream?> {
     final base = current == null || current.isComplete ? '' : current.text;
     state = SummaryStream(text: base + text, isComplete: isFinal);
   }
+
+  /// Clears any streamed summary text. Called when a new shift starts, so a
+  /// driver never sees a previous shift's summary bleed into a new one.
+  void reset() => state = null;
 }
