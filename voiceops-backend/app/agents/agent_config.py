@@ -168,11 +168,14 @@ def get_session_config(
         Complete session configuration dictionary
     """
     if agent_id:
-        # Use stored agent ID for proper AssemblyAI configuration
+        # Use stored agent ID but still inject per-session greeting and voice.
+        # AssemblyAI accepts greeting + voice overrides alongside agent_id.
         return {
             "type": "session.update",
             "session": {
-                "agent_id": agent_id
+                "agent_id": agent_id,
+                "greeting": get_agent_greeting(driver_name),
+                **get_audio_config(voice),
             }
         }
     

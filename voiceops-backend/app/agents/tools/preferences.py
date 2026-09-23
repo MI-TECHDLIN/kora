@@ -90,7 +90,7 @@ async def set_preference(parameters: Dict[str, Any], context: Dict[str, Any]) ->
     
     if not key or value is None:
         return {
-            "success": false,
+            "success": False,
             "error": "Please specify both a preference and value"
         }
     

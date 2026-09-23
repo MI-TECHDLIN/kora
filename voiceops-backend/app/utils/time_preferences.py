@@ -2,7 +2,7 @@
 Time-based preference utilities for order acceptance.
 """
 from datetime import datetime, time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from app.services.preference_models import TimeRange, TimeBasedPreferences
 
 
@@ -42,58 +42,6 @@ def is_day_in_range(current_day: int, days_of_week: List[int]) -> bool:
         return True  # Empty list means all days are allowed
     return current_day in days_of_week
 
-
-def is_auto_accept_enabled(current_time: Optional[datetime] = None, 
-                          time_prefs: Optional[TimeBasedPreferences] = None) -> Tuple[bool, str]:
-    """
-    Check if auto-accept is currently enabled based on time-based preferences.
-    
-    Args:
-        current_time: Current datetime (defaults to now)
-        time_prefs: TimeBasedPreferences to check
-    
-    Returns:
-        Tuple of (enabled, reason)
-    """
-    if not time_prefs:
-        return True, "No time-based restrictions"
-    
-    if current_time is None:
-        current_time = datetime.now()
-    
-    current_time_obj = current_time.time()
-    current_day = current_time.weekday()  # 0=Monday, 6=Sunday
-    
-    # Check if currently in rush hour and auto-accept is disabled during rush hour
-    if time_prefs.disable_auto_accept_during_rush_hour:
-        rush_start = _parse_time(time_prefs.rush_hour_start)
-        rush_end = _parse_time(time_prefs.rush_hour_end)
-        
-        if is_time_in_range(current_time_obj, TimeRange(
-            rush_start.hour, rush_start.minute,
-            rush_end.hour, rush_end.minute
-        )):
-            return False, "Auto-accept disabled during rush hour"
-    
-    # Check if currently in a break time
-    for break_time in time_prefs.break_times:
-        if is_time_in_range(current_time_obj, break_time):
-            if is_day_in_range(current_day, break_time.days_of_week):
-                return False, "Auto-accept disabled during break time"
-    
-    # Check if current time is within enabled hours
-    if time_prefs.auto_accept_enabled_hours:
-        is_in_enabled_hours = False
-        for enabled_range in time_prefs.auto_accept_enabled_hours:
-            if is_time_in_range(current_time_obj, enabled_range):
-                if is_day_in_range(current_day, enabled_range.days_of_week):
-                    is_in_enabled_hours = True
-                    break
-        
-        if not is_in_enabled_hours:
-            return False, "Auto-accept disabled outside configured hours"
-    
-    return True, "Auto-accept is currently enabled"
 
 
 def _parse_time(time_str: str) -> time:

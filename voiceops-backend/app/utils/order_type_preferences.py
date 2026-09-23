@@ -1,7 +1,7 @@
 """
 Order type preference utilities for order acceptance.
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from app.services.preference_models import OrderTypePreference
 
 
