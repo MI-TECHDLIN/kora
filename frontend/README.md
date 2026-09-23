@@ -36,23 +36,44 @@ key and keep it on the backend only.
 
 ## Wake-word configuration
 
-Kora uses Picovoice Porcupine only while the app is in the foreground. Supply
-the Picovoice access key at build time; never add it to a committed config file:
-
-```sh
-flutter run --dart-define=PORCUPINE_ACCESS_KEY=<access-key>
-```
+Kora uses sherpa-onnx keyword spotting on-device while the app is in the
+foreground. The bundled model is
+`sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20`, using its chunk-16 int8
+encoder and joiner, fp32 decoder (the release has no int8 decoder), and English
+phone tokens. No service account or access key is required.
 
 The phrase list and sensitivities are in `assets/wake/wake_phrases.json`.
-Train one Porcupine custom keyword per enabled phrase and platform, then place
-each `.ppn` under `assets/wake/android/` or `assets/wake/ios/` using the exact
-filename from the manifest. Missing files are skipped, and a missing key or a
-startup failure leaves the wake-word feature off without affecting the mic
-button. Porcupine detects only trained phrases, not arbitrary greetings.
+`Hey Kora` and `Okay Kora` are the primary phrases. Bare `Kora` is disabled by
+default because the synthetic spike missed the isolated word and falsely fired
+on “Cora” and “corner”. The Settings toggle, foreground lifecycle, and mic
+button fallback are unchanged.
+
+To add or change a phrase:
+
+1. Edit `assets/wake/wake_phrases.json`, using a unique snake-case `id`.
+2. Install the generator dependencies with
+   `python3 -m pip install sherpa-onnx==1.13.8 pypinyin`.
+3. From `frontend/`, run `python3 tool/generate_wake_keywords.py`. The script
+   downloads the matching phone lexicon when `SHERPA_KWS_MODEL_DIR` is not set,
+   calls sherpa's `text2token --tokens-type phone+ppinyin`, and rewrites
+   `assets/wake/keywords.txt`.
+4. Commit both the JSON and generated text file. An out-of-vocabulary word is a
+   generation error; do not hand-write guessed phone tokens.
 
 Android and iOS microphone permissions are already declared. Background audio
 is intentionally not enabled: listening stops when the app leaves the
-foreground and resumes when it returns.
+foreground and resumes when it returns. The iOS target is already 13.0, which
+matches the sherpa pod minimum, and no background-audio capability is needed.
+
+Before merging a phrase or sensitivity change, test a release build on a
+physical Android phone and iPhone. Try several real voices and accents in a
+quiet room and a moving/noisy vehicle; confirm a wake hit enters the same voice
+flow as the mic button and that wake capture releases the mic cleanly on both
+platforms. Then leave the foreground app listening to ambient conversation,
+TV, podcasts, and driving audio for several hours, record false accepts per
+hour (including “Cora”, “Kara”, “corner”, and “corona”), and compare one-hour
+battery drain and temperature with wake word disabled. Also check wake-to-voice
+latency and that the beginning of the command is not clipped after handoff.
 
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,

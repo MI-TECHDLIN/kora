@@ -1,0 +1,15 @@
+HH EY1 K AO1 R AH0 @hey_kora
+OW2 K EY1 K AO1 R AH0 @okay_kora
+K AO1 R AH0 @kora
+HH AY1 K AO1 R AH0 @hi_kora
+HH AH0 L OW1 K AO1 R AH0 @hello_kora
+G UH1 D M AO1 R N IH0 NG K AO1 R AH0 @good_morning_kora
+G UH1 D AE2 F T ER0 N UW1 N K AO1 R AH0 @good_afternoon_kora
+G UH1 D IY1 V N IH0 NG K AO1 R AH0 @good_evening_kora
+Y OW1 K AO1 R AH0 @yo_kora
+W EY1 K AH1 P K AO1 R AH0 @wake_up_kora
+K AO1 R AH0 AA1 R Y UW1 DH EH1 R @kora_are_you_there
+K AO1 R AH0 AY1 M B AE1 K @kora_im_back
+K AO1 R AH0 L EH1 T S G OW1 @kora_lets_go
+K AO1 R AH0 HH EH1 L P M IY1 @kora_help_me
+K AO1 R AH0 AY1 N IY1 D HH EH1 L P @kora_i_need_help
