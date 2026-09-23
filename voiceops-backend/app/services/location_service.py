@@ -130,6 +130,8 @@ class LocationIntelligenceService:
                                     "auto_detected": True,
                                 }
                             )
+                            from app.services.order_queue_service import notify_queue_changed
+                            await notify_queue_changed(shift_id, driver_id)
                             logger.info(
                                 f"[LocationService] 🎯 Driver {driver_id} auto-arrived at delivery {delivery_id} ({round(dist, 1)}m away)"
                             )

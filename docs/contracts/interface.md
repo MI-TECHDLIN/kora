@@ -1,5 +1,7 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.8 (draft), 2026-09-23. 1.8 adds the shift order-queue snapshot, its
+`queue_updated` WebSocket event, and the `daily_delivery_target` preference. See "Changes in 1.8".
 **Version:** 1.7 (draft), 2026-09-23. 1.7 adds `POST /v1/driver/ensure-profile`, an
 idempotent driver-row-creation endpoint (§2), and makes `drivers.phone` nullable so Google
 sign-in (which never provides one) no longer fails account setup. See "Changes in 1.7".
@@ -79,6 +81,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `reply_done` | `{"event": "reply_done"}` | the agent's spoken reply is finished; push-to-talk goes `speaking → idle` |
 | `order_offer` | see below | new-order card with a countdown; the co-rider reads it out unprompted |
 | `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
+| `queue_updated` | the queue snapshot below plus `"event": "queue_updated"` | Home, Order Queue, and Summary refresh from one synchronized snapshot |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
 | `voice_change_accepted` | `{"event": "voice_change_accepted", "voice": "michael", "message": "Voice will change to michael. Reconnecting..."}` | Voice change accepted, client should reconnect with new voice parameter |
 | `voice_unchanged` | `{"event": "voice_unchanged", "voice": "anna", "message": "Voice is already set to anna"}` | Voice already set to requested value, no reconnection needed |
@@ -358,6 +361,35 @@ match the backend README:
 | POST | `/v1/shift/{shift_id}/end` | none | `{"shift_id", "status": "completed", "message"}` |
 | GET | `/v1/shift/{shift_id}/report` | none | intelligence report row (with optional `"status": "ready"`, `shift_started_at`, `shift_ended_at`), or `{"status": "processing", "message"}` |
 | GET | `/v1/shift/{shift_id}/stats` | none | `{"total", "delivered", "failed", "success_rate"}` |
+| GET | `/v1/shift/{shift_id}/queue` | none | queue snapshot below; an empty shift is `200` with zero counts and `orders: []` |
+| PUT | `/v1/driver/preferences/daily_delivery_target` | `{"value": 15}` | existing preference response; target must be a whole number from 1 through 500 |
+
+**Order queue snapshot.** Orders remain stored with the frozen §3 delivery status. `active` and
+`completed` are presentation states only: the lowest-`sequence_order` pending delivery is
+`active`, other pending deliveries are `pending`, delivered deliveries are `completed`, and
+`failed` / `rescheduled` pass through. Completed orders remain in sequence order. The
+`queue_updated` event carries this exact snapshot, built by the same backend function as the
+REST response:
+
+```json
+{
+  "shift_id": "…",
+  "target": 15,
+  "counts": {"total": 5, "completed": 2, "active": 1, "pending": 2,
+             "failed": 0, "rescheduled": 0},
+  "orders": [
+    {"delivery_id": "…", "sequence": 1, "recipient_name": "Priya Patel",
+     "address": "812 Lavaca St, Austin", "time_window": "3:00 PM – 5:00 PM",
+     "status": "delivered", "state": "completed", "eta_minutes": null}
+  ]
+}
+```
+
+`target` is `null` when unset. It is stored as the string-valued driver preference
+`daily_delivery_target`; no shift or delivery column is added. A successful status change,
+accepted order assignment, target set/clear, or preference reset emits `queue_updated` to every
+live voice socket for that shift. Reaching or passing the target queues one warm co-rider
+acknowledgement per target per UTC day; it never announces remaining counts unprompted.
 
 A delivery row has these fields (`supabase_schema.sql`): `id, shift_id, recipient_name,
 address, phone, status, notes, time_window, latitude, longitude, sequence_order, failure_reason,
@@ -539,6 +571,24 @@ anon-key RLS INSERT policy, and no longer depends on OAuth metadata carrying a p
 (not only the `signedIn` auth event), and give the driver a persistent, retryable notice on
 failure instead of a one-shot SnackBar. `DriverProfile.phone` was already nullable in the app
 model, so no other frontend change is required to handle a driver with no phone on file.
+
+---
+
+## Changes in 1.8
+
+All additive. The delivery-status enum is unchanged.
+
+| Addition | Where |
+|---|---|
+| `GET /v1/shift/{shift_id}/queue` snapshot | §2 |
+| `queue_updated` server event carrying the same snapshot | §1, §2 |
+| Presentation states `active` and `completed` derived from existing statuses | §2 |
+| `daily_delivery_target` through the existing preference REST route and voice tools | §2, Tools Reference preference tools |
+| One-time, non-pressuring target-reached voice acknowledgement | backend proactive announcement behavior |
+
+**Frontend:** consume the queue endpoint for initial state and replace it with each
+`queue_updated` event. The frontend PR for Order Queue and Summary progress consumes this
+contract; it must not persist `active` as a delivery status.
 
 ---
 

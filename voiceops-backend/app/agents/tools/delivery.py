@@ -88,6 +88,7 @@ async def update_delivery_status(parameters: dict, context: dict) -> dict:
     try:
         from app.db.queries import (
             get_delivery_by_id,
+            get_next_pending_delivery,
             mark_delivery_status,
             create_delivery_event,
             increment_delivery_attempts,
@@ -98,18 +99,33 @@ async def update_delivery_status(parameters: dict, context: dict) -> dict:
         failure_reason = parameters.get("failure_reason", "")
         notes = parameters.get("notes", "")
 
-        # Resolve delivery_id from parameters or context
+        # Resolve an omitted ID to the live active order, not the delivery cached when
+        # this voice session opened. Active means lowest-sequence pending delivery.
         delivery_id = parameters.get("delivery_id")
+        delivery = None
         if not delivery_id:
-            current = context.get("current_delivery") or {}
-            delivery_id = current.get("id")
+            shift_id = context.get("shift_id")
+            driver_id = context.get("driver_id")
+            from app.db.queries import is_valid_uuid
+            if is_valid_uuid(shift_id) and is_valid_uuid(driver_id):
+                try:
+                    candidate = await get_next_pending_delivery(shift_id, driver_id)
+                except Exception as e:
+                    logger.warning(f"[Tool:update_delivery_status] Active delivery lookup failed: {e}")
+                    candidate = None
+                if candidate and is_valid_uuid(candidate.get("id")):
+                    delivery = candidate
+                    delivery_id = candidate["id"]
+            if not delivery_id:
+                current = context.get("current_delivery") or {}
+                delivery_id = current.get("id")
 
         if not delivery_id:
             return {"success": False, "error": "No delivery ID found. Please specify a delivery."}
 
-        from app.db.queries import is_valid_uuid
         # Fetch current delivery to validate transition
-        delivery = await get_delivery_by_id(delivery_id) if is_valid_uuid(delivery_id) else None
+        if delivery is None:
+            delivery = await get_delivery_by_id(delivery_id) if is_valid_uuid(delivery_id) else None
         if not delivery:
             current = context.get("current_delivery") or {}
             if current and (current.get("id") == delivery_id or not is_valid_uuid(delivery_id)):
@@ -130,6 +146,9 @@ async def update_delivery_status(parameters: dict, context: dict) -> dict:
                         # Trigger intelligence analysis in background
                         import asyncio
                         asyncio.create_task(_trigger_delivery_summary(shift_id, driver_id))
+
+                from app.services.order_queue_service import notify_queue_changed
+                await notify_queue_changed(context.get("shift_id"), context.get("driver_id"))
                 
                 return {
                     "success": True,
@@ -168,6 +187,9 @@ async def update_delivery_status(parameters: dict, context: dict) -> dict:
             status_after=status,
             metadata={"failure_reason": failure_reason, "notes": notes} if failure_reason else None,
         )
+
+        from app.services.order_queue_service import notify_queue_changed
+        await notify_queue_changed(delivery.get("shift_id") or context.get("shift_id"), driver_id)
 
         # Publish to EventBus
         try:
