@@ -78,8 +78,9 @@ def test_default_base_url_is_the_public_demo(osrm_server):
 def test_routes_parsed_to_directions_shape(osrm_server):
     assert directions() == [
         {"summary": "Victoria Bridge, Ahmadu Bello Way", "distance": 3205, "duration": 660,
-         "polyline": POLYLINE},
-        {"summary": "Route", "distance": 5400, "duration": 1260, "polyline": "slow"},
+         "polyline": POLYLINE, "driving_duration": 660, "vehicle_mode": "car"},
+        {"summary": "Route", "distance": 5400, "duration": 1260, "polyline": "slow",
+         "driving_duration": 1260, "vehicle_mode": "car"},
     ]
 
 

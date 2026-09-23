@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, Background
 from pydantic import BaseModel, Field
 from app.dependencies import get_current_driver
 from app.services.location_service import location_service
+from app.services.vehicle_modes import get_driver_vehicle_mode
 from app.db.queries import (
     save_location_ping,
     update_driver_location,
@@ -137,12 +138,14 @@ async def receive_location_ping(
                 dest_lat = delivery.get("dropoff_latitude") or delivery.get("latitude")
                 dest_lng = delivery.get("dropoff_longitude") or delivery.get("longitude")
                 if dest_lat is not None and dest_lng is not None:
-                    # Use traffic-aware ETA with fallback to haversine
+                    # Use traffic-aware ETA with fallback to haversine, for the driver's vehicle
+                    mode = await get_driver_vehicle_mode(driver_id)
                     eta_result = await eta_service.compute_eta_minutes_traffic_aware(
                         (ping.latitude, ping.longitude),
                         (float(dest_lat), float(dest_lng)),
                         delivery_id=delivery["id"],
-                        current_speed_kmh=ping.speed
+                        current_speed_kmh=ping.speed,
+                        vehicle_type=mode.value,
                     )
                     eta = eta_result["eta_minutes"]
                     delivery_id = delivery["id"]

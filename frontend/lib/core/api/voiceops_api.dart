@@ -132,6 +132,11 @@ abstract interface class KoraApi {
   /// `PUT /v1/driver/profile` with a new name; returns the updated row.
   Future<DriverProfile> updateDriverName(String name);
 
+  /// `PUT /v1/driver/profile` with a new `vehicle_type` (`car`, `motorbike`,
+  /// `bicycle` or `walking`); the backend times ETAs from it. Returns the
+  /// updated row.
+  Future<DriverProfile> updateDriverVehicle(String vehicleType);
+
   /// `POST /v1/driver/connect` with the connect code an operator gave the
   /// driver. A code the backend doesn't recognise throws [ApiException]
   /// with status 400.
@@ -213,6 +218,16 @@ class HttpKoraApi implements KoraApi {
   Future<DriverProfile> updateDriverName(String name) async =>
       DriverProfile.fromJson(
         await _send('PUT', 'v1/driver/profile', body: {'name': name}),
+      );
+
+  @override
+  Future<DriverProfile> updateDriverVehicle(String vehicleType) async =>
+      DriverProfile.fromJson(
+        await _send(
+          'PUT',
+          'v1/driver/profile',
+          body: {'vehicle_type': vehicleType},
+        ),
       );
 
   @override

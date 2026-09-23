@@ -402,6 +402,25 @@ void main() {
       expect(profile.createdAt, DateTime.utc(2026, 9, 3, 12));
     });
 
+    test('updateDriverVehicle PUTs the vehicle_type', () async {
+      late http.Request sent;
+      final api = apiWith((request) async {
+        sent = request;
+        return http.Response(
+          jsonEncode({'id': 'driver-1', 'vehicle_type': 'walking'}),
+          200,
+        );
+      });
+      final profile = await api.updateDriverVehicle('walking');
+      expect(sent.method, 'PUT');
+      expect(
+        sent.url.toString(),
+        'https://api.voiceops.test/v1/driver/profile',
+      );
+      expect(jsonDecode(sent.body), {'vehicle_type': 'walking'});
+      expect(profile.vehicleType, 'walking');
+    });
+
     test('connectWithCode posts the code and reads the platform', () async {
       late http.Request sent;
       final api = apiWith((request) async {

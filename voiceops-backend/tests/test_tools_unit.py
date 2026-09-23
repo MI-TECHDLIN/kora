@@ -89,7 +89,7 @@ def test_start_navigation_is_in_app_not_a_deep_link(mock_context, monkeypatch):
     """start_navigation returns route data for the in-app map, never an external maps URL."""
     from app.agents.tools import navigation
 
-    async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng):
+    async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng, vehicle_type=None):
         return [{"summary": "Victoria Bridge", "distance": 3200, "duration": 660,
                  "polyline": "_p~iF~ps|U_ulLnnqC_mqNvxq`@"}]
 

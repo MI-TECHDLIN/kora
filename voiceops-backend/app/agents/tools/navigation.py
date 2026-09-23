@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.db.queries import get_delivery_by_id, get_driver_by_id, get_recent_location_pings
 from app.integrations.osrm import get_directions
+from app.services.vehicle_modes import get_driver_vehicle_mode
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +81,22 @@ def resolve_stop(delivery_id: Optional[str], context: dict) -> dict:
     }
 
 
+async def context_vehicle_mode(context: dict):
+    """
+    The driver's vehicle mode for ETAs: their current `drivers.vehicle_type`
+    (they may have switched since the session opened), else the vehicle the
+    session loaded, else the default.
+    """
+    return await get_driver_vehicle_mode(context.get("driver_id"), context.get("vehicle_type"))
+
+
 async def routes_to_stop(stop: dict, context: dict) -> List[Dict[str, Any]]:
-    """OSRM routes from the driver's position to a normalized stop."""
+    """OSRM routes from the driver's position to a normalized stop, timed for their vehicle."""
     origin_lat, origin_lng = resolve_origin(context)
-    return await get_directions(origin_lat, origin_lng, stop["latitude"], stop["longitude"])
+    mode = await context_vehicle_mode(context)
+    return await get_directions(
+        origin_lat, origin_lng, stop["latitude"], stop["longitude"], vehicle_type=mode.value
+    )
 
 
 def fastest_route(routes: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -280,9 +293,11 @@ async def accept_reroute(parameters: dict, context: dict) -> dict:
         else:
             from app.services.routing_service import routing_service
 
+            mode = await context_vehicle_mode(context)
             route = await routing_service.calculate_route(
                 (origin_lat, origin_lng),
                 (stop["latitude"], stop["longitude"]),
+                vehicle_type=mode.value,
             )
             route_info = {
                 "summary": route.get("summary", "Reroute"),

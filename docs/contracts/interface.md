@@ -348,7 +348,7 @@ match the backend README:
 |---|---|---|---|
 | POST | `/v1/driver/ensure-profile` | none | driver row (`id, phone, name, vehicle_type, …`). Idempotent: creates it if missing, else returns the existing row unchanged. `phone` may be `null` |
 | GET | `/v1/driver/profile` | none | driver row (`id, phone, name, vehicle_type, …`) |
-| PUT | `/v1/driver/profile` | `{"name"?, "vehicle_type"?}` | updated driver row |
+| PUT | `/v1/driver/profile` | `{"name"?, "vehicle_type"?}` | updated driver row. `vehicle_type` must be one of `car`, `motorbike`, `bicycle`, `walking` or a recognised spelling ("walk", "foot", "okada", "sedan"...); anything else is `422`. The backend times every ETA from it |
 | POST | `/v1/driver/connect` | `{"platform", "connect_code"?, "credentials"?}` | `{"message", "connection"}`. A 6-digit `connect_code` resolves the platform via `operator_codes` |
 | GET | `/v1/deliveries?shift_id=…` | none | `{"deliveries": [delivery row, …]}` ordered by `sequence_order` |
 | PUT | `/v1/deliveries/{delivery_id}/status` | `{"status", "notes"?, "failure_reason"?}` | updated delivery row. `status` per §3 |
