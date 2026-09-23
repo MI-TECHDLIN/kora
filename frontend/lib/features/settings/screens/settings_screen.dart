@@ -9,6 +9,7 @@ import '../../../providers/map_style_provider.dart';
 import '../../../providers/notification_preferences_provider.dart';
 import '../../../providers/vehicle_mode_provider.dart';
 import '../../../providers/wake_word_provider.dart';
+import '../widgets/auto_accept_preferences_card.dart';
 import '../widgets/co_rider_voice_picker.dart';
 
 /// The driver's profile and vehicle; "show my vehicle" opens this tab
@@ -159,6 +160,14 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: KoraSpacing.lg),
+            Text('AUTO-ACCEPT ORDERS', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            GlassCard(
+              key: const Key('auto-accept-preferences'),
+              padding: const EdgeInsets.all(KoraSpacing.lg),
+              child: const AutoAcceptPreferencesCard(),
             ),
             const SizedBox(height: KoraSpacing.lg),
             Text('HANDS-FREE VOICE', style: KoraText.caption),

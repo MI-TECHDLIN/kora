@@ -96,6 +96,34 @@ valuable would be lost) is the fix.
   either use `--reporter expanded` or grep the full streaming output rather
   than trusting the final summary section alone.
 
+## `OrderDispatcher._lock` is not reentrant — never call `accept()` from inside a locked path
+
+Found 2026-09-23 while wiring the auto-accept driver announcement: the auto-accept feature
+(`OrderDispatcher._maybe_auto_accept`, `app/dispatch/order_dispatch.py`) called `self.accept(...)`
+directly. `_maybe_auto_accept` only ever runs from inside `_make_offer`, and every caller of
+`_make_offer` (`ingest`, `_offer_next` — itself called by `_expire_after`, `decline`, and
+`redispatch`) holds `self._lock` (an `asyncio.Lock`, not reentrant) for the call's whole duration.
+`accept()` starts with `async with self._lock:`, so the moment auto-accept actually fired it
+deadlocked the dispatcher forever — and since this app requires `--workers 1`
+(`docs/backend-handoff/order-accept-multi-worker.md`), that hangs order dispatch for every driver
+on the process, not just the one who auto-accepted. It reproduced instantly outside pytest but
+inside pytest looked like the test *suite* hanging with near-zero CPU, easy to mistake for an
+environment problem.
+
+**Fix shape:** split any method that both (a) needs `self._lock` when called normally and
+(b) must also be reachable from a path that already holds it, into a public lock-acquiring
+wrapper plus a `_*_locked` method with the actual body, assuming the lock is already held. See
+`accept()` / `_accept_locked()`. Before adding any new call from inside `_make_offer`,
+`_offer_next`, `ingest`, `decline`, or `redispatch` into another `OrderDispatcher` method, check
+whether that method itself acquires `self._lock` — if it does, call its `_locked` counterpart
+instead (adding one if it doesn't exist yet), never the lock-acquiring public method.
+
+**Why this went undetected:** `tests/test_order_dispatch.py` and `tests/test_voice_ws.py` were
+missing from `pytest.ini`'s `python_files` allow-list (fixed the same day) — a plain `pytest -q`
+skipped both files entirely despite them being the only real regression coverage for the
+dispatcher and the voice relay. Confirm any new backend test file is actually in that allow-list;
+its absence produces no error, just silent non-collection.
+
 ## GitHub push access is often environment-specific
 
 In at least one prior Codespace, the git credential helper only authorized

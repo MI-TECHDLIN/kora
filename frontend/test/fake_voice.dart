@@ -259,6 +259,33 @@ class FakeKoraApi implements KoraApi {
     if (reportFailure case final f?) throw f;
     return report;
   }
+
+  /// Backs `GET`/`PUT`/`DELETE /v1/driver/preferences`, as if it were the
+  /// real `driver_preferences` table: every key voice or Settings has set.
+  final Map<String, String> preferences = {};
+  ApiException? preferencesFailure;
+
+  /// Every `(key, value)` written through [setDriverPreference], in order.
+  final preferenceWrites = <(String, Object)>[];
+
+  @override
+  Future<Map<String, String>> fetchDriverPreferences() async {
+    if (preferencesFailure case final f?) throw f;
+    return Map.of(preferences);
+  }
+
+  @override
+  Future<void> setDriverPreference(String key, Object value) async {
+    if (preferencesFailure case final f?) throw f;
+    preferenceWrites.add((key, value));
+    preferences[key] = value.toString();
+  }
+
+  @override
+  Future<void> clearDriverPreference(String key) async {
+    if (preferencesFailure case final f?) throw f;
+    preferences.remove(key);
+  }
 }
 
 /// Streams fixes the test pushes; [problem] scripts a location problem.
