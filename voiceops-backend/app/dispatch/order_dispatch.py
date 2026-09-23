@@ -473,9 +473,40 @@ class OrderDispatcher:
             
             if accept_result.get("success"):
                 logger.info(f"[Dispatch] Successfully auto-accepted order {order.external_id}")
+
+                # Announce to the driver via Kora — build natural spoken instructions
+                category_str = f"{order.category} order" if order.category else "order"
+                dist_str = f"{candidate.distance_km:.1f} km away" if candidate.distance_km else "nearby"
+                area_str = order.area if order.address else ""
+                recipient_str = order.recipient_name or "the customer"
+                area_clause = f" in {area_str}" if area_str else ""
+
+                spoken_instructions = (
+                    f"You've just had an order auto-accepted for you because it matched your preferences. "
+                    f"It's a {category_str} for {recipient_str}{area_clause}, {dist_str}. "
+                    f"Let the driver know naturally and tell them they can say "
+                    f"'show me the route' or 'navigate there' whenever they're ready."
+                )
+
+                try:
+                    from app.services.proactive_alert_service import ProactiveAlertService
+                    alert_service = ProactiveAlertService()
+                    await alert_service.emit_voice_alert(
+                        driver_id=candidate.driver_id,
+                        message=f"Auto-accepted {category_str} for {recipient_str}{area_clause} ({dist_str})",
+                        severity="normal",
+                        risk_type=f"auto_accept_announce:{open_order.delivery_id}",
+                        delivery_id=open_order.delivery_id,
+                        shift_id=candidate.shift_id,
+                        spoken_instructions=spoken_instructions,
+                    )
+                except Exception as ann_err:
+                    # Never let the announcement failure roll back the accepted order
+                    logger.warning(f"[Dispatch] Auto-accept announcement failed: {ann_err}")
+
             else:
                 logger.warning(f"[Dispatch] Auto-accept failed for order {order.external_id}: {accept_result.get('error')}")
-                
+
         except Exception as e:
             logger.warning(f"[Dispatch] Auto-accept check failed for order {open_order.order.external_id}: {e}")
             # Continue with normal offer flow if auto-accept check fails
