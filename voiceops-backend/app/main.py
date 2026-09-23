@@ -15,10 +15,12 @@ from app.api.routes import (
     fleet,
     routes,
     logistics,
+    preferences,
 )
 from app.api.websocket.driver_ws import router as driver_ws_router
 from app.api.websocket.voice import router as voice_router
 from app.dispatch.order_dispatch import get_order_dispatcher
+from app.services.preference_service import initialize_preference_service
 # Self-ping service disabled - using external ping service instead
 # from app.services.self_ping_service import self_ping_service
 
@@ -29,6 +31,14 @@ async def lifespan(app: FastAPI):
     print(f"Kora backend starting in {settings.environment} mode")
     if not settings.tomtom_api_key:
         print("[Config] WARNING: TOMTOM_API_KEY is not set. Traffic-aware ETA calculations and proactive reroute suggestions will be disabled.")
+    
+    # Initialize preference service
+    if settings.supabase_url and settings.supabase_service_key:
+        initialize_preference_service(settings.supabase_url, settings.supabase_service_key)
+        print("[Config] Preference service initialized with Supabase")
+    else:
+        print("[Config] WARNING: Supabase credentials not set. Preferences will be in-memory only.")
+    
     dispatcher = get_order_dispatcher()
     await dispatcher.start()
     
@@ -79,6 +89,7 @@ app.include_router(fleet.router, prefix="/v1/fleet", tags=["fleet"])
 app.include_router(routes.router, prefix="/v1", tags=["routes"])
 app.include_router(driver_ws_router, tags=["websocket"])
 app.include_router(voice_router, tags=["voice-websocket"])
+app.include_router(preferences.router, prefix="/v1/driver", tags=["preferences"])
 
 
 

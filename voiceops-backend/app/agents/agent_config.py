@@ -22,6 +22,14 @@ _GREETING_QUESTIONS = (
 )
 _GREETING_RANDOM = SystemRandom()
 
+_CALM_OPENINGS = (
+    "Good to see you on the road today.",
+    "Hope you're having a smooth start to your shift.",
+    "Ready to help you have a great delivery day.",
+    "Let's make this a good one together.",
+    "Looking forward to a safe and successful shift with you.",
+)
+
 
 def resolve_voice(value: Optional[str] = None) -> str:
     """Resolve a voice ID against the allowlist, falling back to DEFAULT_VOICE (anna)."""
@@ -61,6 +69,24 @@ Available tools:
 - alert_dispatcher: Alert dispatcher with priority message
 - show_screen: Open an app screen (map, settings, summary, voice)
 - end_conversation: Close the voice conversation when the driver is finished
+- get_preferences: Get all the driver's current preferences and settings
+- set_preference: Set a specific preference (key-value pairs like auto_accept_orders=true, avoid_highways=true)
+- clear_preference: Clear a specific preference
+- reset_preferences: Reset all preferences to defaults
+
+CUSTOMIZATION: Drivers can customize your behavior through voice commands. When drivers ask to change settings, use the preference tools. Common requests:
+- "Always accept orders" → set_preference with key=auto_accept_orders, value=true (automatically accepts suitable orders based on your preferences)
+- "Never accept orders" → set_preference with key=auto_decline_orders, value=true
+- "Only accept orders within 5 km" → set_preference with key=max_order_distance_km, value=5.0
+- "Avoid highways" → set_preference with key=avoid_highways, value=true
+- "Prefer residential areas" → set_preference with key=prefer_residential, value=true
+- "Always call customers" → set_preference with key=always_call_before_delivery, value=true
+- "Never call customers" → set_preference with key=never_call_customer, value=true
+- "Send SMS when I deliver" → set_preference with key=always_send_sms, value=true
+- "Tell me my preferences" → get_preferences
+- "Reset my preferences" → reset_preferences
+
+AUTO-ACCEPT: When auto_accept_orders is enabled, suitable orders are automatically accepted based on your geographic, order type, and time preferences. The agent will announce when an order is auto-accepted.
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
@@ -88,14 +114,16 @@ def get_agent_greeting(
     """Build a warm first greeting, with an injectable variation for tests."""
     if question_index is None:
         question = _GREETING_RANDOM.choice(_GREETING_QUESTIONS)
+        opening = _GREETING_RANDOM.choice(_CALM_OPENINGS)
     else:
         question = _GREETING_QUESTIONS[question_index % len(_GREETING_QUESTIONS)]
+        opening = _CALM_OPENINGS[question_index % len(_CALM_OPENINGS)]
     name = (driver_name or "").strip()
     salutation = f"Hello, {name}" if name and name.lower() != "driver" else "Hello there"
-    return (
-        f"{salutation}! I'm Kora, your co-rider. "
-        f"How has your day been so far? {question}"
-    )
+    return (f"{salutation}. {opening} I'm Kora, your co-rider. "
+            f"I'm here to help you manage deliveries, navigate routes, and handle customer communications. "
+            f"You can customize how I help by voice—just say things like 'always accept orders' or 'never call customers'. "
+            f"How has your day been so far? {question}")
 
 
 def get_audio_config(voice: Optional[str] = None) -> Dict[str, Any]:
@@ -140,11 +168,14 @@ def get_session_config(
         Complete session configuration dictionary
     """
     if agent_id:
-        # Use stored agent ID for proper AssemblyAI configuration
+        # Use stored agent ID but still inject per-session greeting and voice.
+        # AssemblyAI accepts greeting + voice overrides alongside agent_id.
         return {
             "type": "session.update",
             "session": {
-                "agent_id": agent_id
+                "agent_id": agent_id,
+                "greeting": get_agent_greeting(driver_name),
+                **get_audio_config(voice),
             }
         }
     

@@ -29,6 +29,12 @@ from app.agents.tools.communication import (
     notify_customer,
     alert_dispatcher
 )
+from app.agents.tools.preferences import (
+    get_preferences,
+    set_preference,
+    clear_preference,
+    reset_preferences
+)
 
 
 def get_tools() -> List[Dict[str, Any]]:
@@ -291,6 +297,52 @@ def get_tools() -> List[Dict[str, Any]]:
             "name": "end_conversation",
             "description": "Close the driver's voice conversation when they say they are done. Say a short goodbye first, then call this tool.",
             "parameters": {"type": "object", "properties": {}, "required": []}
+        },
+        {
+            "type": "function",
+            "name": "get_preferences",
+            "description": "Get all the driver's current preferences. Use when the driver asks to see their settings or preferences.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        },
+        {
+            "type": "function",
+            "name": "set_preference",
+            "description": "Set a specific preference for the driver. Use key-value pairs like: auto_accept_orders=true, avoid_highways=true, never_call_customer=true. Key options: auto_accept_orders, auto_decline_orders, max_order_distance_km, avoid_highways, prefer_residential, always_call_before_delivery, never_call_customer, always_send_sms, max_deliveries_per_shift, auto_announce_next_stop, proactive_traffic_alerts.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "The preference key to set"
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The preference value (use 'true'/'false' for booleans, numbers for numeric values)"
+                    }
+                },
+                "required": ["key", "value"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "clear_preference",
+            "description": "Clear a specific preference for the driver, returning to default behavior for that setting.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "The preference key to clear"
+                    }
+                },
+                "required": ["key"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "reset_preferences",
+            "description": "Reset all preferences to defaults. Use when the driver wants to clear all their custom settings.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
         }
     ]
 
@@ -311,7 +363,11 @@ TOOL_EXECUTORS = {
     "get_shift_summary": get_shift_summary,
     "alert_dispatcher": alert_dispatcher,
     "show_screen": show_screen,
-    "end_conversation": end_conversation
+    "end_conversation": end_conversation,
+    "get_preferences": get_preferences,
+    "set_preference": set_preference,
+    "clear_preference": clear_preference,
+    "reset_preferences": reset_preferences
 }
 
 
