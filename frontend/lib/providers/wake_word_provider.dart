@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/config/wake_word_config.dart';
 import '../core/audio/voice_recorder.dart';
+import '../core/wake/sherpa_wake_word_engine.dart';
 import '../core/wake/wake_word_service.dart';
 import 'push_to_talk_provider.dart';
 import 'voice_session_provider.dart';
@@ -71,7 +71,7 @@ class WakeWordPreferencesController extends StateNotifier<bool> {
 }
 
 final wakeWordEngineProvider = Provider<WakeWordEngine>(
-  (ref) => PorcupineWakeWordEngine(),
+  (ref) => SherpaWakeWordEngine(),
 );
 
 final wakeWordAssetSourceProvider = Provider<WakeWordAssetSource>(
@@ -93,7 +93,6 @@ class WakeWordController extends StateNotifier<WakeWordStatus> {
       engine: _ref.read(wakeWordEngineProvider),
       assets: _ref.read(wakeWordAssetSourceProvider),
       platform: _ref.read(wakeWordPlatformProvider),
-      accessKey: WakeWordConfig.accessKey,
       hasMicrophonePermission: _ref.read(voiceRecorderProvider).hasPermission,
       onWakeWord: _startVoiceLikeTheButton,
       onStatusChanged: (next) {

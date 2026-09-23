@@ -1,26 +1,25 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:voiceops/core/wake/sherpa_wake_word_engine.dart';
 import 'package:voiceops/core/wake/wake_word_service.dart';
 
 void main() {
   WakeWordService service({
     required FakeWakeWordEngine engine,
     required FakeWakeWordAssets assets,
-    String accessKey = 'test-access-key',
     bool permission = true,
     Future<void> Function()? onWakeWord,
   }) => WakeWordService(
     engine: engine,
     assets: assets,
     platform: WakeWordPlatform.android,
-    accessKey: accessKey,
     hasMicrophonePermission: () async => permission,
     onWakeWord: onWakeWord ?? () async {},
     log: (_) {},
   );
 
-  test('loads only enabled entries whose platform files exist', () async {
+  test('loads only enabled entries with tokenized phrases', () async {
     final engine = FakeWakeWordEngine();
     final wake = service(
       engine: engine,
@@ -30,7 +29,7 @@ void main() {
           phrase('disabled', enabled: false),
           phrase('missing', enabled: true),
         ]),
-        bundled: {'assets/wake/android/ready.ppn'},
+        keywords: keywordTokens(['ready']),
       ),
     );
 
@@ -38,17 +37,18 @@ void main() {
 
     expect(engine.config!.keywords, hasLength(1));
     expect(engine.config!.keywords.single.id, 'ready');
+    expect(engine.config!.keywords.single.tokens, 'R EH1 D IY0');
     expect(engine.config!.keywords.single.sensitivity, 0.7);
     expect(wake.status, WakeWordStatus.listening);
   });
 
-  test('an enabled entry without a file is skipped silently', () async {
+  test('an enabled entry without tokens is skipped silently', () async {
     final engine = FakeWakeWordEngine();
     final wake = service(
       engine: engine,
       assets: FakeWakeWordAssets(
         manifest: manifest([phrase('present'), phrase('not_bundled')]),
-        bundled: {'assets/wake/android/present.ppn'},
+        keywords: keywordTokens(['present']),
       ),
     );
 
@@ -57,7 +57,7 @@ void main() {
     expect(engine.config!.keywords.map((keyword) => keyword.id), ['present']);
   });
 
-  test('several enabled platform keywords start in one engine', () async {
+  test('several enabled keywords start in one engine', () async {
     final engine = FakeWakeWordEngine();
     final wake = service(
       engine: engine,
@@ -67,11 +67,7 @@ void main() {
           phrase('okay_kora', sensitivity: 0.65),
           phrase('kora'),
         ], defaultSensitivity: 0.4),
-        bundled: {
-          'assets/wake/android/hey_kora.ppn',
-          'assets/wake/android/okay_kora.ppn',
-          'assets/wake/android/kora.ppn',
-        },
+        keywords: keywordTokens(['hey_kora', 'okay_kora', 'kora']),
       ),
     );
 
@@ -99,7 +95,7 @@ void main() {
     expect(wake.status, WakeWordStatus.unavailable);
   });
 
-  test('detection stops Porcupine then starts the voice action', () async {
+  test('detection stops sherpa then starts the voice action', () async {
     final engine = FakeWakeWordEngine();
     var voiceStarts = 0;
     final wake = service(
@@ -164,20 +160,18 @@ void main() {
     expect(wake.status, WakeWordStatus.disabled);
   });
 
-  test('missing key, permission or keyword file fails closed', () async {
+  test('missing permission or tokenized keyword fails closed', () async {
     for (final setup in [
-      (key: '', permission: true, files: <String>{}),
-      (key: 'key', permission: false, files: <String>{}),
-      (key: 'key', permission: true, files: <String>{}),
+      (permission: false, keywords: keywordTokens(['kora'])),
+      (permission: true, keywords: ''),
     ]) {
       final engine = FakeWakeWordEngine();
       final wake = service(
         engine: engine,
         assets: FakeWakeWordAssets(
           manifest: manifest([phrase('kora')]),
-          bundled: setup.files,
+          keywords: setup.keywords,
         ),
-        accessKey: setup.key,
         permission: setup.permission,
       );
 
@@ -199,6 +193,36 @@ void main() {
       expect(wake.status, WakeWordStatus.unavailable);
     },
   );
+
+  test('parses sherpa keyword labels and strips tuning modifiers', () {
+    final parsed = parseTokenizedWakeKeywords('''
+// generated file
+HH EY1 K AO1 R AH0 :2.0 #0.25 @hey_kora
+OW2 K EY1 K AO1 R AH0 @okay_kora
+''');
+
+    expect(parsed, {
+      'hey_kora': 'HH EY1 K AO1 R AH0',
+      'okay_kora': 'OW2 K EY1 K AO1 R AH0',
+    });
+    expect(
+      () => parseTokenizedWakeKeywords('HH EY1 K AO1 R AH0'),
+      throwsFormatException,
+    );
+  });
+
+  test('maps sensitivity to sherpa score and threshold', () {
+    final low = SherpaKeywordTuning.fromSensitivity(0);
+    final standard = SherpaKeywordTuning.fromSensitivity(0.5);
+    final high = SherpaKeywordTuning.fromSensitivity(1);
+
+    expect(low.score, 1.0);
+    expect(low.threshold, closeTo(0.35, 0.0001));
+    expect(standard.score, 2.0);
+    expect(standard.threshold, closeTo(0.25, 0.0001));
+    expect(high.score, 3.0);
+    expect(high.threshold, closeTo(0.15, 0.0001));
+  });
 }
 
 Map<String, Object?> phrase(
@@ -209,7 +233,6 @@ Map<String, Object?> phrase(
   'id': id,
   'phrase': id.replaceAll('_', ' '),
   'enabled': enabled,
-  'ppn': '$id.ppn',
   'sensitivity': ?sensitivity,
 };
 
@@ -221,17 +244,20 @@ String manifest(
 
 FakeWakeWordAssets oneKeywordAssets() => FakeWakeWordAssets(
   manifest: manifest([phrase('kora')]),
-  bundled: {'assets/wake/android/kora.ppn'},
+  keywords: keywordTokens(['kora']),
 );
 
+String keywordTokens(List<String> ids) =>
+    ids.map((id) => 'R EH1 D IY0 @$id').join('\n');
+
 class FakeWakeWordAssets implements WakeWordAssetSource {
-  FakeWakeWordAssets({required this.manifest, this.bundled = const {}});
+  FakeWakeWordAssets({required this.manifest, this.keywords = ''});
 
   final String manifest;
-  final Set<String> bundled;
+  final String keywords;
 
   @override
-  Future<Set<String>> bundledAssets() async => bundled;
+  Future<String> loadTokenizedKeywords() async => keywords;
 
   @override
   Future<String> loadManifest() async => manifest;

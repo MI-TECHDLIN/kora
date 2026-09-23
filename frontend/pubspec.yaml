@@ -49,7 +49,8 @@ dependencies:
   shared_preferences: ^2.5.5
   # record 7.x needs Flutter >= 3.44; the captain's local SDK is older.
   record: ^6.2.1
-  porcupine_flutter: ^4.0.0
+  sherpa_onnx: ^1.13.8
+  path_provider: ^2.1.5
   just_audio: ^0.10.5
   http: ^1.2.1
   supabase_flutter: ^2.5.6
@@ -88,8 +89,7 @@ flutter:
     - assets/legal/
     - assets/audio/voice_previews/ # per-voice preview clips, see its README
     - assets/wake/
-    - assets/wake/android/
-    - assets/wake/ios/
+    - assets/wake/model/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
