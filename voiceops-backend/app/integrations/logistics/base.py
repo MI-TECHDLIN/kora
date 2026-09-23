@@ -40,7 +40,7 @@ def address_area(address: str) -> str:
     return f"{street}, {parts[1]}" if len(parts) > 1 else street
 
 
-@dataclass(frozen=True)
+@dataclass
 class IncomingOrder:
     """A new order from a logistics platform, before any driver has it."""
     source: str
@@ -53,6 +53,10 @@ class IncomingOrder:
     notes: Optional[str] = None
     time_window: Optional[str] = None  # display text, as deliveries.time_window stores it
     package_count: Optional[int] = None
+    category: Optional[str] = None  # Order category (food, packages, furniture, etc.)
+    weight_kg: Optional[float] = None  # Order weight in kilograms
+    dimensions: Optional[dict] = None  # Order dimensions (length, width, height)
+    value: Optional[float] = None  # Order monetary value
 
     @property
     def area(self) -> str:
@@ -73,6 +77,10 @@ class IncomingOrder:
             notes=order.notes,
             time_window=format_time_window(window.start, window.end) if window else None,
             package_count=order.package_count,
+            category=getattr(order, 'category', None),
+            weight_kg=getattr(order, 'weight_kg', None),
+            dimensions=getattr(order, 'dimensions', None),
+            value=getattr(order, 'value', None),
         )
 
     @classmethod

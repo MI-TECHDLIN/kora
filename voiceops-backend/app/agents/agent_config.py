@@ -22,6 +22,14 @@ _GREETING_QUESTIONS = (
 )
 _GREETING_RANDOM = SystemRandom()
 
+_CALM_OPENINGS = (
+    "Good to see you on the road today.",
+    "Hope you're having a smooth start to your shift.",
+    "Ready to help you have a great delivery day.",
+    "Let's make this a good one together.",
+    "Looking forward to a safe and successful shift with you.",
+)
+
 
 def resolve_voice(value: Optional[str] = None) -> str:
     """Resolve a voice ID against the allowlist, falling back to DEFAULT_VOICE (anna)."""
@@ -67,7 +75,7 @@ Available tools:
 - reset_preferences: Reset all preferences to defaults
 
 CUSTOMIZATION: Drivers can customize your behavior through voice commands. When drivers ask to change settings, use the preference tools. Common requests:
-- "Always accept orders" → set_preference with key=auto_accept_orders, value=true
+- "Always accept orders" → set_preference with key=auto_accept_orders, value=true (automatically accepts suitable orders based on your preferences)
 - "Never accept orders" → set_preference with key=auto_decline_orders, value=true
 - "Only accept orders within 5 km" → set_preference with key=max_order_distance_km, value=5.0
 - "Avoid highways" → set_preference with key=avoid_highways, value=true
@@ -77,6 +85,8 @@ CUSTOMIZATION: Drivers can customize your behavior through voice commands. When 
 - "Send SMS when I deliver" → set_preference with key=always_send_sms, value=true
 - "Tell me my preferences" → get_preferences
 - "Reset my preferences" → reset_preferences
+
+AUTO-ACCEPT: When auto_accept_orders is enabled, suitable orders are automatically accepted based on your geographic, order type, and time preferences. The agent will announce when an order is auto-accepted.
 
 When drivers ask "What is my next stop?" or similar questions, you MUST call the get_next_delivery tool to get the actual delivery information. Do not make up delivery information.
 
@@ -104,12 +114,15 @@ def get_agent_greeting(
     """Build a warm first greeting, with an injectable variation for tests."""
     if question_index is None:
         question = _GREETING_RANDOM.choice(_GREETING_QUESTIONS)
+        opening = _GREETING_RANDOM.choice(_CALM_OPENINGS)
     else:
         question = _GREETING_QUESTIONS[question_index % len(_GREETING_QUESTIONS)]
+        opening = _CALM_OPENINGS[question_index % len(_CALM_OPENINGS)]
     name = (driver_name or "").strip()
     salutation = f"Hello, {name}" if name and name.lower() != "driver" else "Hello there"
-    return (f"{salutation}! I'm Kora, your co-rider. "
-            f"You can customize how I help you by voice. Just say things like 'always accept orders' or 'never call customers'. "
+    return (f"{salutation}. {opening} I'm Kora, your co-rider. "
+            f"I'm here to help you manage deliveries, navigate routes, and handle customer communications. "
+            f"You can customize how I help by voice—just say things like 'always accept orders' or 'never call customers'. "
             f"How has your day been so far? {question}")
 
 
