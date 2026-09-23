@@ -25,6 +25,7 @@ import '../../../providers/transcript_provider.dart';
 import '../../../providers/voice_session_provider.dart';
 import '../../../providers/wake_word_provider.dart';
 import '../widgets/action_chips_rail.dart';
+import '../widgets/next_orders_card.dart';
 
 class VoiceScreen extends ConsumerWidget {
   const VoiceScreen({super.key});
@@ -74,6 +75,9 @@ class VoiceScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _HomeStatusCard(state: agentState),
+                  // The one-line target sits first so it stays in view.
+                  if (preferences.targetEnabled) const TargetIndicator(),
+                  if (preferences.nextOrdersEnabled) const NextOrdersCard(),
                   if (preferences.locationEnabled) ...[
                     const SizedBox(height: KoraSpacing.lg),
                     const _LocationCard(),

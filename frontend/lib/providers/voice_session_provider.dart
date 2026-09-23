@@ -20,6 +20,7 @@ import 'map_route_provider.dart';
 import 'navigation_provider.dart';
 import 'notification_preferences_provider.dart';
 import 'order_offer_provider.dart';
+import 'order_queue_provider.dart';
 import 'proactive_alert_provider.dart';
 import 'push_to_talk_provider.dart';
 import 'shift_provider.dart';
@@ -423,6 +424,8 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _sessionWanted = true;
     _reconnectAttempt = 0;
     state = const VoiceSessionState(connection: VoiceConnection.connected);
+    // Events sent while the socket was down are gone; take a fresh snapshot.
+    unawaited(_ref.read(orderQueueProvider.notifier).refresh());
     return true;
   }
 
@@ -563,6 +566,8 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         _onProactiveAlert(event);
       case ErrorEvent():
         _onError(event);
+      case QueueUpdatedEvent(:final queue):
+        _ref.read(orderQueueProvider.notifier).apply(queue);
       case VoiceChangeAcceptedEvent():
         _switchingVoice = true;
       case VoiceUnchangedEvent():

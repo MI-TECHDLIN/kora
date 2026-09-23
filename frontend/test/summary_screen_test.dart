@@ -288,6 +288,9 @@ void main() {
       expect(find.byType(ShiftReportView), findsNothing);
 
       api.report = ShiftReport.fromJson(_reportRow);
+      // The overview and queue now sit above the report status.
+      await tester.ensureVisible(find.text('Check again'));
+      await tester.pump();
       await tester.tap(find.text('Check again'));
       await settle(tester);
 
@@ -324,6 +327,9 @@ void main() {
       api
         ..reportFailure = null
         ..report = ShiftReport.fromJson(_reportRow);
+      // The overview and queue now sit above the report status.
+      await tester.ensureVisible(find.text('Check again'));
+      await tester.pump();
       await tester.tap(find.text('Check again'));
       await settle(tester);
 

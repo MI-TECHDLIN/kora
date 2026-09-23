@@ -49,6 +49,28 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   _SettingsToggle(
+                    key: const Key('next-orders-toggle'),
+                    title: 'Next Orders',
+                    description:
+                        'Show your current and upcoming orders on Home',
+                    enabled: homePreferences.nextOrdersEnabled,
+                    onChanged: (enabled) => ref
+                        .read(homePreferencesProvider.notifier)
+                        .setNextOrders(enabled: enabled),
+                  ),
+                  const Divider(height: KoraSpacing.sm),
+                  _SettingsToggle(
+                    key: const Key('target-toggle'),
+                    title: 'Delivery target',
+                    description:
+                        'Show your progress toward today’s target on Home',
+                    enabled: homePreferences.targetEnabled,
+                    onChanged: (enabled) => ref
+                        .read(homePreferencesProvider.notifier)
+                        .setTarget(enabled: enabled),
+                  ),
+                  const Divider(height: KoraSpacing.sm),
+                  _SettingsToggle(
                     key: const Key('quick-actions-toggle'),
                     title: 'Quick Actions',
                     description: 'Show common voice prompts on Home',
