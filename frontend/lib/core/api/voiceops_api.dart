@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../features/auth/data/auth_repository.dart';
+import '../../features/summary/data/order_queue.dart';
 import '../../features/summary/data/shift_report.dart';
 import '../../providers/auth_provider.dart';
 import '../config/backend_config.dart';
@@ -160,6 +161,15 @@ abstract interface class KoraApi {
   /// being generated (`{"status": "processing"}`).
   Future<ShiftReport?> fetchShiftReport(String shiftId);
 
+  /// `GET /v1/shift/{shift_id}/queue`: the shift's orders by state, the
+  /// counts and the driver's daily target. Also the payload of every
+  /// `queue_updated` event.
+  Future<OrderQueue> fetchOrderQueue(String shiftId);
+
+  /// `PUT /v1/deliveries/{delivery_id}/status`. The driver's manual "Mark
+  /// completed" sends `delivered`; the status enum is frozen (contract §3).
+  Future<void> updateDeliveryStatus(String deliveryId, String status);
+
   /// `GET /v1/driver/preferences`: every preference the driver has set, by
   /// either voice or this Settings screen, as raw stored strings (the same
   /// `driver_preferences` table `app/agents/tools/preferences.py` writes to).
@@ -289,6 +299,21 @@ class HttpKoraApi implements KoraApi {
     );
     if (body['status'] == 'processing') return null;
     return ShiftReport.fromJson(body);
+  }
+
+  @override
+  Future<OrderQueue> fetchOrderQueue(String shiftId) async =>
+      OrderQueue.fromJson(
+        await _send('GET', 'v1/shift/${Uri.encodeComponent(shiftId)}/queue'),
+      );
+
+  @override
+  Future<void> updateDeliveryStatus(String deliveryId, String status) async {
+    await _send(
+      'PUT',
+      'v1/deliveries/${Uri.encodeComponent(deliveryId)}/status',
+      body: {'status': status},
+    );
   }
 
   @override

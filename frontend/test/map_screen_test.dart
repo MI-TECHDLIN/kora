@@ -447,6 +447,9 @@ void main() {
     expect(find.textContaining('OpenStreetMap contributors'), findsOneWidget);
     expect(find.byKey(const Key('vehicle-mode-selector')), findsOneWidget);
 
+    // The Home switches pushed this below the fold.
+    await tester.ensureVisible(find.bySemanticsLabel('Bicycle'));
+    await tester.pump();
     await tester.tap(find.bySemanticsLabel('Bicycle'));
     await settle(tester);
     expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
@@ -463,6 +466,9 @@ void main() {
     await pump(tester, const SettingsScreen());
     await settle(tester);
 
+    // The Home switches pushed this below the fold.
+    await tester.ensureVisible(find.bySemanticsLabel('Walking'));
+    await tester.pump();
     await tester.tap(find.bySemanticsLabel('Walking'));
     await settle(tester);
     expect(container.read(vehicleModeProvider), VehicleMode.walking);
@@ -487,6 +493,9 @@ void main() {
     // Dark-mode-first until the driver says otherwise.
     expect(container.read(mapStyleProvider), MapStyle.dark);
 
+    // The Home switches pushed this below the fold.
+    await tester.ensureVisible(find.bySemanticsLabel('Light'));
+    await tester.pump();
     await tester.tap(find.bySemanticsLabel('Light'));
     await settle(tester);
     expect(container.read(mapStyleProvider), MapStyle.light);

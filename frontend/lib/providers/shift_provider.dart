@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api/voiceops_api.dart';
+import 'order_queue_provider.dart';
 import 'summary_stream_provider.dart';
 
 /// The driver's active shift id, or null before one is started. The voice
@@ -29,6 +32,13 @@ class ShiftNotifier extends StateNotifier<String?> {
       if (mounted) {
         state = id;
         _ref.read(summaryStreamProvider.notifier).reset();
+        // A queue provider created just now already fetches for this shift.
+        final queueExisted = _ref.exists(orderQueueProvider);
+        final queue = _ref.read(orderQueueProvider.notifier);
+        if (queueExisted) {
+          queue.reset();
+          unawaited(queue.refresh());
+        }
       }
       return id;
     } finally {
@@ -36,6 +46,11 @@ class ShiftNotifier extends StateNotifier<String?> {
     }
   }
 
-  /// Forget the shift (e.g. on sign-out).
-  void clear() => state = null;
+  /// Forget the shift (e.g. on sign-out), and its order queue with it.
+  void clear() {
+    state = null;
+    if (_ref.exists(orderQueueProvider)) {
+      _ref.read(orderQueueProvider.notifier).reset();
+    }
+  }
 }

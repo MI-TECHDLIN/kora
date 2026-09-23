@@ -1,4 +1,5 @@
 import '../../features/map/data/map_route.dart';
+import '../../features/summary/data/order_queue.dart';
 import '../../providers/task_progress_provider.dart';
 
 /// A server → client text frame on the voice socket. One class per event in
@@ -81,6 +82,7 @@ sealed class VoiceEvent {
         code: field('code'),
         message: json['message'] as String? ?? '',
       ),
+      'queue_updated' => QueueUpdatedEvent(OrderQueue.fromJson(json)),
       'voice_change_accepted' => VoiceChangeAcceptedEvent(field('voice')),
       'voice_unchanged' => VoiceUnchangedEvent(field('voice')),
       _ => null,
@@ -324,4 +326,12 @@ class VoiceChangeAcceptedEvent extends VoiceEvent {
 class VoiceUnchangedEvent extends VoiceEvent {
   const VoiceUnchangedEvent(this.voice);
   final String voice;
+}
+
+/// The order queue or the daily target changed. The payload is the same
+/// snapshot `GET /v1/shift/{shift_id}/queue` returns, so it replaces the
+/// app's queue outright.
+class QueueUpdatedEvent extends VoiceEvent {
+  const QueueUpdatedEvent(this.queue);
+  final OrderQueue queue;
 }

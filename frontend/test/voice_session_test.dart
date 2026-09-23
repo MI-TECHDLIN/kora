@@ -16,6 +16,7 @@ import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/map_route_provider.dart';
 import 'package:voiceops/providers/navigation_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
+import 'package:voiceops/providers/order_queue_provider.dart';
 import 'package:voiceops/providers/push_to_talk_provider.dart';
 import 'package:voiceops/providers/summary_stream_provider.dart';
 import 'package:voiceops/providers/task_progress_provider.dart';
@@ -25,6 +26,7 @@ import 'package:voiceops/providers/voice_session_provider.dart';
 import 'fake_auth.dart';
 import 'fake_voice.dart';
 import 'map_route_test.dart' show sampleMapRoute;
+import 'order_queue_fixtures.dart';
 
 /// Records agent navigation instead of driving a real router.
 class _FakeNavigation implements NavigationActions {
@@ -812,6 +814,48 @@ void main() {
       expect(voice().connection, VoiceConnection.disconnected);
       async.elapse(const Duration(seconds: 30));
       expect(connector.sockets, hasLength(1));
+    });
+  });
+
+  group('order queue', () {
+    test('connecting seeds the queue and queue_updated replaces it', () {
+      api.queue = queueOf(5, completed: 1);
+      onFakeTime((async, flush) {
+        session().onPushToTalk();
+        flush();
+        expect(api.queueRequests, isNotEmpty);
+        expect(container.read(orderQueueProvider).queue.completed, 1);
+
+        connector.last.emit({
+          'event': 'queue_updated',
+          ...queueJson([
+            orderJson('d-1', 1, 'completed'),
+            orderJson('d-2', 2, 'completed'),
+            orderJson('d-3', 3, 'active'),
+          ], target: 9),
+        });
+        flush();
+
+        final queue = container.read(orderQueueProvider).queue;
+        expect(queue.completed, 2);
+        expect(queue.target, 9);
+        expect(queue.active?.deliveryId, 'd-3');
+      });
+    });
+
+    test('signing out forgets the queue', () {
+      api.queue = queueOf(4, completed: 1, target: 6);
+      onFakeTime((async, flush) {
+        session().onPushToTalk();
+        flush();
+        expect(container.read(orderQueueProvider).queue.counts.total, 4);
+
+        auth.signOut();
+        flush();
+
+        expect(container.read(orderQueueProvider).queue.isEmpty, isTrue);
+        expect(container.read(orderQueueProvider).queue.target, isNull);
+      });
     });
   });
 }
