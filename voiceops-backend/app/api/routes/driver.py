@@ -6,6 +6,11 @@ from app.dependencies import get_current_driver
 from app.db.queries import get_driver_by_id, create_driver_profile
 from app.db.client import get_supabase_client
 from app.integrations.n8n_client import trigger_driver_onboarding_background
+from app.services.vehicle_modes import (
+    VehicleMode,
+    invalidate_driver_vehicle_mode,
+    parse_vehicle_mode,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -113,7 +118,18 @@ async def update_profile(
     if request.name:
         update_data["name"] = request.name
     if request.vehicle_type:
-        update_data["vehicle_type"] = request.vehicle_type
+        vehicle_type = request.vehicle_type.strip()
+        # The vehicle decides how ETAs are computed, so an unrecognised value is
+        # rejected here instead of silently being timed as a car later.
+        if parse_vehicle_mode(vehicle_type) is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Unrecognised vehicle_type {request.vehicle_type!r}. "
+                    f"Use one of: {', '.join(mode.value for mode in VehicleMode)}."
+                ),
+            )
+        update_data["vehicle_type"] = vehicle_type
     
     if not update_data:
         raise HTTPException(
@@ -135,6 +151,7 @@ async def update_profile(
                 detail="Driver profile not found"
             )
         
+        invalidate_driver_vehicle_mode(current_user["id"])
         return response.data[0]
     except Exception as e:
         raise HTTPException(

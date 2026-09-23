@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Tuple, Dict, Any, Optional
 from app.services.location_service import haversine_distance
+from app.services.vehicle_modes import resolve_vehicle_mode, straight_line_speed_kmh
 from app.db.queries import get_delivery_by_id, get_supabase, is_valid_uuid
 
 logger = logging.getLogger(__name__)
@@ -22,14 +23,18 @@ class ETAService:
         origin: Tuple[float, float],
         destination: Tuple[float, float],
         current_speed_kmh: float = 30.0,
+        vehicle_type: Optional[str] = None,
     ) -> int:
         """
         Compute ETA in minutes using haversine distance with an urban street factor.
+        `current_speed_kmh` is the car speed; other vehicle modes derive their
+        speed from it or use their own average (see `app.services.vehicle_modes`).
         """
         dist_m = haversine_distance(origin[0], origin[1], destination[0], destination[1])
         dist_km = (dist_m / 1000.0) * cls.URBAN_FACTOR
 
-        effective_speed = current_speed_kmh if current_speed_kmh >= 10.0 else 25.0
+        car_speed = current_speed_kmh if current_speed_kmh >= 10.0 else 25.0
+        effective_speed = straight_line_speed_kmh(resolve_vehicle_mode(vehicle_type), car_speed)
         hours = dist_km / effective_speed
         return max(1, math.ceil(hours * 60))
 
@@ -43,9 +48,11 @@ class ETAService:
         destination: Tuple[float, float],
         delivery_id: Optional[str] = None,
         current_speed_kmh: float = 30.0,
+        vehicle_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Compute ETA in minutes using traffic-aware routing API.
+        Compute ETA in minutes using traffic-aware routing API, for the driver's
+        vehicle (`vehicle_type`, car when unset).
         Falls back to haversine-based calculation if the traffic API fails.
         
         Returns:
@@ -54,15 +61,21 @@ class ETAService:
                 "distance_km": float,
                 "traffic_delay_minutes": float,
                 "provider": "tomtom" | "haversine",
+                "vehicle_mode": "car" | "motorbike" | "bicycle" | "walking",
                 "geometry": str (optional)
             }
         """
+        mode = resolve_vehicle_mode(vehicle_type)
+        # The cache is per delivery AND mode: a driver who switches vehicle must not
+        # be served the previous mode's ETA.
+        cache_key = f"{delivery_id}:{mode.value}" if delivery_id else None
+
         # Check cache first if delivery_id is provided
-        if delivery_id:
+        if cache_key:
             import time
             current_time = time.time()
-            if delivery_id in self._traffic_eta_cache:
-                timestamp, cached_result = self._traffic_eta_cache[delivery_id]
+            if cache_key in self._traffic_eta_cache:
+                timestamp, cached_result = self._traffic_eta_cache[cache_key]
                 if current_time - timestamp < self._cache_ttl_seconds:
                     logger.debug(f"[ETAService] Using cached traffic ETA for delivery {delivery_id}")
                     return cached_result
@@ -70,7 +83,9 @@ class ETAService:
         # Try traffic-aware routing
         try:
             from app.integrations.traffic_routing import traffic_routing_client
-            traffic_result = await traffic_routing_client.get_traffic_aware_eta(origin, destination)
+            traffic_result = await traffic_routing_client.get_traffic_aware_eta(
+                origin, destination, vehicle_type=mode.value
+            )
             
             if traffic_result and traffic_result.get("success"):
                 result = {
@@ -78,12 +93,13 @@ class ETAService:
                     "distance_km": traffic_result["distance_km"],
                     "traffic_delay_minutes": traffic_result.get("traffic_delay_minutes", 0),
                     "provider": "tomtom",
+                    "vehicle_mode": mode.value,
                     "geometry": traffic_result.get("geometry", ""),
                 }
                 
                 # Cache the result if delivery_id is provided
-                if delivery_id:
-                    self._traffic_eta_cache[delivery_id] = (time.time(), result)
+                if cache_key:
+                    self._traffic_eta_cache[cache_key] = (time.time(), result)
                 
                 logger.info(f"[ETAService] Traffic-aware ETA: {result['eta_minutes']} mins (delay: {result['traffic_delay_minutes']} mins)")
                 return result
@@ -92,7 +108,9 @@ class ETAService:
 
         # Fallback to haversine-based calculation
         logger.info("[ETAService] Falling back to haversine-based ETA calculation")
-        eta_minutes = self.compute_eta_minutes(origin, destination, current_speed_kmh)
+        eta_minutes = self.compute_eta_minutes(
+            origin, destination, current_speed_kmh, vehicle_type=mode.value
+        )
         dist_m = haversine_distance(origin[0], origin[1], destination[0], destination[1])
         dist_km = (dist_m / 1000.0) * self.URBAN_FACTOR
         
@@ -101,13 +119,14 @@ class ETAService:
             "distance_km": round(dist_km, 2),
             "traffic_delay_minutes": 0.0,
             "provider": "haversine",
+            "vehicle_mode": mode.value,
             "geometry": "",
         }
         
         # Cache the fallback result if delivery_id is provided
-        if delivery_id:
+        if cache_key:
             import time
-            self._traffic_eta_cache[delivery_id] = (time.time(), result)
+            self._traffic_eta_cache[cache_key] = (time.time(), result)
         
         return result
 

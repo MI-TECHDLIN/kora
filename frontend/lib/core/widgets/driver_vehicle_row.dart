@@ -122,6 +122,11 @@ class _VehicleLayout extends StatelessWidget {
 IconData vehicleIcon(String? vehicleType) {
   final type = vehicleType?.toLowerCase() ?? '';
   if (type.isEmpty) return TablerIcons.steeringWheel;
+  if (type.contains('walk') ||
+      type.contains('foot') ||
+      type.contains('pedestrian')) {
+    return TablerIcons.walk;
+  }
   if (type.contains('scooter')) return TablerIcons.scooter;
   if (type.contains('motor') || type.contains('okada')) {
     return TablerIcons.motorbike;

@@ -1,6 +1,11 @@
 """
 OSRM (Open Source Routing Machine) Integration
-Provides turn-by-turn driving directions, route geometry, distance, and duration.
+Provides route geometry, distance and duration for the in-app map and voice tools.
+
+Geometry and distance always come from the OSRM `driving` profile (the public
+demo server serves nothing else). Duration is then derived per vehicle mode by
+`app.services.vehicle_modes`, so walking and cycling ETAs are approximate and
+follow driving-network roads until a self-hosted OSRM with real profiles exists.
 
 `get_directions` backs the voice navigation tools with route alternatives in
 raw metres/seconds plus encoded polylines for the in-app map. `osrm_client`
@@ -11,6 +16,11 @@ from typing import Dict, Any, List, Tuple, Optional
 import httpx
 
 from app.config import settings
+from app.services.vehicle_modes import (
+    apply_mode_to_routes,
+    duration_for_mode,
+    resolve_vehicle_mode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +39,15 @@ async def get_directions(
     origin_lng: float,
     dest_lat: float,
     dest_lng: float,
+    vehicle_type: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Fetch driving route alternatives from OSRM.
+    Fetch route alternatives from OSRM, timed for the driver's vehicle.
 
     Returns fastest-first route dicts: `summary`, `distance` in metres,
-    `duration` in seconds, and `polyline` with Google precision 5 encoding.
-    Empty means OSRM could not produce a route.
+    `duration` in seconds for `vehicle_type` (car when unset), `driving_duration`
+    (the raw OSRM seconds), `vehicle_mode`, and `polyline` with Google
+    precision 5 encoding. Empty means OSRM could not produce a route.
     """
     coordinates = f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
     url = f"{settings.osrm_base_url.rstrip('/')}/route/v1/driving/{coordinates}"
@@ -69,7 +81,7 @@ async def get_directions(
                     "polyline": route.get("geometry", ""),
                 }
             )
-        return sorted(routes, key=lambda route: route["duration"])
+        return apply_mode_to_routes(routes, vehicle_type)
     except Exception as e:
         logger.warning("[OSRM] Request failed: %s", e)
         return []
@@ -84,9 +96,11 @@ class OSRMClient:
         destination: Tuple[float, float],
         overview: str = "simplified",
         steps: bool = True,
+        vehicle_type: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Calculate route between origin (lat, lng) and destination (lat, lng).
+        Calculate route between origin (lat, lng) and destination (lat, lng),
+        timed for `vehicle_type` (driving geometry and distance either way).
         Note: OSRM uses {longitude},{latitude} in its URL path format.
         """
         origin_lat, origin_lng = origin
@@ -110,7 +124,10 @@ class OSRMClient:
                     if routes:
                         primary_route = routes[0]
                         distance_m = primary_route.get("distance", 0.0)
-                        duration_s = primary_route.get("duration", 0.0)
+                        mode = resolve_vehicle_mode(vehicle_type)
+                        duration_s = duration_for_mode(
+                            mode, distance_m, primary_route.get("duration", 0.0)
+                        )
 
                         step_list = []
                         for leg in primary_route.get("legs", []):
@@ -122,6 +139,7 @@ class OSRMClient:
                         return {
                             "success": True,
                             "provider": "osrm",
+                            "vehicle_mode": mode.value,
                             "distance_km": round(distance_m / 1000.0, 2),
                             "duration_mins": round(duration_s / 60.0, 1),
                             "duration_text": f"{int(duration_s / 60.0)} mins",

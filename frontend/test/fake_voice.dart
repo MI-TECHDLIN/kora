@@ -209,6 +209,23 @@ class FakeKoraApi implements KoraApi {
     );
   }
 
+  /// Every vehicle_type sent to `PUT /v1/driver/profile`, in order.
+  final vehicleUpdates = <String>[];
+
+  @override
+  Future<DriverProfile> updateDriverVehicle(String vehicleType) async {
+    vehicleUpdates.add(vehicleType);
+    if (updateFailure case final f?) throw f;
+    final current = profile ?? const DriverProfile(id: 'driver-1');
+    return profile = DriverProfile(
+      id: current.id,
+      name: current.name,
+      vehicleType: vehicleType,
+      phone: current.phone,
+      createdAt: current.createdAt,
+    );
+  }
+
   /// Every code sent to `POST /v1/driver/connect`, in order.
   final connectCodes = <String>[];
   ApiException? connectFailure;

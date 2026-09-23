@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any, Tuple, Optional
 import httpx
 from app.config import settings
+from app.services.vehicle_modes import duration_for_mode, resolve_vehicle_mode
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,10 @@ class TrafficRoutingClient:
     """
     TomTom Routing API client for traffic-aware ETA calculations.
     Uses TomTom's Routing API with traffic=true to get real-time traffic conditions.
+
+    The request is always made as `travelMode=car`. Other vehicle modes derive
+    their duration from that route's distance and car time (see
+    `app.services.vehicle_modes`), so walking and cycling ETAs are approximate.
     """
     
     BASE_URL = "https://api.tomtom.com/routing/1"
@@ -27,9 +32,12 @@ class TrafficRoutingClient:
         self,
         origin: Tuple[float, float],
         destination: Tuple[float, float],
+        vehicle_type: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Calculate traffic-aware ETA between origin (lat, lng) and destination (lat, lng).
+        Calculate traffic-aware ETA between origin (lat, lng) and destination (lat, lng),
+        timed for `vehicle_type` (car when unset). Car keeps the traffic-aware time;
+        a motorbike scales it; walking and cycling ignore traffic (distance / speed).
         
         Returns:
             {
@@ -38,7 +46,8 @@ class TrafficRoutingClient:
                 "route_geometry": str,
                 "provider": "tomtom",
                 "traffic_delay_minutes": float,
-                "free_flow_eta_minutes": int
+                "free_flow_eta_minutes": int,
+                "vehicle_mode": str
             }
         or None if the API call fails.
         """
@@ -75,6 +84,15 @@ class TrafficRoutingClient:
                         free_flow_seconds = travel_time_seconds - traffic_delay_seconds
                         
                         distance_meters = summary.get("lengthInMeters", 0)
+
+                        mode = resolve_vehicle_mode(vehicle_type)
+                        eta_seconds = duration_for_mode(mode, distance_meters, travel_time_seconds)
+                        free_flow_eta_seconds = duration_for_mode(
+                            mode, distance_meters, free_flow_seconds
+                        )
+                        # Walking and cycling do not depend on traffic, so both times match
+                        # and the delay is 0; car and motorbike keep their (scaled) delay.
+                        traffic_delay_seconds = eta_seconds - free_flow_eta_seconds
                         
                         # Extract route geometry (encoded polyline)
                         geometry = primary_route.get("legs", [{}])[0].get("points", [])
@@ -82,10 +100,11 @@ class TrafficRoutingClient:
                         return {
                             "success": True,
                             "provider": "tomtom",
-                            "eta_minutes": int(travel_time_seconds / 60),
+                            "vehicle_mode": mode.value,
+                            "eta_minutes": int(eta_seconds / 60),
                             "distance_km": round(distance_meters / 1000.0, 2),
                             "traffic_delay_minutes": round(traffic_delay_seconds / 60, 1),
-                            "free_flow_eta_minutes": int(free_flow_seconds / 60),
+                            "free_flow_eta_minutes": int(free_flow_eta_seconds / 60),
                             "geometry": str(geometry),  # Simplified geometry representation
                         }
                 

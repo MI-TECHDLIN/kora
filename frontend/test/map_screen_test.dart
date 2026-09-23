@@ -451,10 +451,33 @@ void main() {
     await settle(tester);
     expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
     expect(vehicleModeStore.value, VehicleMode.bicycle);
+    // The backend times ETAs from the stored vehicle, so the pick is synced.
+    expect(api.vehicleUpdates, ['bicycle']);
 
     container.invalidate(vehicleModeProvider);
     await settle(tester);
     expect(container.read(vehicleModeProvider), VehicleMode.bicycle);
+  });
+
+  testWidgets('the driver can pick walking in Settings', (tester) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+
+    await tester.tap(find.bySemanticsLabel('Walking'));
+    await settle(tester);
+    expect(container.read(vehicleModeProvider), VehicleMode.walking);
+    expect(vehicleModeStore.value, VehicleMode.walking);
+    expect(api.vehicleUpdates, ['walking']);
+  });
+
+  test('fromProfile recognises walking and its common spellings', () {
+    for (final text in ['walking', 'Walk', 'on foot', 'FOOT', 'Pedestrian']) {
+      expect(VehicleMode.fromProfile(text), VehicleMode.walking, reason: text);
+    }
+    expect(VehicleMode.fromProfile('Motorbike'), VehicleMode.motorbike);
+    expect(VehicleMode.fromProfile('Bicycle'), VehicleMode.bicycle);
+    expect(VehicleMode.fromProfile('Sedan'), VehicleMode.car);
+    expect(VehicleMode.fromProfile(null), VehicleMode.car);
   });
 
   testWidgets('the driver picks the map style in Settings', (tester) async {
