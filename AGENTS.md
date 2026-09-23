@@ -101,7 +101,7 @@ Both layers must remain in the codebase.
 
 ---
 
-## The 15 Agent Tools
+## The Agent Tools
 
 | Tool | What it does | Platform |
 |---|---|---|
@@ -116,18 +116,27 @@ Both layers must remain in the codebase.
 | `get_next_order` | The new order offered to the driver, else the nearest unassigned one | order dispatcher / MockAdapter |
 | `accept_order` | Take the offered order as the last stop on the shift | order dispatcher / MockAdapter |
 | `decline_order` | Pass the offered order to the next-nearest driver | order dispatcher |
-| `get_shift_summary` | Summarise current shift stats | Supabase |
+| `get_shift_summary` | Summarise current shift stats (real stats only - no demo fallback) | Supabase |
+| `end_shift` | Mark the shift complete and trigger the post-shift LeMUR report + n8n notification. The only driver-reachable trigger for `POST /v1/shift/{shift_id}/end`; distinct from `end_conversation`, which just closes the mic | Supabase + AssemblyAI LeMUR + n8n |
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 | `end_conversation` | Close the driver's voice conversation when they're done | internal |
 
-Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.5, generated from the running
-code). Its "13 Tools" heading and proactive-behaviours note lag the registry
-(`app/agents/tool_registry.py`, 15 tools), and it has no `end_conversation`
-entry, so check the registry when in doubt. The WebSocket, REST, status-enum, and auth contract is
-`docs/contracts/interface.md`. Those two docs are the contract. Do not
-invent tool shapes.
+This table is illustrative, not authoritative on count — it has drifted from the registry before
+(most recently missing the 4 `get_preferences`/`set_preference`/`clear_preference`/`reset_preferences`
+tools). `app/agents/tool_registry.py`'s `TOOL_EXECUTORS` dict is the source of truth for exactly which
+tools exist. Exact input/output JSON shapes and handler signatures live in
+`docs/VoiceOps_Agent_Tools_Reference.md` (v2.5, generated from the running code, itself lagging the
+registry the same way) — check the registry when in doubt, not this doc or that one. The WebSocket,
+REST, status-enum, and auth contract is `docs/contracts/interface.md`. Do not invent tool shapes.
+
+**Shift-end triggering.** `end_shift_core()` (`voiceops-backend/app/api/routes/shift.py`) is the one
+place that marks a shift completed, persists `ended_at`/stats, and fires the n8n post-shift webhook;
+both the `POST /{shift_id}/end` route and the `end_shift` voice tool call it, then separately schedule
+`run_shift_intelligence_and_stream` (the LeMUR pipeline) in the background. A driver who never
+explicitly ends a shift (app killed, connection lost) leaves it `active` — `POST /start` detects that
+dangling shift for the driver and runs it through the same `end_shift_core` path before creating the
+new one, so it still gets a report and never coexists with the new shift.
 
 **Proactive agent behaviours** that must be preserved:
 - auto-announces the next stop after a delivery completes

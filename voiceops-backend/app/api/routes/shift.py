@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -8,12 +10,15 @@ from app.db.queries import (
     get_shift_stats,
     get_shift_voice_sessions,
     get_intelligence_report_by_shift,
-    get_shift_by_id
+    get_shift_by_id,
+    get_active_shift_for_driver,
+    get_supabase,
 )
 from app.integrations.n8n_client import trigger_post_shift_report_background
 from app.intelligence.lemur_pipeline import run_shift_intelligence
 from app.api.websocket.voice import stream_summary
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -23,6 +28,56 @@ async def run_shift_intelligence_and_stream(shift_id: str, driver_id: str) -> di
     result = await run_shift_intelligence(shift_id, driver_id)
     await stream_summary(shift_id, result.get("analysis", {}).get("executive_summary", ""))
     return result
+
+
+async def end_shift_core(shift_id: str, driver_id: str, driver_name: str) -> dict:
+    """
+    Mark a shift completed, persist its stats/timestamps, and fire the n8n post-shift
+    webhook. Shared by the `/end` route, the `end_shift` voice tool, and the dangling-shift
+    cleanup `/start` runs. Callers are responsible for scheduling
+    `run_shift_intelligence_and_stream(shift_id, driver_id)` in the background - this
+    function only does the fast, synchronous bookkeeping.
+    """
+    await update_shift_status(shift_id, "completed")
+
+    shift = await get_shift_by_id(shift_id)
+    shift_duration_min = 0
+    ended_at_str = datetime.now(timezone.utc).isoformat()
+
+    if shift and shift.get("started_at"):
+        try:
+            started_dt = datetime.fromisoformat(str(shift["started_at"]).replace("Z", "+00:00"))
+            shift_duration_min = max(0, int((datetime.now(timezone.utc) - started_dt).total_seconds() / 60))
+        except Exception:
+            shift_duration_min = 0
+
+    try:
+        get_supabase().table("shifts").update({"ended_at": ended_at_str}).eq("id", shift_id).execute()
+    except Exception:
+        logger.warning(f"[end_shift_core] failed to persist ended_at for shift {shift_id}", exc_info=True)
+
+    stats = await get_shift_stats(shift_id)
+    sessions = await get_shift_voice_sessions(shift_id)
+
+    trigger_post_shift_report_background(
+        shift_id=shift_id,
+        driver_id=driver_id,
+        driver_name=driver_name,
+        total_deliveries=stats.get("total", 0),
+        delivered_count=stats.get("delivered", 0),
+        failed_count=stats.get("failed", 0),
+        shift_duration_min=shift_duration_min,
+        dispatcher_alerts=0,
+        voice_sessions=len(sessions),
+        shift_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        ended_at=ended_at_str,
+    )
+
+    return {
+        "shift_id": shift_id,
+        "status": "completed",
+        "shift_duration_min": shift_duration_min,
+    }
 
 
 class ShiftStartResponse(BaseModel):
@@ -39,11 +94,37 @@ class ShiftEndResponse(BaseModel):
 
 @router.post("/start", response_model=ShiftStartResponse)
 async def start_shift(
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_driver)
 ):
-    """Start a new shift."""
+    """
+    Start a new shift.
+
+    A driver can end up here with a shift still marked `active` from a previous session
+    that was never explicitly ended (app killed, connection lost, etc.). Starting a new
+    shift on top of a dangling one would let two "active" shifts coexist and would orphan
+    the old one's report forever, so we implicitly close it first - same pipeline as a
+    normal end, including its own post-shift report - before creating the new shift.
+    """
     try:
-        shift = await create_shift(current_user["id"])
+        driver_id = current_user["id"]
+
+        dangling = await get_active_shift_for_driver(driver_id)
+        if dangling and dangling.get("id"):
+            try:
+                await end_shift_core(
+                    dangling["id"],
+                    driver_id,
+                    current_user.get("full_name") or current_user.get("email", "Driver"),
+                )
+                background_tasks.add_task(run_shift_intelligence_and_stream, dangling["id"], driver_id)
+            except Exception:
+                # Don't let cleanup of a stale shift block starting the new one.
+                logger.warning(
+                    f"[start_shift] failed to auto-close dangling shift {dangling['id']}", exc_info=True
+                )
+
+        shift = await create_shift(driver_id)
         return ShiftStartResponse(
             shift_id=shift["id"],
             status=shift["status"],
@@ -64,51 +145,18 @@ async def end_shift(
 ):
     """End shift and trigger AssemblyAI LeMUR intelligence + n8n reporting."""
     try:
-        # Mark shift as completed in Supabase
-        await update_shift_status(shift_id, "completed")
-
-        # Pull real stats and shift duration
-        shift = await get_shift_by_id(shift_id)
-        shift_duration_min = 0
-        ended_at_str = datetime.now(timezone.utc).isoformat()
-
-        if shift and shift.get("started_at"):
-            try:
-                started_dt = datetime.fromisoformat(str(shift["started_at"]).replace("Z", "+00:00"))
-                shift_duration_min = max(0, int((datetime.now(timezone.utc) - started_dt).total_seconds() / 60))
-            except Exception:
-                shift_duration_min = 0
-
-        # Update ended_at timestamp on the shift row
-        try:
-            get_supabase().table("shifts").update({"ended_at": ended_at_str}).eq("id", shift_id).execute()
-        except Exception:
-            pass
-
-        stats = await get_shift_stats(shift_id)
-        sessions = await get_shift_voice_sessions(shift_id)
-
-        # 1. Trigger AssemblyAI LeMUR speech analysis pipeline in background
-        background_tasks.add_task(run_shift_intelligence_and_stream, shift_id, current_user.get("id"))
-
-        # 2. Trigger n8n post-shift intelligence notification
-        trigger_post_shift_report_background(
-            shift_id=shift_id,
-            driver_id=current_user["id"],
-            driver_name=current_user.get("full_name") or current_user.get("email", "Driver"),
-            total_deliveries=stats.get("total", 0),
-            delivered_count=stats.get("delivered", 0),
-            failed_count=stats.get("failed", 0),
-            shift_duration_min=shift_duration_min,
-            dispatcher_alerts=0,
-            voice_sessions=len(sessions),
-            shift_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            ended_at=ended_at_str,
+        result = await end_shift_core(
+            shift_id,
+            current_user["id"],
+            current_user.get("full_name") or current_user.get("email", "Driver"),
         )
+
+        # Trigger AssemblyAI LeMUR speech analysis pipeline in background
+        background_tasks.add_task(run_shift_intelligence_and_stream, shift_id, current_user.get("id"))
 
         return ShiftEndResponse(
             shift_id=shift_id,
-            status="completed",
+            status=result["status"],
             message="Shift ended. LeMUR intelligence analysis and reports are being generated."
         )
 

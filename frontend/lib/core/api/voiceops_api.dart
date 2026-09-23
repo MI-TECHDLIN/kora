@@ -134,6 +134,12 @@ abstract interface class KoraApi {
   /// `POST /v1/shift/start`; returns the new shift's id.
   Future<String> startShift();
 
+  /// `POST /v1/shift/{shift_id}/end`. Marks the shift complete and triggers
+  /// post-shift report generation. The voice tool `end_shift` is the
+  /// primary way a driver reaches this; this method exists for a future
+  /// UI affordance to call the same endpoint.
+  Future<void> endShift(String shiftId);
+
   /// `POST /v1/locations/ping`. This is what feeds the backend's proactive
   /// risk engine, which runs on every ping and is the only thing that can
   /// raise a `PROACTIVE_ALERT`.
@@ -227,6 +233,10 @@ class HttpKoraApi implements KoraApi {
     }
     return shiftId;
   }
+
+  @override
+  Future<void> endShift(String shiftId) async =>
+      _send('POST', 'v1/shift/${Uri.encodeComponent(shiftId)}/end');
 
   @override
   Future<void> sendLocationPing(LocationPing ping) async =>

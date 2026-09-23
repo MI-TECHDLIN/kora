@@ -217,6 +217,16 @@ class FakeKoraApi implements KoraApi {
     return 'shift-1';
   }
 
+  /// Every shift id sent to [endShift], in order.
+  final endShiftCalls = <String>[];
+  ApiException? endShiftFailure;
+
+  @override
+  Future<void> endShift(String shiftId) async {
+    endShiftCalls.add(shiftId);
+    if (endShiftFailure case final f?) throw f;
+  }
+
   @override
   Future<void> sendLocationPing(LocationPing ping) async {
     pings.add(ping);
