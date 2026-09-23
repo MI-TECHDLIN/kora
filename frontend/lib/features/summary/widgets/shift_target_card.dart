@@ -57,7 +57,9 @@ class _ShiftTargetCardState extends ConsumerState<ShiftTargetCard> {
   Future<void> _save() async {
     final target = parseTarget(_controller.text);
     if (target == null) {
-      setState(() => _invalid = 'Enter a whole number above 0.');
+      setState(
+        () => _invalid = 'Enter a whole number from 1 to $maxDailyTarget.',
+      );
       return;
     }
     await _apply(target);
@@ -192,7 +194,7 @@ class _ShiftTargetCardState extends ConsumerState<ShiftTargetCard> {
         textInputAction: TextInputAction.done,
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(4),
+          LengthLimitingTextInputFormatter(3),
         ],
         onSubmitted: (_) => _save(),
         style: KoraText.title,

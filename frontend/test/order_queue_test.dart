@@ -19,8 +19,8 @@ void main() {
     test('parses a snapshot: states, counts, target and order', () {
       final queue = OrderQueue.fromJson(
         queueJson([
-          orderJson('b', 2, 'active', window: '9:00 - 10:00', eta: 7),
           orderJson('a', 1, 'completed'),
+          orderJson('b', 2, 'active', window: '9:00 - 10:00', eta: 7),
           orderJson('c', 3, 'pending'),
           orderJson('d', 4, 'failed'),
           orderJson('e', 5, 'rescheduled'),
@@ -67,6 +67,18 @@ void main() {
       expect(queue.counts.total, 3);
       expect(queue.counts.completed, 1);
       expect(queue.counts.pending, 2);
+    });
+
+    test('keeps the backend order, and numbers a stop with no sequence', () {
+      final queue = OrderQueue.fromJson(
+        queueJson([
+          {...orderJson('a', 1, 'active'), 'sequence': 1},
+          {...orderJson('b', 2, 'pending'), 'sequence': 4},
+          {...orderJson('c', 3, 'pending'), 'sequence': null},
+        ]),
+      );
+      expect(queue.orders.map((o) => o.deliveryId), ['a', 'b', 'c']);
+      expect(queue.orders.map((o) => o.sequence), [1, 4, 3]);
     });
 
     test('upNext is the active order then pending, up to the limit', () {
@@ -137,7 +149,8 @@ void main() {
     test('parseTarget accepts a positive whole number only', () {
       expect(parseTarget('15'), 15);
       expect(parseTarget(' 8 '), 8);
-      for (final bad in ['', '0', '-3', '2.5', 'abc', '1e3']) {
+      expect(parseTarget('500'), 500);
+      for (final bad in ['', '0', '-3', '2.5', 'abc', '1e3', '501']) {
         expect(parseTarget(bad), isNull, reason: bad);
       }
     });

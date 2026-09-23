@@ -315,14 +315,21 @@ void main() {
         await tester.enterText(key('target-field'), bad);
         await tester.tap(key('target-save'));
         await tester.pump();
-        expect(find.text('Enter a whole number above 0.'), findsOneWidget);
+        expect(
+          find.text('Enter a whole number from 1 to 500.'),
+          findsOneWidget,
+        );
       }
-      // The field itself takes digits only.
+      // The field itself takes digits only, and no more than three.
       await tester.enterText(key('target-field'), '1.5-2');
       expect(
         tester.widget<TextField>(key('target-field')).controller!.text,
         '152',
       );
+      await tester.enterText(key('target-field'), '501');
+      await tester.tap(key('target-save'));
+      await tester.pump();
+      expect(find.text('Enter a whole number from 1 to 500.'), findsOneWidget);
       expect(api.preferenceWrites, isEmpty);
 
       await tester.tap(key('target-cancel'));

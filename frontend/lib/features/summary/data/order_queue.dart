@@ -36,15 +36,18 @@ class QueueOrder {
     this.etaMinutes,
   });
 
-  factory QueueOrder.fromJson(Map<String, dynamic> json) => QueueOrder(
-    deliveryId: json['delivery_id'] as String? ?? '',
-    sequence: (json['sequence'] as num?)?.toInt() ?? 0,
-    state: OrderState.parse(json['state'], status: json['status']),
-    recipientName: _text(json['recipient_name']),
-    address: _text(json['address']),
-    timeWindow: _text(json['time_window']),
-    etaMinutes: (json['eta_minutes'] as num?)?.round(),
-  );
+  /// [position] (1-based) stands in when the backend has no `sequence_order`
+  /// for the stop; it sends those last.
+  factory QueueOrder.fromJson(Map<String, dynamic> json, {int position = 0}) =>
+      QueueOrder(
+        deliveryId: json['delivery_id'] as String? ?? '',
+        sequence: (json['sequence'] as num?)?.toInt() ?? position,
+        state: OrderState.parse(json['state'], status: json['status']),
+        recipientName: _text(json['recipient_name']),
+        address: _text(json['address']),
+        timeWindow: _text(json['time_window']),
+        etaMinutes: (json['eta_minutes'] as num?)?.round(),
+      );
 
   final String deliveryId;
   final int sequence;
@@ -117,11 +120,13 @@ class OrderQueue {
   static const empty = OrderQueue();
 
   factory OrderQueue.fromJson(Map<String, dynamic> json) {
+    // The backend already orders by `sequence_order`; keep its order.
     final orders = [
       if (json['orders'] case final List<dynamic> raw)
-        for (final order in raw)
-          if (order is Map<String, dynamic>) QueueOrder.fromJson(order),
-    ]..sort((a, b) => a.sequence.compareTo(b.sequence));
+        for (final (index, order) in raw.indexed)
+          if (order is Map<String, dynamic>)
+            QueueOrder.fromJson(order, position: index + 1),
+    ];
     return OrderQueue(
       shiftId: _text(json['shift_id']),
       target: _positive(json['target']),
@@ -210,5 +215,12 @@ int? _positive(Object? value) {
   return number != null && number > 0 ? number : null;
 }
 
-/// Validates the target editor's text: a positive whole number, or null.
-int? parseTarget(String input) => _positive(input);
+/// The backend rejects a `daily_delivery_target` above this (422).
+const maxDailyTarget = 500;
+
+/// Validates the target editor's text: a whole number from 1 to
+/// [maxDailyTarget], or null. Mirrors the backend's own check.
+int? parseTarget(String input) {
+  final value = _positive(input);
+  return value != null && value <= maxDailyTarget ? value : null;
+}
