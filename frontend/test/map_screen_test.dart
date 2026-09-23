@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/theme/tokens.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
@@ -159,8 +160,16 @@ void main() {
     await settle(tester);
     expect(find.text('Finding your location…'), findsNothing);
     expect(find.byType(PositionMarker), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byType(PositionMarker),
+        matching: find.byType(AnimatedPositioned),
+      ),
+      findsOneWidget,
+    );
     expectInClearView(tester, _nearStops);
     expect(mapController.cameraPosition!.zoom, KoraMap.followZoom);
+    expect(mapController.cameraDurations.last, KoraMotion.followCamera);
 
     // A moving position, not a static pin.
     location.emit(const LocationFix(_furtherOn, heading: 90));
@@ -215,6 +224,7 @@ void main() {
         mapController.cameraPosition!.zoom,
         lessThanOrEqualTo(KoraMap.maxFitZoom),
       );
+      expect(mapController.cameraDurations.last, KoraMotion.routeCamera);
 
       // The camera stays on the route while the driver moves.
       final framed = mapController.cameraPosition!.target;
@@ -235,6 +245,49 @@ void main() {
       expect(find.text('Tunde Bakare'), findsOneWidget);
     },
   );
+
+  testWidgets('pins glide to their new projection as the camera moves', (
+    tester,
+  ) async {
+    await pump(tester, const MapScreen());
+    showRoute(sampleMapRoute());
+    await settle(tester);
+
+    final route = MapRoute.fromJson(sampleMapRoute());
+    final pin = find.byType(StopPin).first;
+    final start = tester.getCenter(pin);
+    final camera = mapController.cameraPosition!;
+    await mapController.animateCamera(
+      maplibre.CameraUpdate.newLatLngZoom(
+        maplibre.LatLng(
+          camera.target.latitude,
+          camera.target.longitude + 0.002,
+        ),
+        camera.zoom,
+      ),
+      duration: KoraMotion.followCamera,
+    );
+    await tester.pump();
+
+    // AnimatedPositioned retains the rendered location on the first frame,
+    // advances through an in-between projection, then lands exactly on the
+    // projection for the new native camera position.
+    expect(tester.getCenter(pin), start);
+    await tester.pump(
+      Duration(milliseconds: KoraMotion.markerGlide.inMilliseconds ~/ 2),
+    );
+    final midway = tester.getCenter(pin);
+    final destination = screenPoint(tester, route.stops.first.point);
+    expect(
+      (midway - destination).distance,
+      lessThan((start - destination).distance),
+    );
+    expect((midway - destination).distance, greaterThan(0.1));
+
+    await tester.pump(KoraMotion.markerGlide);
+    expect(tester.getCenter(pin).dx, closeTo(destination.dx, 0.01));
+    expect(tester.getCenter(pin).dy, closeTo(destination.dy, 0.01));
+  });
 
   testWidgets('a short phone folds the card so the route shows', (
     tester,

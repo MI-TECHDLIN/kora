@@ -30,7 +30,7 @@ import '../widgets/route_card.dart';
 /// MapLibre renders the camera and base tiles on the platform side, outside
 /// Flutter's widget tree, so this screen owns two things flutter_map used to
 /// give it for free: the padding-aware camera math (see mercator.dart) and
-/// the stop/position pins, drawn as ordinary [Positioned] widgets projected
+/// the stop/position pins, drawn as [AnimatedPositioned] widgets projected
 /// onto the native camera every [_onCameraMove] tick rather than as
 /// platform-rendered symbols. That keeps `StopPin`'s active/inactive
 /// transition and `PositionMarker`'s heading rotation exactly as they were
@@ -192,7 +192,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// left/right and top/bottom asymmetry is converted into a pixel offset
   /// and applied to [point] before it becomes the camera's true centre; see
   /// mercator.dart.
-  Future<void> _centerInClearArea(LatLng point, {required double zoom}) async {
+  Future<void> _centerInClearArea(
+    LatLng point, {
+    required double zoom,
+    required Duration duration,
+  }) async {
     final controller = _controller;
     if (controller == null) return;
     final padding = _fitPadding();
@@ -205,6 +209,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     try {
       await controller.animateCamera(
         CameraUpdate.newLatLngZoom(toMaplibreLatLng(target), zoom),
+        duration: duration,
       );
     } finally {
       _programmaticMove = false;
@@ -243,13 +248,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       (bounds.southwest.latitude + bounds.northeast.latitude) / 2,
       (bounds.southwest.longitude + bounds.northeast.longitude) / 2,
     );
-    await _centerInClearArea(center, zoom: zoom);
+    await _centerInClearArea(
+      center,
+      zoom: zoom,
+      duration: KoraMotion.routeCamera,
+    );
   }
 
   /// Centres [point] in the clear map area at the follow zoom.
   Future<void> _moveTo(LatLng point) async {
     if (!_mapReady) return;
-    await _centerInClearArea(point, zoom: KoraMap.followZoom);
+    await _centerInClearArea(
+      point,
+      zoom: KoraMap.followZoom,
+      duration: KoraMotion.followCamera,
+    );
   }
 
   Future<void> _syncRouteLine(MapRoute? route) async {
@@ -390,9 +403,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  /// Stop pins and the position marker, as [Positioned] widgets projected
-  /// onto the native camera (see mercator.dart). Empty before the first
-  /// camera position is known.
+  /// Stop pins and the position marker, smoothly projected onto the native
+  /// camera with [AnimatedPositioned] (see mercator.dart). Empty before the
+  /// first camera position is known.
   List<Widget> _overlayMarkers({
     required MapRoute? route,
     required RouteStop? shownStop,
@@ -416,26 +429,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (route != null) {
       for (final stop in route.stops) {
         final active = stop == shownStop;
-        final dim = active ? KoraMap.stopPinActive : KoraMap.stopPin;
         final who = stop.recipientName ?? stop.address ?? 'Delivery stop';
         final pos = project(stop.point);
         markers.add(
-          Positioned(
+          AnimatedPositioned(
             key: ValueKey('stop-${stop.deliveryId}'),
-            left: pos.dx - dim / 2,
-            top: pos.dy - dim / 2,
-            width: dim,
-            height: dim,
-            child: StopPin(
-              label: stop.sequence?.toString() ?? '',
-              active: active,
-              semanticLabel: stop.sequence == null
-                  ? who
-                  : 'Stop ${stop.sequence}, $who',
-              onTap: () => setState(() {
-                _selectedStopId = stop.deliveryId;
-                _cardExpandedChoice = true;
-              }),
+            duration: KoraMotion.markerGlide,
+            curve: KoraMotion.standard,
+            left: pos.dx - KoraMap.stopPinActive / 2,
+            top: pos.dy - KoraMap.stopPinActive / 2,
+            width: KoraMap.stopPinActive,
+            height: KoraMap.stopPinActive,
+            child: Center(
+              child: StopPin(
+                label: stop.sequence?.toString() ?? '',
+                active: active,
+                semanticLabel: stop.sequence == null
+                    ? who
+                    : 'Stop ${stop.sequence}, $who',
+                onTap: () => setState(() {
+                  _selectedStopId = stop.deliveryId;
+                  _cardExpandedChoice = true;
+                }),
+              ),
             ),
           ),
         );
@@ -444,7 +460,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (fix != null) {
       final pos = project(fix.point);
       markers.add(
-        Positioned(
+        AnimatedPositioned(
+          key: const ValueKey('driver-position'),
+          duration: KoraMotion.markerGlide,
+          curve: KoraMotion.standard,
           left: pos.dx - KoraMap.positionHalo / 2,
           top: pos.dy - KoraMap.positionHalo / 2,
           width: KoraMap.positionHalo,

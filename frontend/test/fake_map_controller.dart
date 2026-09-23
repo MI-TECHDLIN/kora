@@ -22,6 +22,7 @@ class FakeKoraMapController implements KoraMapController {
 
   /// Every [CameraUpdate] map_screen.dart has issued, oldest first.
   final cameraUpdates = <CameraUpdate>[];
+  final cameraDurations = <Duration>[];
 
   @override
   CameraPosition? cameraPosition;
@@ -31,8 +32,12 @@ class FakeKoraMapController implements KoraMapController {
   List<LatLng>? routeLine;
 
   @override
-  Future<void> animateCamera(CameraUpdate update) async {
+  Future<void> animateCamera(
+    CameraUpdate update, {
+    required Duration duration,
+  }) async {
     cameraUpdates.add(update);
+    cameraDurations.add(duration);
     final position = _apply(update);
     cameraPosition = position;
     onCameraMoved?.call(position);
