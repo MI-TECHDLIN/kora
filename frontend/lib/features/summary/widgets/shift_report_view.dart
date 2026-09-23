@@ -187,7 +187,8 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(_RingPainter old) => old.progress != progress;
 }
 
-typedef _Stat = ({IconData icon, Color color, String value, String label});
+/// One number under an icon, as a [StatTile] draws it.
+typedef StatData = ({IconData icon, Color color, String value, String label});
 
 class _StatGrid extends StatelessWidget {
   const _StatGrid({required this.report});
@@ -197,7 +198,7 @@ class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = report.shiftDuration;
-    final stats = <_Stat>[
+    final stats = <StatData>[
       (
         icon: TablerIcons.circleCheck,
         color: KoraColors.success,
@@ -241,7 +242,7 @@ class _StatGrid extends StatelessWidget {
             for (final stat in stats)
               SizedBox(
                 width: width,
-                child: _StatTile(stat: stat),
+                child: StatTile(stat: stat),
               ),
           ],
         );
@@ -250,10 +251,11 @@ class _StatGrid extends StatelessWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.stat});
+/// A small glass tile: icon, big number, label.
+class StatTile extends StatelessWidget {
+  const StatTile({super.key, required this.stat});
 
-  final _Stat stat;
+  final StatData stat;
 
   @override
   Widget build(BuildContext context) {

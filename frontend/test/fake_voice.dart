@@ -11,6 +11,7 @@ import 'package:voiceops/core/realtime/voice_socket.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
+import 'package:voiceops/features/summary/data/order_queue.dart';
 import 'package:voiceops/features/summary/data/shift_report.dart';
 import 'package:voiceops/providers/co_rider_voice_provider.dart';
 import 'package:voiceops/providers/company_connection_provider.dart';
@@ -277,6 +278,41 @@ class FakeKoraApi implements KoraApi {
     return report;
   }
 
+  /// Returned by [fetchOrderQueue]; null means the backend has no queue
+  /// yet, so the app must show its empty state.
+  OrderQueue? queue;
+
+  /// Thrown by [fetchOrderQueue] instead of returning [queue].
+  ApiException? queueFailure;
+
+  /// Shift ids the app asked for a queue on, in order.
+  final queueRequests = <String>[];
+
+  @override
+  Future<OrderQueue> fetchOrderQueue(String shiftId) async {
+    queueRequests.add(shiftId);
+    if (queueFailure case final f?) throw f;
+    // Like the real backend, the snapshot's target is the saved preference.
+    final target = parseTarget(preferences['daily_delivery_target'] ?? '');
+    final snapshot = queue ?? OrderQueue(shiftId: shiftId);
+    return target == null ? snapshot : snapshot.withTarget(target);
+  }
+
+  /// Every `(delivery_id, status)` sent to `PUT /v1/deliveries/…/status`.
+  final deliveryStatusUpdates = <(String, String)>[];
+  ApiException? deliveryStatusFailure;
+
+  /// Runs after a status update is accepted, so a test can move [queue] on
+  /// the way the real backend would.
+  void Function(String deliveryId, String status)? onDeliveryStatus;
+
+  @override
+  Future<void> updateDeliveryStatus(String deliveryId, String status) async {
+    if (deliveryStatusFailure case final f?) throw f;
+    deliveryStatusUpdates.add((deliveryId, status));
+    onDeliveryStatus?.call(deliveryId, status);
+  }
+
   /// Backs `GET`/`PUT`/`DELETE /v1/driver/preferences`, as if it were the
   /// real `driver_preferences` table: every key voice or Settings has set.
   final Map<String, String> preferences = {};
@@ -420,6 +456,8 @@ class FakeWakeWordPreferencesStore implements WakeWordPreferencesStore {
 
 class FakeHomePreferencesStore implements HomePreferencesStore {
   FakeHomePreferencesStore({
+    bool nextOrdersEnabled = true,
+    bool targetEnabled = true,
     bool quickActionsEnabled = false,
     bool conversationEnabled = false,
     bool locationEnabled = false,
@@ -427,6 +465,8 @@ class FakeHomePreferencesStore implements HomePreferencesStore {
          quickActionsEnabled: quickActionsEnabled,
          conversationEnabled: conversationEnabled,
          locationEnabled: locationEnabled,
+         nextOrdersEnabled: nextOrdersEnabled,
+         targetEnabled: targetEnabled,
        );
 
   HomePreferences value;
@@ -447,6 +487,16 @@ class FakeHomePreferencesStore implements HomePreferencesStore {
   @override
   Future<void> saveLocation({required bool enabled}) async {
     value = value.copyWith(locationEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveNextOrders({required bool enabled}) async {
+    value = value.copyWith(nextOrdersEnabled: enabled);
+  }
+
+  @override
+  Future<void> saveTarget({required bool enabled}) async {
+    value = value.copyWith(targetEnabled: enabled);
   }
 }
 
