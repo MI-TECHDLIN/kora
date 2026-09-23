@@ -42,6 +42,7 @@ from app.db.queries import (
     set_open_order_status,
 )
 from app.integrations.logistics import DEMO_AREA_CENTER, IncomingOrder, LogisticsAdapter, get_logistics_adapter
+from app.services.order_queue_service import notify_queue_changed
 from app.utils.geo import haversine_km
 
 logger = logging.getLogger(__name__)
@@ -648,6 +649,8 @@ class OrderDispatcher:
                 open_order.delivery_id, shift_id or "-", os.getpid(),
             )
             return {"success": False, "error": "Someone else already took that order."}
+
+        await notify_queue_changed(shift_id, driver_id)
         try:
             await self.adapter.order_assigned(open_order.order, open_order.delivery_id, driver_id)
         except Exception:

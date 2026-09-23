@@ -149,6 +149,30 @@ async def close_offer(shift_id: str, order_id: str, outcome: str) -> None:
         await session.close_offer(order_id, outcome)
 
 
+async def broadcast_queue_update(shift_id: str, snapshot: dict) -> int:
+    """Push one already-built snapshot to every live socket for the shift."""
+    sessions = list(_sessions.get(shift_id, ()))
+    payload = events.queue_updated(snapshot)
+    for session in sessions:
+        await session.emit(payload)
+    return len(sessions)
+
+
+async def announce_target_reached(driver_id: str, shift_id: str, target: int) -> int:
+    """Queue one warm milestone acknowledgement on the driver's live shift sockets."""
+    sessions = [
+        session for session in _sessions.get(shift_id, ())
+        if session.driver_id == driver_id
+    ]
+    instructions = (
+        f"The driver has just reached today's target of {target} deliveries. "
+        "Acknowledge it now in one short, natural, warm sentence. Do not mention remaining counts."
+    )
+    for session in sessions:
+        session._announce(f"target-reached:{target}", instructions)
+    return len(sessions)
+
+
 async def stream_summary(shift_id: str, text: str) -> int:
     """
     Stream a post-shift summary to every voice socket open on `shift_id`

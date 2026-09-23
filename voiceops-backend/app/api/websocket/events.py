@@ -152,6 +152,11 @@ def order_offer_closed(order_id: str, outcome: str) -> Dict[str, Any]:
     return {"event": "order_offer_closed", "order_id": order_id, "outcome": outcome}
 
 
+def queue_updated(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """The exact queue REST snapshot, tagged for transport over the voice socket."""
+    return {"event": "queue_updated", **snapshot}
+
+
 def error(code: str, message: str) -> Dict[str, Any]:
     _check(code, ERROR_CODES, "error.code")
     return {"event": "error", "code": code, "message": message}

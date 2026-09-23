@@ -17,6 +17,59 @@ from app.services.preference_models import (
 
 logger = logging.getLogger(__name__)
 
+MAX_DAILY_DELIVERY_TARGET = 500
+INTERNAL_TARGET_ACK_KEY = "_daily_delivery_target_acknowledged"
+
+VOICE_PREFERENCE_KEYS = frozenset({
+    "auto_accept_orders",
+    "auto_decline_orders",
+    "max_order_distance_km",
+    "avoid_highways",
+    "prefer_residential",
+    "always_call_before_delivery",
+    "never_call_customer",
+    "always_send_sms",
+    "max_deliveries_per_shift",
+    "auto_announce_next_stop",
+    "proactive_traffic_alerts",
+    "daily_delivery_target",
+})
+PUBLIC_PREFERENCE_KEYS = VOICE_PREFERENCE_KEYS | frozenset({
+    "geographic_zones",
+    "order_type_prefs",
+    "time_based_prefs",
+    "pickup_radius_km",
+    "current_location_preference",
+})
+
+
+def normalize_preference_value(key: str, value: Any) -> str:
+    """Validate a public preference and return its canonical storage string."""
+    if key not in PUBLIC_PREFERENCE_KEYS:
+        raise ValueError(f"Unsupported preference key: {key}")
+
+    if key == "daily_delivery_target":
+        if isinstance(value, bool):
+            target = None
+        elif isinstance(value, int):
+            target = value
+        elif isinstance(value, float) and value.is_integer():
+            target = int(value)
+        elif isinstance(value, str) and value.strip().isdigit():
+            target = int(value.strip())
+        else:
+            target = None
+        if target is None or not 1 <= target <= MAX_DAILY_DELIVERY_TARGET:
+            raise ValueError(
+                f"daily_delivery_target must be a whole number between 1 and {MAX_DAILY_DELIVERY_TARGET}"
+            )
+        return str(target)
+
+    if isinstance(value, str):
+        return value
+    import json
+    return json.dumps(value)
+
 
 class PreferenceService:
     """Service for managing driver preferences."""
@@ -47,7 +100,8 @@ class PreferenceService:
             response = self._client.table('driver_preferences').select('*').eq('driver_id', driver_id).execute()
             preferences = {}
             for row in response.data:
-                preferences[row['preference_key']] = row['preference_value']
+                if row['preference_key'] != INTERNAL_TARGET_ACK_KEY:
+                    preferences[row['preference_key']] = row['preference_value']
             logger.info(f"[PreferenceService] Retrieved {len(preferences)} preferences for driver {driver_id}")
             return preferences
         except Exception as e:
@@ -89,20 +143,18 @@ class PreferenceService:
         Returns:
             True if successful, False otherwise
         """
+        value_str = normalize_preference_value(key, value)
+        return await self._write_preference(driver_id, key, value_str)
+
+    async def _write_preference(self, driver_id: str, key: str, value_str: str) -> bool:
+        """Persist an already-validated public value or an internal service marker."""
         if not self._client:
             logger.warning("[PreferenceService] No Supabase client, preference not saved")
             return False
         
         try:
-            # Convert value to string for storage
-            if not isinstance(value, str):
-                import json
-                value_str = json.dumps(value)
-            else:
-                value_str = value
-            
             # Upsert the preference
-            response = self._client.table('driver_preferences').upsert(
+            self._client.table('driver_preferences').upsert(
                 {
                     'driver_id': driver_id,
                     'preference_key': key,
@@ -115,6 +167,10 @@ class PreferenceService:
         except Exception as e:
             logger.error(f"[PreferenceService] Error setting preference {key} for driver {driver_id}: {e}")
             return False
+
+    async def set_target_acknowledged(self, driver_id: str, marker: str) -> bool:
+        """Persist the internal target/day marker used to suppress duplicate announcements."""
+        return await self._write_preference(driver_id, INTERNAL_TARGET_ACK_KEY, marker)
     
     async def clear_preference(self, driver_id: str, key: str) -> bool:
         """
@@ -127,6 +183,8 @@ class PreferenceService:
         Returns:
             True if successful, False otherwise
         """
+        if key not in PUBLIC_PREFERENCE_KEYS:
+            raise ValueError(f"Unsupported preference key: {key}")
         if not self._client:
             return False
         
@@ -152,7 +210,12 @@ class PreferenceService:
             return False
         
         try:
-            response = self._client.table('driver_preferences').delete().eq('driver_id', driver_id).execute()
+            # The marker is service state, not a user customization. Preserve it so resetting
+            # and re-setting the same target cannot produce a second announcement that day.
+            marker = await self.get_preference(driver_id, INTERNAL_TARGET_ACK_KEY)
+            self._client.table('driver_preferences').delete().eq('driver_id', driver_id).execute()
+            if marker:
+                await self._write_preference(driver_id, INTERNAL_TARGET_ACK_KEY, str(marker))
             logger.info(f"[PreferenceService] Reset all preferences for driver {driver_id}")
             return True
         except Exception as e:
@@ -308,6 +371,5 @@ class PreferenceService:
 preference_service = PreferenceService()
 
 def initialize_preference_service(supabase_url: str, supabase_key: str):
-    """Initialize the preference service with Supabase credentials."""
-    global preference_service
-    preference_service = PreferenceService(supabase_url, supabase_key)
+    """Initialize the shared service without invalidating modules that imported it."""
+    preference_service._client = create_client(supabase_url, supabase_key)

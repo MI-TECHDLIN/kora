@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from app.dependencies import get_current_driver
 from app.services.storage_service import storage_service
 from app.services.delivery_state_machine import assert_transition
+from app.services.order_queue_service import notify_queue_changed
 from app.db.queries import (
     get_delivery_by_id,
     mark_delivery_status,
@@ -112,6 +113,7 @@ async def upload_proof_of_delivery(
                 "signature_url": signature_url,
             }
         )
+        await notify_queue_changed(delivery.get("shift_id") if delivery else None, driver_id)
 
     return {
         "success": True,

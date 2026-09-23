@@ -36,6 +36,7 @@ from app.agents.tools.preferences import (
     clear_preference,
     reset_preferences
 )
+from app.services.preference_service import VOICE_PREFERENCE_KEYS
 
 
 def get_tools() -> List[Dict[str, Any]]:
@@ -57,7 +58,7 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "update_delivery_status",
-            "description": "Update delivery status to delivered, failed, or rescheduled. Trigger phrases: 'mark as delivered', 'done', 'package delivered', 'failed', 'nobody home'",
+            "description": "Update the active delivery status to delivered, failed, or rescheduled. Trigger phrases: 'mark as delivered', 'mark this order as completed', 'check off this order', 'done', 'package delivered', 'failed', 'nobody home'",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -314,12 +315,13 @@ def get_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "name": "set_preference",
-            "description": "Set a specific preference for the driver. Use key-value pairs like: auto_accept_orders=true, avoid_highways=true, never_call_customer=true. Key options: auto_accept_orders, auto_decline_orders, max_order_distance_km, avoid_highways, prefer_residential, always_call_before_delivery, never_call_customer, always_send_sms, max_deliveries_per_shift, auto_announce_next_stop, proactive_traffic_alerts.",
+            "description": "Set a specific preference for the driver. For a daily delivery target, use daily_delivery_target with a whole-number value from 1 to 500.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "key": {
                         "type": "string",
+                        "enum": sorted(VOICE_PREFERENCE_KEYS),
                         "description": "The preference key to set"
                     },
                     "value": {
@@ -339,6 +341,7 @@ def get_tools() -> List[Dict[str, Any]]:
                 "properties": {
                     "key": {
                         "type": "string",
+                        "enum": sorted(VOICE_PREFERENCE_KEYS),
                         "description": "The preference key to clear"
                     }
                 },

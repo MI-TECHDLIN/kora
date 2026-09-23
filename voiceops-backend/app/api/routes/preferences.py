@@ -100,6 +100,9 @@ async def set_preference(
             
         success = await preference_service.set_preference(driver_id, key, preference.value)
         if success:
+            if key == "daily_delivery_target":
+                from app.services.order_queue_service import notify_active_queue_changed
+                await notify_active_queue_changed(driver_id)
             return PreferenceResponse(
                 key=key,
                 value=preference.value,
@@ -108,6 +111,10 @@ async def set_preference(
             )
         else:
             raise HTTPException(status_code=500, detail="Failed to save preference")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to set preference: {str(e)}")
 
@@ -129,6 +136,9 @@ async def clear_preference(
             
         success = await preference_service.clear_preference(driver_id, key)
         if success:
+            if key == "daily_delivery_target":
+                from app.services.order_queue_service import notify_active_queue_changed
+                await notify_active_queue_changed(driver_id)
             return PreferenceResponse(
                 key=key,
                 value=None,
@@ -137,6 +147,10 @@ async def clear_preference(
             )
         else:
             raise HTTPException(status_code=500, detail="Failed to clear preference")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear preference: {str(e)}")
 
@@ -157,6 +171,8 @@ async def reset_all_preferences(
             
         success = await preference_service.reset_preferences(driver_id)
         if success:
+            from app.services.order_queue_service import notify_active_queue_changed
+            await notify_active_queue_changed(driver_id)
             return PreferencesListResponse(
                 preferences={},
                 success=True,
