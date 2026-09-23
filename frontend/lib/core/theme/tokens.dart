@@ -301,6 +301,13 @@ class KoraMotion {
   static const base = Duration(milliseconds: 250);
   static const slow = Duration(milliseconds: 400);
 
+  /// Map motion is intentionally paced by intent: framing the whole route
+  /// gets a cinematic beat, while following a live driver stays responsive.
+  static const routeReveal = Duration(milliseconds: 900);
+  static const routeCamera = Duration(milliseconds: 850);
+  static const followCamera = Duration(milliseconds: 550);
+  static const markerGlide = Duration(milliseconds: 180);
+
   /// Co-rider orb morph between agent states.
   static const orbMorph = Duration(milliseconds: 600);
 
