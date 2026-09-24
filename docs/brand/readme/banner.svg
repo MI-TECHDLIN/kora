@@ -8,8 +8,8 @@
   </defs>
   <g clip-path="url(#canvas)">
     <rect width="1440" height="600" fill="#07060B"/>
-    <circle cx="1280" cy="76" r="260" fill="#151126"/>
-    <circle cx="1280" cy="76" r="174" fill="#1D1834"/>
+    <circle cx="1380" cy="36" r="228" fill="#151126"/>
+    <circle cx="1380" cy="36" r="148" fill="#1D1834"/>
     <path d="M-50 475C137 351 263 548 453 410S776 303 961 402s341 77 536-44" fill="none" stroke="#0E0B18" stroke-width="176" stroke-linecap="round"/>
     <path d="M-50 475C137 351 263 548 453 410S776 303 961 402s341 77 536-44" fill="none" stroke="#151126" stroke-width="2" stroke-dasharray="9 16" stroke-linecap="round"/>
 
@@ -39,30 +39,41 @@
     </g>
 
     <!-- Travelling co-rider orb and voice waves. -->
-    <g transform="translate(868 96)">
+    <g transform="translate(802 108)">
       <circle cx="90" cy="90" r="76" fill="#151126" stroke="#4C1D95" stroke-width="2"/>
       <circle cx="90" cy="90" r="52" fill="#8B5CF6"/>
       <path d="M100 58A36 36 0 1 0 100 122L67 90Z" fill="#C4B5FD"/>
       <path d="M153 64c26 17 26 35 0 52M170 46c44 29 44 59 0 88" fill="none" stroke="#C4B5FD" stroke-width="8" stroke-linecap="round"/>
     </g>
 
-    <!-- Rider. -->
-    <g transform="translate(958 170)">
-      <circle cx="126" cy="72" r="38" fill="#C4B5FD"/>
-      <path d="M103 113c36-22 87-8 107 28l49 90-69 17-42-71-35 60-51-25z" fill="#8B5CF6"/>
-      <path d="M185 135l91 42" fill="none" stroke="#C4B5FD" stroke-width="22" stroke-linecap="round"/>
-      <path d="M101 205l-51 87M182 231l69 62" fill="none" stroke="#C4B5FD" stroke-width="24" stroke-linecap="round"/>
-      <path d="M199 220h132l48 72H142z" fill="#1D1834" stroke="#8B5CF6" stroke-width="8" stroke-linejoin="round"/>
-      <path d="M286 220l41-46h48" fill="none" stroke="#C4B5FD" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M211 201h74" fill="none" stroke="#C4B5FD" stroke-width="12" stroke-linecap="round"/>
-      <rect x="223" y="136" width="86" height="69" rx="13" fill="#4C1D95" stroke="#C4B5FD" stroke-width="6"/>
-      <path d="M253 136v-20h27v20" fill="none" stroke="#C4B5FD" stroke-width="6" stroke-linecap="round"/>
-      <g fill="#07060B" stroke="#C4B5FD" stroke-width="12">
-        <circle cx="187" cy="302" r="46"/>
-        <circle cx="348" cy="302" r="46"/>
+    <!-- Dispatch rider and two-wheeled scooter in a clean side profile. -->
+    <g transform="translate(946 118)">
+      <!-- Wheels sit directly on the route. -->
+      <g fill="#07060B" stroke="#C4B5FD" stroke-width="11">
+        <circle cx="86" cy="268" r="40"/>
+        <circle cx="326" cy="268" r="40"/>
       </g>
-      <circle cx="187" cy="302" r="10" fill="#8B5CF6"/>
-      <circle cx="348" cy="302" r="10" fill="#8B5CF6"/>
+      <circle cx="86" cy="268" r="9" fill="#8B5CF6"/>
+      <circle cx="326" cy="268" r="9" fill="#8B5CF6"/>
+
+      <!-- Moped: rear body, floor board, front fairing, fork and handlebar. -->
+      <path d="M69 231h155c27 0 44-11 55-34l16-33h31l-20 72H119c-23 0-39 9-48 25z" fill="#1D1834" stroke="#8B5CF6" stroke-width="9" stroke-linejoin="round"/>
+      <path d="M277 174l49 94M291 164l-12-58h35M277 107h54" fill="none" stroke="#C4B5FD" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="130" y="153" width="103" height="25" rx="12" fill="#C4B5FD"/>
+      <path d="M128 230h105" fill="none" stroke="#C4B5FD" stroke-width="10" stroke-linecap="round"/>
+
+      <!-- Delivery box mounted behind the seat. -->
+      <rect x="34" y="111" width="94" height="82" rx="14" fill="#4C1D95" stroke="#C4B5FD" stroke-width="7"/>
+      <path d="M64 111V91h34v20M49 151h64" fill="none" stroke="#C4B5FD" stroke-width="7" stroke-linecap="round"/>
+      <path d="M81 194v27h64" fill="none" stroke="#C4B5FD" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Seated rider: helmet, torso, bent leg and arms to the handlebar. -->
+      <path d="M188 72a36 36 0 1 1 64 22l-54-2a36 36 0 0 1-10-20z" fill="#C4B5FD"/>
+      <path d="M218 39c24 0 40 14 40 32h-44l-26-12c5-12 16-20 30-20z" fill="#8B5CF6"/>
+      <path d="M202 101c30-10 60 4 70 31l19 49-56 13-24-52-34 35-37-31z" fill="#8B5CF6"/>
+      <path d="M247 121l35 20 12-23M229 126l39 22" fill="none" stroke="#C4B5FD" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M236 184l45 33-31 16h-70" fill="none" stroke="#C4B5FD" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M177 146l-25 20" fill="none" stroke="#C4B5FD" stroke-width="17" stroke-linecap="round"/>
     </g>
 
     <g fill="#8B5CF6">

@@ -14,21 +14,29 @@
 
   <g transform="translate(450 30)">
     <rect width="300" height="240" rx="28" fill="#0E0B18" stroke="#1D1834" stroke-width="2"/>
-    <path d="M52 169c44-78 91-96 135-40s66 40 75-27" fill="none" stroke="#8B5CF6" stroke-width="12" stroke-linecap="round"/>
-    <g fill="#07060B" stroke="#C4B5FD" stroke-width="8">
-      <circle cx="62" cy="157" r="17"/>
-      <circle cx="181" cy="124" r="17"/>
-      <circle cx="260" cy="102" r="17"/>
-    </g>
-    <path d="M121 70h59l28 28-28 28h-59z" fill="#4C1D95" stroke="#C4B5FD" stroke-width="6" stroke-linejoin="round"/>
+    <!-- Kora orb coordinating a route, phone and order at once. -->
+    <path d="M121 111L82 78M118 143l-43 35M181 143l45 35" fill="none" stroke="#8B5CF6" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="150" cy="126" r="49" fill="#8B5CF6"/>
+    <path d="M159 94a32 32 0 1 0 0 64l-30-32z" fill="#C4B5FD"/>
+    <rect x="54" y="50" width="44" height="61" rx="8" fill="#151126" stroke="#C4B5FD" stroke-width="6"/>
+    <circle cx="76" cy="98" r="3" fill="#C4B5FD"/>
+    <path d="M48 187c16-28 37-29 54-5s33 14 42-7" fill="none" stroke="#C4B5FD" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="49" cy="188" r="8" fill="#8B5CF6"/>
+    <circle cx="144" cy="175" r="8" fill="#8B5CF6"/>
+    <rect x="205" y="153" width="56" height="48" rx="7" fill="#4C1D95" stroke="#C4B5FD" stroke-width="6"/>
+    <path d="M222 153v-12h22v12" fill="none" stroke="#C4B5FD" stroke-width="6" stroke-linecap="round"/>
   </g>
 
   <g transform="translate(858 30)">
     <rect width="300" height="240" rx="28" fill="#0E0B18" stroke="#1D1834" stroke-width="2"/>
-    <circle cx="150" cy="120" r="72" fill="#151126"/>
-    <circle cx="111" cy="162" r="30" fill="#07060B" stroke="#C4B5FD" stroke-width="8"/>
-    <circle cx="205" cy="162" r="30" fill="#07060B" stroke="#C4B5FD" stroke-width="8"/>
-    <path d="M85 153h137l-28-60h-61l-31 60M142 93l18-34h44" fill="none" stroke="#8B5CF6" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M116 88l25 23 48-48" fill="none" stroke="#C4B5FD" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- A clean two-wheel scooter, with completion shown in a separate badge. -->
+    <circle cx="95" cy="175" r="30" fill="#07060B" stroke="#C4B5FD" stroke-width="8"/>
+    <circle cx="211" cy="175" r="30" fill="#07060B" stroke="#C4B5FD" stroke-width="8"/>
+    <path d="M83 146h74c20 0 32-8 41-25l10-20h22l-14 49H106c-15 0-25 6-31 17z" fill="#4C1D95" stroke="#8B5CF6" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M196 112l15 63M205 102l-8-35h25M205 67h34" fill="none" stroke="#C4B5FD" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="101" y="103" width="62" height="18" rx="9" fill="#C4B5FD"/>
+    <rect x="58" y="80" width="48" height="49" rx="8" fill="#1D1834" stroke="#C4B5FD" stroke-width="6"/>
+    <circle cx="244" cy="68" r="27" fill="#8B5CF6" stroke="#C4B5FD" stroke-width="6"/>
+    <path d="M231 68l9 9 18-20" fill="none" stroke="#07060B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>
