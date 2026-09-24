@@ -6,11 +6,249 @@ Unit tests covering the 6 design handoffs:
 4. Shift report duration and source indicator.
 """
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch, MagicMock
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+from app.dependencies import get_current_driver
+from app.api import ownership
+from app.api.routes import deliveries as delivery_routes
+from app.api.routes import pod as pod_routes
+from app.api.routes import shift as shift_routes
+from app.api.routes import tools as tool_routes
+from app.agents import tool_safety
 from app.services.risk_engine import RiskEngine, RiskType, RiskSeverity
 from app.intelligence.lemur_pipeline import LemurIntelligencePipeline
 from app.api.websocket import events
 from app.api.websocket.voice import present_proactive_alert, _sessions, VoiceSession
+
+
+DRIVER_A = "10000000-0000-4000-8000-000000000001"
+DRIVER_B = "20000000-0000-4000-8000-000000000002"
+SHIFT_A = "30000000-0000-4000-8000-000000000003"
+SHIFT_B = "40000000-0000-4000-8000-000000000004"
+DELIVERY_A = "50000000-0000-4000-8000-000000000005"
+
+
+@pytest.fixture
+def driver_b_client():
+    app.dependency_overrides[get_current_driver] = lambda: {
+        "id": DRIVER_B,
+        "email": "driver-b@example.com",
+    }
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_current_driver, None)
+
+
+@pytest.fixture
+def driver_a_client():
+    app.dependency_overrides[get_current_driver] = lambda: {
+        "id": DRIVER_A,
+        "email": "driver-a@example.com",
+    }
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_current_driver, None)
+
+
+def _foreign_delivery(monkeypatch):
+    async def get_delivery(delivery_id):
+        return {"id": delivery_id, "shift_id": SHIFT_A, "status": "pending"}
+
+    async def get_shift(shift_id):
+        return {"id": shift_id, "driver_id": DRIVER_A, "status": "active"}
+
+    monkeypatch.setattr(ownership, "get_delivery_by_id", get_delivery)
+    monkeypatch.setattr(ownership, "get_shift_by_id", get_shift)
+
+
+def test_driver_cannot_update_another_drivers_delivery(monkeypatch, driver_b_client):
+    _foreign_delivery(monkeypatch)
+
+    response = driver_b_client.put(
+        f"/v1/deliveries/{DELIVERY_A}/status",
+        json={"status": "delivered"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Delivery not found"}
+
+
+def test_driver_cannot_upload_or_read_another_drivers_pod(monkeypatch, driver_b_client):
+    _foreign_delivery(monkeypatch)
+
+    upload = driver_b_client.post(
+        f"/v1/deliveries/{DELIVERY_A}/pod",
+        data={"latitude": "30.2672", "longitude": "-97.7431"},
+    )
+    read = driver_b_client.get(f"/v1/deliveries/{DELIVERY_A}/pod")
+
+    assert upload.status_code == 404
+    assert upload.json() == {"detail": "Delivery not found"}
+    assert read.status_code == 404
+    assert read.json() == {"detail": "Delivery not found"}
+
+
+def test_driver_cannot_read_stats_or_analyze_another_drivers_shift(
+    monkeypatch, driver_b_client
+):
+    async def get_shift(shift_id):
+        return {"id": shift_id, "driver_id": DRIVER_A, "status": "completed"}
+
+    monkeypatch.setattr(ownership, "get_shift_by_id", get_shift)
+
+    stats = driver_b_client.get(f"/v1/shift/{SHIFT_A}/stats")
+    analysis = driver_b_client.post(f"/v1/shift/{SHIFT_A}/analyze-lemur")
+
+    assert stats.status_code == 404
+    assert stats.json() == {"detail": "Shift not found"}
+    assert analysis.status_code == 404
+    assert analysis.json() == {"detail": "Shift not found"}
+
+
+@pytest.mark.parametrize("path", ["/v1/tools/execute-parallel", "/v1/tools/benchmark"])
+def test_tool_routes_require_authentication(path):
+    app.dependency_overrides.pop(get_current_driver, None)
+    response = TestClient(app).post(
+        path,
+        json={"tools": [{"name": "unknown", "arguments": {}}], "context": {}},
+    )
+    assert response.status_code == 401
+
+
+def test_tool_route_ignores_caller_supplied_identity(monkeypatch, driver_a_client):
+    seen = {}
+
+    async def active_shift(driver_id):
+        assert driver_id == DRIVER_A
+        return {"id": SHIFT_A, "driver_id": DRIVER_A, "status": "active"}
+
+    async def next_delivery(shift_id, driver_id):
+        assert (shift_id, driver_id) == (SHIFT_A, DRIVER_A)
+        return {"id": DELIVERY_A, "shift_id": SHIFT_A, "status": "pending"}
+
+    async def execute(tool_calls, context):
+        seen.update(context)
+        return {
+            "tool_count": 1,
+            "total_duration_ms": 1.0,
+            "sequential_sum_ms": 1.0,
+            "time_saved_ms": 0.0,
+            "under_500ms": True,
+            "results": [],
+        }
+
+    monkeypatch.setattr(tool_routes, "get_active_shift_for_driver", active_shift)
+    monkeypatch.setattr(tool_routes, "get_next_pending_delivery", next_delivery)
+    monkeypatch.setattr(tool_routes.ToolOrchestrator, "execute_parallel", execute)
+
+    response = driver_a_client.post(
+        "/v1/tools/execute-parallel",
+        json={
+            "tools": [{"name": "unknown", "arguments": {}}],
+            "context": {
+                "driver_id": DRIVER_B,
+                "driver_name": "Imposter",
+                "shift_id": SHIFT_B,
+                "session_id": "foreign-session",
+                "is_demo": True,
+                "current_delivery": {"id": "foreign-delivery"},
+                "offered_order": {"id": "foreign-order"},
+                "latitude": 30.2672,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert seen["driver_id"] == DRIVER_A
+    assert seen["shift_id"] == SHIFT_A
+    assert seen["is_demo"] is False
+    assert seen["current_delivery"]["id"] == DELIVERY_A
+    assert seen["latitude"] == 30.2672
+    assert "session_id" not in seen
+    assert "offered_order" not in seen
+
+
+def test_tool_benchmark_is_off_by_default(monkeypatch, driver_a_client):
+    monkeypatch.setattr(tool_routes.settings, "tools_benchmark_enabled", False)
+    response = driver_a_client.post(
+        "/v1/tools/benchmark",
+        json={"tools": [{"name": "unknown", "arguments": {}}], "context": {}},
+    )
+    assert response.status_code == 404
+
+
+def test_tool_delivery_argument_is_checked_through_its_shift(monkeypatch):
+    async def get_delivery(delivery_id):
+        return {"id": delivery_id, "shift_id": SHIFT_A}
+
+    async def get_shift(shift_id):
+        return {"id": shift_id, "driver_id": DRIVER_A}
+
+    monkeypatch.setattr(tool_safety, "get_delivery_by_id", get_delivery)
+    monkeypatch.setattr(tool_safety, "get_shift_by_id", get_shift)
+
+    allowed, reason = asyncio.run(tool_safety.tool_safety_gate.check(
+        "update_delivery_status",
+        {"delivery_id": DELIVERY_A, "status": "delivered"},
+        {"driver_id": DRIVER_B, "shift_id": SHIFT_B},
+    ))
+
+    assert allowed is False
+    assert "belongs to another driver" in reason
+
+
+def test_non_uuid_mock_delivery_paths_keep_demo_behavior(monkeypatch, driver_a_client):
+    calls = []
+
+    async def mark(delivery_id, status, failure_reason=None, notes=None):
+        calls.append((delivery_id, status))
+        return {"id": delivery_id, "status": status}
+
+    async def event(**kwargs):
+        return {}
+
+    async def notify(shift_id, driver_id):
+        return None
+
+    class FakePodTable:
+        def insert(self, data):
+            return self
+
+        def execute(self):
+            return SimpleNamespace(data=[{"id": "mock-pod"}])
+
+    class FakePodDb:
+        def table(self, name):
+            return FakePodTable()
+
+    monkeypatch.setattr(delivery_routes, "mark_delivery_status", mark)
+    monkeypatch.setattr(delivery_routes, "create_delivery_event", event)
+    monkeypatch.setattr(delivery_routes, "notify_queue_changed", notify)
+    monkeypatch.setattr(pod_routes, "get_supabase", lambda: FakePodDb())
+
+    status_response = driver_a_client.put(
+        "/v1/deliveries/mock-delivery-123/status",
+        json={"status": "delivered"},
+    )
+    upload_response = driver_a_client.post(
+        "/v1/deliveries/mock-delivery-123/pod",
+        data={"latitude": "30.2672", "longitude": "-97.7431"},
+    )
+    read_response = driver_a_client.get("/v1/deliveries/mock-delivery-123/pod")
+
+    assert status_response.status_code == 200
+    assert status_response.json()["status"] == "delivered"
+    assert upload_response.status_code == 200
+    assert upload_response.json()["pod_id"] == "mock-pod"
+    assert read_response.status_code == 200
+    assert read_response.json() == {"pod": None}
+    assert calls == [("mock-delivery-123", "delivered")]
 
 
 def test_lemur_fallback_honest_sentiment():

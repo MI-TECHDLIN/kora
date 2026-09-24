@@ -16,6 +16,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 from app.main import app
+from app.config import settings
 
 def run_server():
     uvicorn.run(app, host="127.0.0.1", port=8008, log_level="warning")
@@ -41,7 +42,20 @@ def test_live_network():
         print("❌ Server failed to start within timeout.")
         sys.exit(1)
 
-    client = httpx.Client(base_url="http://127.0.0.1:8008", timeout=10.0)
+    access_token = os.getenv("KORA_ACCESS_TOKEN")
+    if not access_token:
+        raise RuntimeError(
+            "KORA_ACCESS_TOKEN is required for the authenticated /v1/tools endpoints."
+        )
+    if settings.environment != "development" or not settings.tools_benchmark_enabled:
+        raise RuntimeError(
+            "Set ENVIRONMENT=development and TOOLS_BENCHMARK_ENABLED=true to test /v1/tools/benchmark."
+        )
+    client = httpx.Client(
+        base_url="http://127.0.0.1:8008",
+        timeout=10.0,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
 
     # -------------------------------------------------------------
     # 1. LIVE HTTP POST /v1/tools/execute-parallel
@@ -70,12 +84,7 @@ def test_live_network():
                 "call_id": "call_exc_004"
             }
         ],
-        "context": {
-            "driver_id": "10ed22c4-c1c0-4d37-8683-dbb8f510e4c6",
-            "shift_id": "093375a3-06ab-4584-8331-f5df775f150b",
-            "latitude": 6.4541,
-            "longitude": 3.3947
-        }
+        "context": {"latitude": 6.4541, "longitude": 3.3947}
     }
 
     t0 = time.perf_counter()
@@ -114,12 +123,7 @@ def test_live_network():
                 "call_id": "io_call_3"
             }
         ],
-        "context": {
-            "driver_id": "10ed22c4-c1c0-4d37-8683-dbb8f510e4c6",
-            "shift_id": "093375a3-06ab-4584-8331-f5df775f150b",
-            "latitude": 6.4541,
-            "longitude": 3.3947
-        }
+        "context": {"latitude": 6.4541, "longitude": 3.3947}
     }
     resp_bench = client.post("/v1/tools/benchmark", json=io_payload)
     print(f"• HTTP Status:               {resp_bench.status_code} OK")

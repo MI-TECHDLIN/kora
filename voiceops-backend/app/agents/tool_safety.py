@@ -6,7 +6,7 @@ Prevents unauthenticated mutations or illegal delivery state changes.
 import logging
 from typing import Tuple, Dict, Any, Optional
 from app.services.delivery_state_machine import validate_transition
-from app.db.queries import get_delivery_by_id, is_valid_uuid
+from app.db.queries import get_delivery_by_id, get_shift_by_id, is_valid_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,8 @@ class ToolSafetyGate:
             if delivery_id and is_valid_uuid(delivery_id) and driver_id and is_valid_uuid(driver_id):
                 delivery = await get_delivery_by_id(delivery_id)
                 if delivery:
-                    assigned_driver = delivery.get("driver_id")
-                    # If assigned to another driver, reject
-                    if assigned_driver and assigned_driver != driver_id:
+                    shift = await get_shift_by_id(str(delivery.get("shift_id") or ""))
+                    if not shift or str(shift.get("driver_id")) != str(driver_id):
                         return False, f"Access denied: delivery {delivery_id} belongs to another driver."
 
         return True, ""

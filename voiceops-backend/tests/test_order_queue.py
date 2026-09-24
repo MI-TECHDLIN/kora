@@ -171,7 +171,7 @@ def test_status_rest_route_emits_queue_update(monkeypatch):
     notifications = []
     row = delivery(1, "pending", delivery_id=DELIVERY_ID, shift_id=SHIFT_ID)
 
-    async def get_delivery(delivery_id):
+    async def require_owned(delivery_id, driver_id):
         return row
 
     async def mark(delivery_id, status, failure_reason, notes):
@@ -183,7 +183,7 @@ def test_status_rest_route_emits_queue_update(monkeypatch):
     async def notify(shift_id, driver_id):
         notifications.append((shift_id, driver_id))
 
-    monkeypatch.setattr(delivery_routes, "get_delivery_by_id", get_delivery)
+    monkeypatch.setattr(delivery_routes, "require_owned_delivery", require_owned)
     monkeypatch.setattr(delivery_routes, "mark_delivery_status", mark)
     monkeypatch.setattr(delivery_routes, "create_delivery_event", event)
     monkeypatch.setattr(delivery_routes, "notify_queue_changed", notify)
@@ -323,7 +323,7 @@ def test_pod_and_geofence_status_paths_emit_queue_updates(monkeypatch):
         longitude=-97.0,
     )
 
-    async def get_delivery(delivery_id):
+    async def require_owned(delivery_id, driver_id):
         return row
 
     async def next_pending(shift_id, driver_id):
@@ -349,7 +349,7 @@ def test_pod_and_geofence_status_paths_emit_queue_updates(monkeypatch):
         def table(self, name):
             return PodTable()
 
-    monkeypatch.setattr(pod_routes, "get_delivery_by_id", get_delivery)
+    monkeypatch.setattr(pod_routes, "require_owned_delivery", require_owned)
     monkeypatch.setattr(pod_routes, "mark_delivery_status", mark)
     monkeypatch.setattr(pod_routes, "create_delivery_event", event)
     monkeypatch.setattr(pod_routes, "get_supabase", lambda: PodDb())

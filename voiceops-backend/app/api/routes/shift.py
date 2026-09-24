@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from app.dependencies import get_current_driver
+from app.api.ownership import require_owned_shift
 from app.db.queries import (
     create_shift,
     update_shift_status,
@@ -99,9 +100,7 @@ async def get_shift_queue(
     current_user: dict = Depends(get_current_driver),
 ):
     """Return the driver-facing queue, including completed stops and daily target."""
-    shift = await get_shift_by_id(shift_id)
-    if not shift or str(shift.get("driver_id")) != str(current_user["id"]):
-        raise HTTPException(status_code=404, detail="Shift not found")
+    await require_owned_shift(shift_id, current_user["id"])
     return await build_queue_snapshot(shift_id, str(current_user["id"]))
 
 
@@ -157,6 +156,7 @@ async def end_shift(
     current_user: dict = Depends(get_current_driver)
 ):
     """End shift and trigger AssemblyAI LeMUR intelligence + n8n reporting."""
+    await require_owned_shift(shift_id, current_user["id"])
     try:
         result = await end_shift_core(
             shift_id,
@@ -186,9 +186,7 @@ async def get_shift_report(
     current_user: dict = Depends(get_current_driver)
 ):
     """Get intelligence report for shift."""
-    shift = await get_shift_by_id(shift_id)
-    if not shift or shift.get("driver_id") != current_user["id"]:
-        raise HTTPException(status_code=404, detail="Shift not found")
+    shift = await require_owned_shift(shift_id, current_user["id"])
 
     report = await get_intelligence_report_by_shift(shift_id)
 
@@ -224,6 +222,7 @@ async def get_shift_statistics(
     current_user: dict = Depends(get_current_driver)
 ):
     """Get shift statistics."""
+    await require_owned_shift(shift_id, current_user["id"])
     stats = await get_shift_stats(shift_id)
     return stats
 
@@ -238,5 +237,6 @@ async def analyze_shift_lemur(
     Extracts executive summary, driver sentiment, route issues, and recommendations.
     Persists structured intelligence report directly into Supabase.
     """
+    await require_owned_shift(shift_id, current_user["id"])
     result = await run_shift_intelligence_and_stream(shift_id, current_user.get("id"))
     return result

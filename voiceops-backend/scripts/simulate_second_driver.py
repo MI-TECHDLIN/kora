@@ -187,7 +187,8 @@ async def accept_offer(
                 "arguments": {"order_id": order_id},
                 "call_id": f"second-driver-{order_id}",
             }],
-            "context": {"driver_id": driver_id, "shift_id": shift_id},
+            # Driver and active-shift identity come from the bearer token on the server.
+            "context": {},
         },
     )
     response.raise_for_status()

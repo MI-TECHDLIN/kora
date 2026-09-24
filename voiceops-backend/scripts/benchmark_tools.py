@@ -66,6 +66,11 @@ async def main():
     # TEST 3: LIVE FASTAPI ENDPOINT (/v1/tools/execute-parallel)
     # -------------------------------------------------------------
     print("\n--- 🌐 TEST 3: FASTAPI REST ENDPOINT (POST /v1/tools/execute-parallel) ---")
+    access_token = os.getenv("KORA_ACCESS_TOKEN")
+    if not access_token:
+        raise RuntimeError(
+            "KORA_ACCESS_TOKEN is required for the authenticated /v1/tools endpoint."
+        )
     client = TestClient(app)
     api_payload = {
         "tools": [
@@ -76,7 +81,11 @@ async def main():
         "context": context
     }
 
-    response = client.post("/v1/tools/execute-parallel", json=api_payload)
+    response = client.post(
+        "/v1/tools/execute-parallel",
+        json=api_payload,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
     print(f"• HTTP Status Code:           {response.status_code} OK")
     data = response.json()
     print(f"• Total Duration:             {data['total_duration_ms']} ms")

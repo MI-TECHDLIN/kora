@@ -12,7 +12,7 @@ This guide helps you test the new traffic-aware routing and proactive reroute fe
 ## Step 1: Start the Backend
 ```bash
 cd voiceops-backend/voiceops-backend
-$env:TOMTOM_API_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+$env:TOMTOM_API_KEY="<YOUR_TOMTOM_API_KEY>" # use your own key; never commit it
 uvicorn app.main:app --reload
 ```
 
@@ -215,7 +215,7 @@ curl "https://api.tomtom.com/routing/1/calculateRoute/30.2672,-97.7431:30.2711,-
 ### Backend Not Loading
 ```bash
 # Check environment variable
-$env:TOMTOM_API_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+$env:TOMTOM_API_KEY="<YOUR_TOMTOM_API_KEY>" # use your own key; never commit it
 uvicorn app.main:app --reload
 ```
 

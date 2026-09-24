@@ -6,6 +6,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from app.dependencies import get_current_driver
+from app.api.ownership import require_owned_shift
 from app.services.routing_service import routing_service
 from app.services.vehicle_modes import get_driver_vehicle_mode
 
@@ -53,6 +54,7 @@ async def optimize_route_endpoint(
     from app.db.queries import get_shift_deliveries
 
     driver_id = current_user.get("id")
+    await require_owned_shift(req.shift_id, driver_id, allow_mock_id=True)
     deliveries = await get_shift_deliveries(req.shift_id)
 
     pending = [d for d in deliveries if d.get("status") in ["pending", "en_route"]]

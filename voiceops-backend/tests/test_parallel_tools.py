@@ -11,8 +11,32 @@ import asyncio
 from app.agents.orchestrator import ToolOrchestrator
 from fastapi.testclient import TestClient
 from app.main import app
+from app.api.routes import tools as tool_routes
+from app.config import settings
+from app.dependencies import get_current_driver
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def authenticated_tool_api(monkeypatch):
+    app.dependency_overrides[get_current_driver] = lambda: {
+        "id": "10ed22c4-c1c0-4d37-8683-dbb8f510e4c6",
+        "email": "driver@example.com",
+    }
+
+    async def active_shift(driver_id):
+        return {"id": "093375a3-06ab-4584-8331-f5df775f150b", "driver_id": driver_id}
+
+    async def current_delivery(shift_id, driver_id):
+        return None
+
+    monkeypatch.setattr(tool_routes, "get_active_shift_for_driver", active_shift)
+    monkeypatch.setattr(tool_routes, "get_next_pending_delivery", current_delivery)
+    monkeypatch.setattr(settings, "tools_benchmark_enabled", True)
+    monkeypatch.setattr(settings, "environment", "development")
+    yield
+    app.dependency_overrides.pop(get_current_driver, None)
 
 @pytest.fixture
 def test_context():
