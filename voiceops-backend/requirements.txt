@@ -12,7 +12,7 @@ python-multipart==0.0.9
 structlog==24.1.0
 tenacity==8.3.0
 pytest==8.2.0
-pytest-asyncio==0.23.0
+pytest-asyncio==0.23.8
 numpy==1.26.4
 sounddevice==0.4.6
 requests==2.31.0

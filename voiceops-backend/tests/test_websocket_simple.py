@@ -5,6 +5,10 @@ import asyncio
 import websockets
 import json
 
+import pytest
+
+pytestmark = [pytest.mark.live, pytest.mark.asyncio]
+
 async def test_websocket():
     """Test basic WebSocket connection"""
     uri = "ws://localhost:8000/ws/voice-agent/test-driver-001"
@@ -43,9 +47,9 @@ async def test_websocket():
             await asyncio.sleep(3)
                 
     except Exception as e:
+        # Fail (or crash the script) rather than pass when the backend is not reachable.
         print(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
     asyncio.run(test_websocket())

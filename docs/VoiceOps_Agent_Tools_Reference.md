@@ -1,5 +1,9 @@
 # VoiceOps: Agent Tools Reference
 
+> **v2.6, 2026-09-24.** v2.6 documents the six registry tools this reference had missed, read from
+> `app/agents/tools/{delivery,navigation,preferences}.py`: `end_shift` (§14), `end_conversation`
+> (§15) and the four preference tools (§16 to §19). The reference now covers all 20 tools in
+> `TOOL_EXECUTORS`, and `tests/test_tool_docs.py` fails when it and the registry disagree.
 > **v2.5, 2026-09-14.** v2.5 adds traffic-aware routing and proactive reroute suggestion: new tool `accept_reroute` (§5.5) for accepting traffic-based reroute suggestions, and traffic-aware ETA integration throughout the system.
 > **v2.4, 2026-09-13.** v2.4 records that the app's offer card can invoke `accept_order` (§12)
 > and `decline_order` (§13) directly through additive client WebSocket events. The tool argument
@@ -15,7 +19,7 @@
 > to OSRM and leaves every shape unchanged. This edition supersedes the earlier "reconstructed edition". The code's own header cites
 > "Agent Tools Reference v1.0", and that original was never recovered.
 
-This document is the **contract** for the 14 agent tools, together with
+This document is the **contract** for the 20 agent tools, together with
 `docs/contracts/interface.md`. The AssemblyAI Voice Agent calls these tools by name with these
 exact argument shapes. A drifted shape gives you an agent that works in testing and misfires in
 the demo.
@@ -136,7 +140,7 @@ AssemblyAI's protocol does not allow.
 
 ---
 
-## The 13 Tools
+## The 20 Tools
 
 ### 1. `get_next_delivery`
 
@@ -711,6 +715,170 @@ other online driver is free, `passed_to` is `null`, `status` is `unassigned`, an
 the order waits in the unassigned queue. A driver who declines is never offered that order
 again. The relay emits `order_offer_closed` (`declined`). With no offer for this driver the
 result is `{"success": false, "error": "No order is offered to you right now."}`.
+
+---
+
+### 14. `end_shift`
+
+End the driver's shift for the day: mark it complete and start the post-shift report. *Triggers:
+"end my shift", "I'm done for the day", "clock out", "that's it for today".*
+**Platform:** Supabase + AssemblyAI LeMUR + n8n. Calls `end_shift_core()`
+(`app/api/routes/shift.py`), the same function behind `POST /v1/shift/{shift_id}/end`.
+
+This is the only driver-reachable trigger for that endpoint. It is not `end_conversation`, which
+only closes the mic and leaves the shift `active`. Use `end_shift` when the driver means they are
+done working, not just done talking.
+
+**Arguments:** none. `{}`. The shift and driver come from the session `context`.
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "shift_id": "uuid",
+  "status": "completed",
+  "shift_duration_min": 412,
+  "message": "Shift ended. I'm putting together your summary now."
+}
+```
+
+`end_shift_core` marks the shift completed, persists `ended_at` and the shift stats, and fires the
+n8n post-shift webhook. The tool then schedules `run_shift_intelligence_and_stream` (the LeMUR
+pipeline) as a background task and returns without waiting for it. The summary reaches the app
+later through the relay's summary stream. `shift_duration_min` is `0` when the shift's start time
+cannot be read. With no `shift_id` or `driver_id` in the context the result is
+`{"success": false, "error": "No active shift to end."}`. Any exception comes back as
+`{"success": false, "error": "<text>"}`.
+
+---
+
+### 15. `end_conversation`
+
+Close the driver's voice conversation when they say they are done. The agent says a short goodbye
+first, then calls this tool. *Triggers: the driver signs off or says they are finished talking.*
+**Platform:** internal. The relay emits `conversation_end` to the app.
+
+**Arguments:** none. `{}`.
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "message": "The driver's mic is off now. Say nothing more."
+}
+```
+
+The handler changes nothing in the database. The relay (`app/api/websocket/voice.py`) treats this
+tool as silent: it skips the `agent_state` and `task_step` events other tools emit and sends only
+`{"event": "conversation_end"}`, and the voice socket stays open. The `message` is an instruction
+to the Voice Agent LLM, not a line to speak.
+
+---
+
+### 16. `get_preferences`
+
+Read out the driver's current preferences. *Triggers: "tell me my preferences", "what are my
+settings?".*
+**Platform:** Supabase (`driver_preferences`, through `preference_service`).
+
+**Arguments:** none. `{}`.
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "message": "You have 8 preferences set:",
+  "preferences": {
+    "auto_accept_orders": "Automatically accept orders",
+    "never_call_customer": "Can call customers",
+    "daily_delivery_target": "Today's delivery target is 12"
+  }
+}
+```
+
+`preferences` maps a preference key to a one-line description, not to the stored value. Only the
+keys in the `set_preference` enum (§17) can appear. A boolean key that is unset still gets its
+"off" description once the driver has any preference, and `message` counts the descriptions
+returned. With no preferences at all the result is
+`{"success": true, "message": "You don't have any custom preferences set. Your co-rider will use default behavior.", "preferences": {}}`.
+Without a `driver_id` in the context: `{"success": false, "error": "Driver ID not found in context"}`.
+
+---
+
+### 17. `set_preference`
+
+Set one preference. *Triggers: "always accept orders", "never call customers", "set my target to
+12 deliveries".*
+**Platform:** Supabase (`driver_preferences`, through `preference_service`).
+
+**Arguments:**
+```json
+{ "key": "auto_accept_orders", "value": "true" }
+```
+
+| Arg | Type | Required | Values |
+|---|---|---|---|
+| `key` | string | yes | `VOICE_PREFERENCE_KEYS` in `app/services/preference_service.py`: `auto_accept_orders`, `auto_decline_orders`, `max_order_distance_km`, `avoid_highways`, `prefer_residential`, `always_call_before_delivery`, `never_call_customer`, `always_send_sms`, `max_deliveries_per_shift`, `auto_announce_next_stop`, `proactive_traffic_alerts`, `daily_delivery_target`. The registry builds the schema enum from that set, so the two cannot drift |
+| `value` | string | yes | `"true"` / `"false"` for booleans, a number for numeric keys. `daily_delivery_target` must be a whole number from 1 to 500 |
+
+**Result fields:**
+```json
+{ "success": true, "message": "Preference set: auto_accept_orders = true" }
+```
+
+Setting `daily_delivery_target` also tells the driver's active order queue to refresh
+(`notify_active_queue_changed`). Failures: `"Please specify both a preference and value"`,
+`"Failed to save preference"` (nothing was stored), and
+`"Failed to set preference: <reason>"`, for example a `daily_delivery_target` outside 1 to 500.
+Without a `driver_id`: `"Driver ID not found in context"`.
+
+---
+
+### 18. `clear_preference`
+
+Clear one preference, so that setting goes back to default behaviour. *Triggers: "clear my order
+preference", "stop auto-accepting orders".*
+**Platform:** Supabase (`driver_preferences`, through `preference_service`).
+
+**Arguments:**
+```json
+{ "key": "auto_accept_orders" }
+```
+
+| Arg | Type | Required | Values |
+|---|---|---|---|
+| `key` | string | yes | any key from the `set_preference` enum (§17) |
+
+**Result fields:**
+```json
+{ "success": true, "message": "Preference cleared: auto_accept_orders" }
+```
+
+Clearing `daily_delivery_target` refreshes the active order queue, as setting it does. Failures:
+`"Please specify which preference to clear"`, `"Failed to clear preference"`, and
+`"Failed to clear preference: <reason>"`. Without a `driver_id`: `"Driver ID not found in context"`.
+
+---
+
+### 19. `reset_preferences`
+
+Reset every preference to its default. *Triggers: "reset my preferences", "clear all my
+settings".*
+**Platform:** Supabase (`driver_preferences`, through `preference_service`).
+
+**Arguments:** none. `{}`.
+
+**Result fields:**
+```json
+{
+  "success": true,
+  "message": "All preferences have been reset to defaults. Your co-rider will use standard behavior."
+}
+```
+
+It always refreshes the driver's active order queue on success. Failures:
+`"Failed to reset preferences"` and `"Failed to reset preferences: <reason>"`. Without a
+`driver_id`: `"Driver ID not found in context"`.
 
 ---
 

@@ -9,11 +9,18 @@ import requests
 import websockets
 import base64
 import numpy as np
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import settings
+
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.credentials("assemblyai_api_key"),
+    pytest.mark.asyncio,
+]
 
 SAMPLE_RATE = 24000
 CHUNK_SIZE = 2400  # 50ms at 24kHz, 16-bit mono
