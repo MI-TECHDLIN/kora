@@ -75,6 +75,22 @@ hour (including “Cora”, “Kara”, “corner”, and “corona”), and com
 battery drain and temperature with wake word disabled. Also check wake-to-voice
 latency and that the beginning of the command is not clipped after handoff.
 
+## Third-party notices
+
+### sherpa-onnx wake-word model
+
+The files in `assets/wake/model/` are from
+[`sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20`](https://github.com/k2-fsa/sherpa-onnx/releases/tag/kws-models),
+published by the k2-fsa sherpa-onnx project for Chinese and English keyword
+spotting. The model-specific licence for these weights and `tokens.txt`, and
+the model's training-data provenance, are not stated in the upstream model
+documentation or release. Their licence is therefore **unconfirmed; ask the
+maintainers before commercial distribution**. Do not assume the repository's
+licence covers these model artifacts.
+
+The sherpa-onnx software itself is licensed under
+[Apache License 2.0](https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE).
+
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.

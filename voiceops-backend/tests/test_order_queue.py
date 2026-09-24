@@ -1,5 +1,6 @@
 """Order Queue snapshots, synchronization paths, targets, and voice behavior."""
 import asyncio
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -137,7 +138,15 @@ def test_rest_and_websocket_use_the_same_snapshot_object(monkeypatch):
     assert seen == [snapshot]
 
 
-def test_target_reached_is_announced_once_per_target_and_day(monkeypatch):
+class FixedDateTime(datetime):
+    current = datetime(2026, 9, 24, tzinfo=timezone.utc)
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.current if tz is not None else cls.current.replace(tzinfo=None)
+
+
+def test_target_change_does_not_repeat_acknowledgement_on_same_day(monkeypatch):
     stored = {}
     announcements = []
     snapshot = {
@@ -161,9 +170,87 @@ def test_target_reached_is_announced_once_per_target_and_day(monkeypatch):
     monkeypatch.setattr(order_queue_service.preference_service, "get_preference", get_preference)
     monkeypatch.setattr(order_queue_service.preference_service, "set_target_acknowledged", set_marker)
     monkeypatch.setattr(voice, "announce_target_reached", announce)
+    monkeypatch.setattr(order_queue_service, "datetime", FixedDateTime)
 
     assert run(order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID)) is True
+    snapshot["target"] = 5
+    snapshot["counts"]["completed"] = 5
     assert run(order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID)) is False
+    assert announcements == [(DRIVER_ID, SHIFT_ID, 2)]
+
+
+def test_target_reached_is_announced_again_on_a_new_utc_day(monkeypatch):
+    stored = {}
+    announcements = []
+    snapshot = {
+        "shift_id": SHIFT_ID,
+        "target": 2,
+        "counts": {"completed": 2},
+        "orders": [],
+    }
+
+    async def get_preference(driver_id, key):
+        return stored.get(key)
+
+    async def set_marker(driver_id, marker):
+        stored["_daily_delivery_target_acknowledged"] = marker
+        return True
+
+    async def announce(driver_id, shift_id, target):
+        announcements.append((driver_id, shift_id, target))
+        return 1
+
+    monkeypatch.setattr(order_queue_service.preference_service, "get_preference", get_preference)
+    monkeypatch.setattr(order_queue_service.preference_service, "set_target_acknowledged", set_marker)
+    monkeypatch.setattr(voice, "announce_target_reached", announce)
+    monkeypatch.setattr(order_queue_service, "datetime", FixedDateTime)
+
+    FixedDateTime.current = datetime(2026, 9, 24, tzinfo=timezone.utc)
+    assert run(order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID)) is True
+    FixedDateTime.current = datetime(2026, 9, 25, tzinfo=timezone.utc)
+    assert run(order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID)) is True
+    assert announcements == [
+        (DRIVER_ID, SHIFT_ID, 2),
+        (DRIVER_ID, SHIFT_ID, 2),
+    ]
+
+
+def test_concurrent_target_updates_announce_once(monkeypatch):
+    stored = {}
+    announcements = []
+    snapshot = {
+        "shift_id": SHIFT_ID,
+        "target": 2,
+        "counts": {"completed": 2},
+        "orders": [],
+    }
+
+    async def get_preference(driver_id, key):
+        await asyncio.sleep(0)
+        return stored.get(key)
+
+    async def set_marker(driver_id, marker):
+        await asyncio.sleep(0)
+        stored["_daily_delivery_target_acknowledged"] = marker
+        return True
+
+    async def announce(driver_id, shift_id, target):
+        announcements.append((driver_id, shift_id, target))
+        return 1
+
+    async def race():
+        return await asyncio.gather(
+            order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID),
+            order_queue_service._acknowledge_target_once(snapshot, DRIVER_ID),
+        )
+
+    monkeypatch.setattr(order_queue_service.preference_service, "get_preference", get_preference)
+    monkeypatch.setattr(order_queue_service.preference_service, "set_target_acknowledged", set_marker)
+    monkeypatch.setattr(voice, "announce_target_reached", announce)
+    monkeypatch.setattr(order_queue_service, "datetime", FixedDateTime)
+    FixedDateTime.current = datetime(2026, 9, 24, tzinfo=timezone.utc)
+
+    assert run(race()) == [True, False]
     assert announcements == [(DRIVER_ID, SHIFT_ID, 2)]
 
 

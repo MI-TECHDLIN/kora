@@ -4,7 +4,7 @@ from app.agents.agent_config import get_agent_greeting, get_system_prompt
 def test_first_greeting_is_personal_polite_and_lively():
     greeting = get_agent_greeting("Ada", question_index=0)
 
-    assert greeting.startswith("Hello, Ada!")
+    assert greeting.startswith("Hello, Ada.")
     assert "I'm Kora, your co-rider" in greeting
     assert "How has your day been so far?" in greeting
     assert "one good thing" in greeting

@@ -155,6 +155,7 @@ def get_session_config(
     vehicle_type: str = "vehicle",
     next_stop_info: str = "",
     voice: Optional[str] = None,
+    include_greeting: bool = True,
 ) -> Dict[str, Any]:
     """
     Build the complete session configuration for AssemblyAI Voice Agent.
@@ -167,28 +168,24 @@ def get_session_config(
         vehicle_type: Driver vehicle for the prompt
         next_stop_info: Current next stop details for the prompt
         voice: Optional voice ID for TTS (validated against allowlist)
+        include_greeting: Whether AssemblyAI should speak at session start
     
     Returns:
         Complete session configuration dictionary
     """
     if agent_id:
-        # Use stored agent ID but still inject per-session greeting and voice.
-        # AssemblyAI accepts greeting + voice overrides alongside agent_id.
-        return {
-            "type": "session.update",
-            "session": {
-                "agent_id": agent_id,
-                "greeting": get_agent_greeting(driver_name),
-                **get_audio_config(voice),
-            }
-        }
+        # Use the stored agent but override its greeting only on the first
+        # connection for a shift. Omitting greeting starts silently.
+        session = {"agent_id": agent_id, **get_audio_config(voice)}
+        if include_greeting:
+            session["greeting"] = get_agent_greeting(driver_name)
+        return {"type": "session.update", "session": session}
     
-    return {
-        "type": "session.update",
-        "session": {
-            "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
-            "greeting": get_agent_greeting(driver_name),
-            **get_audio_config(voice),
-            "tools": get_tools()
-        }
+    session = {
+        "system_prompt": get_system_prompt(driver_name, vehicle_type, shift_id, next_stop_info),
+        **get_audio_config(voice),
+        "tools": get_tools(),
     }
+    if include_greeting:
+        session["greeting"] = get_agent_greeting(driver_name)
+    return {"type": "session.update", "session": session}

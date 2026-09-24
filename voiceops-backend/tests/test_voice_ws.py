@@ -194,6 +194,7 @@ def backend(monkeypatch):
     monkeypatch.setattr(voice, "get_call_status", lambda call_sid: "in-progress")
     monkeypatch.setattr(voice, "hang_up_call", lambda call_sid: record["hang_ups"].append(call_sid) or True)
     monkeypatch.setattr(voice, "_sessions", {})
+    monkeypatch.setattr(voice, "_greeted_shifts", set())
     monkeypatch.setattr(voice.settings, "assemblyai_agent_id", None)
     return record
 
@@ -266,6 +267,14 @@ def connect_and_greet(ws, upstream):
     frames = collect_until(ws, is_event("reply_done"))
     assert next_frame(ws) == events.agent_state("idle")
     return frames
+
+
+def wait_for_upstream(upstreams, count, timeout=3.0):
+    deadline = time.monotonic() + timeout
+    while len(upstreams) < count and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert len(upstreams) >= count
+    return upstreams[count - 1]
 
 
 def tool_turn(ws, upstream, name, arguments, call_id="call-1"):
@@ -364,7 +373,76 @@ def test_get_session_config_voice():
     assert "Kora" in inline_cfg["session"]["greeting"]
 
     stored_cfg = get_session_config("driver-1", "shift-1", agent_id="agent-xyz", voice="michael")
-    assert stored_cfg["session"] == {"agent_id": "agent-xyz"}
+    assert stored_cfg["session"]["agent_id"] == "agent-xyz"
+    assert stored_cfg["session"]["output"]["voice"] == "michael"
+    assert "Kora" in stored_cfg["session"]["greeting"]
+
+    silent_inline = get_session_config("driver-1", "shift-1", include_greeting=False)
+    silent_stored = get_session_config(
+        "driver-1", "shift-1", agent_id="agent-xyz", include_greeting=False
+    )
+    assert "greeting" not in silent_inline["session"]
+    assert "greeting" not in silent_stored["session"]
+
+
+def test_greeting_is_sent_once_per_driver_shift(monkeypatch):
+    upstreams = []
+
+    async def open_upstream():
+        fake = FakeUpstream()
+        upstreams.append(fake)
+        return fake
+
+    new_shift_id = "f2ba75f7-e8b7-445a-a423-faf54ec23617"
+    existing_shift_lookup = voice.get_shift_by_id
+
+    async def get_shift_by_id(shift_id):
+        if shift_id == new_shift_id:
+            return {"id": shift_id, "driver_id": DRIVER_ID, "status": "active"}
+        return await existing_shift_lookup(shift_id)
+
+    monkeypatch.setattr(voice, "_open_upstream", open_upstream)
+    monkeypatch.setattr(voice, "get_shift_by_id", get_shift_by_id)
+
+    with client.websocket_connect(WS_PATH, headers=AUTH):
+        first = wait_for_upstream(upstreams, 1)
+        first_config = first.wait_sent(lambda m: m["type"] == "session.update")[0]
+        assert first_config["session"]["greeting"]
+
+    with client.websocket_connect(WS_PATH, headers=AUTH):
+        reconnect = wait_for_upstream(upstreams, 2)
+        reconnect_config = reconnect.wait_sent(lambda m: m["type"] == "session.update")[0]
+        assert "greeting" not in reconnect_config["session"]
+
+    with client.websocket_connect(f"/ws/voice/{new_shift_id}", headers=AUTH):
+        new_shift = wait_for_upstream(upstreams, 3)
+        new_shift_config = new_shift.wait_sent(lambda m: m["type"] == "session.update")[0]
+        assert new_shift_config["session"]["greeting"]
+
+
+def test_voice_change_reconnect_does_not_repeat_greeting(monkeypatch):
+    upstreams = []
+
+    async def open_upstream():
+        fake = FakeUpstream()
+        upstreams.append(fake)
+        return fake
+
+    monkeypatch.setattr(voice, "_open_upstream", open_upstream)
+
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        first = wait_for_upstream(upstreams, 1)
+        first_config = first.wait_sent(lambda m: m["type"] == "session.update")[0]
+        assert first_config["session"]["greeting"]
+        ws.send_json({"event": "change_voice", "voice": "vera"})
+        assert next_frame(ws) == events.voice_change_accepted("vera")
+        assert next_frame(ws) == {"close": voice.CLOSE_NORMAL}
+
+    with client.websocket_connect(f"{WS_PATH}?voice=vera", headers=AUTH):
+        reconnect = wait_for_upstream(upstreams, 2)
+        reconnect_config = reconnect.wait_sent(lambda m: m["type"] == "session.update")[0]
+        assert "greeting" not in reconnect_config["session"]
+        assert reconnect_config["session"]["output"]["voice"] == "vera"
 
 
 def test_voice_query_param_passed_to_upstream(upstream):
