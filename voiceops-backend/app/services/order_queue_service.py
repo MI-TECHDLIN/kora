@@ -1,4 +1,5 @@
 """Driver-facing order queue snapshots and real-time synchronization."""
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -11,6 +12,10 @@ from app.services.preference_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Render runs one application worker, so this makes the acknowledgement's
+# read/upsert pair atomic for each driver without changing the storage schema.
+_target_ack_locks: Dict[str, asyncio.Lock] = {}
 
 
 def _sequence_key(delivery: Dict[str, Any]) -> tuple:
@@ -100,17 +105,26 @@ async def _acknowledge_target_once(
     if not target or completed < target:
         return False
 
-    marker = f"{datetime.now(timezone.utc).date().isoformat()}:{target}"
-    if await preference_service.get_preference(driver_id, INTERNAL_TARGET_ACK_KEY) == marker:
-        return False
-    if not await preference_service.set_target_acknowledged(driver_id, marker):
-        logger.warning("[OrderQueue] Could not persist target acknowledgement for driver %s", driver_id)
-        return False
+    day = datetime.now(timezone.utc).date().isoformat()
+    marker = f"{day}:{target}"
+    lock = _target_ack_locks.setdefault(driver_id, asyncio.Lock())
+    async with lock:
+        stored = await preference_service.get_preference(driver_id, INTERNAL_TARGET_ACK_KEY)
+        # Existing rows use YYYY-MM-DD:<target>. Comparing the date prefix keeps
+        # those rows valid while making acknowledgement independent of target edits.
+        if str(stored or "").split(":", 1)[0] == day:
+            return False
+        if not await preference_service.set_target_acknowledged(driver_id, marker):
+            logger.warning(
+                "[OrderQueue] Could not persist target acknowledgement for driver %s",
+                driver_id,
+            )
+            return False
 
-    from app.api.websocket.voice import announce_target_reached
+        from app.api.websocket.voice import announce_target_reached
 
-    await announce_target_reached(driver_id, snapshot["shift_id"], target)
-    return True
+        await announce_target_reached(driver_id, snapshot["shift_id"], target)
+        return True
 
 
 async def publish_queue_update(shift_id: str, driver_id: str) -> Dict[str, Any]:

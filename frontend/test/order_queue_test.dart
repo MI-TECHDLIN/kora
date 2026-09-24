@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,18 @@ import 'package:voiceops/providers/shift_provider.dart';
 import 'fake_auth.dart';
 import 'fake_voice.dart';
 import 'order_queue_fixtures.dart';
+
+class _DelayedQueueApi extends FakeKoraApi {
+  final requestStarted = Completer<void>();
+  final response = Completer<OrderQueue>();
+
+  @override
+  Future<OrderQueue> fetchOrderQueue(String shiftId) {
+    queueRequests.add(shiftId);
+    if (!requestStarted.isCompleted) requestStarted.complete();
+    return response.future;
+  }
+}
 
 void main() {
   group('OrderQueue', () {
@@ -272,6 +285,27 @@ void main() {
       expect(queue().completed, 3);
       expect(queue().target, 8);
       expect(queue().active?.deliveryId, 'd-4');
+    });
+
+    test('a queue event wins over an older in-flight REST snapshot', () async {
+      final delayedApi = _DelayedQueueApi();
+      final delayedContainer = ProviderContainer(
+        overrides: [koraApiProvider.overrideWithValue(delayedApi)],
+      );
+      addTearDown(delayedContainer.dispose);
+
+      await delayedContainer.read(shiftProvider.notifier).ensureStarted();
+      await delayedApi.requestStarted.future;
+
+      delayedContainer
+          .read(orderQueueProvider.notifier)
+          .apply(queueOf(5, completed: 3, target: 8));
+      delayedApi.response.complete(queueOf(5, completed: 1, target: 8));
+      await pumpEventQueue();
+
+      final current = delayedContainer.read(orderQueueProvider).queue;
+      expect(current.completed, 3);
+      expect(current.active?.deliveryId, 'd-4');
     });
 
     test('an event for another shift is ignored', () async {

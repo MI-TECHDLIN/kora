@@ -76,6 +76,11 @@ class OrderQueueNotifier extends StateNotifier<OrderQueueState> {
   /// shift or driver never lands on the new one.
   int _epoch = 0;
 
+  /// Bumped whenever a snapshot request starts or a WebSocket snapshot lands.
+  /// The queue contract has no server revision, so this local version prevents
+  /// an older REST response from replacing newer real-time state.
+  int _snapshotVersion = 0;
+
   KoraApi get _api => _ref.read(koraApiProvider);
 
   /// Fetches the snapshot for the active shift. With no shift yet, it only
@@ -84,22 +89,25 @@ class OrderQueueNotifier extends StateNotifier<OrderQueueState> {
   /// showing rather than surfacing an error.
   Future<void> refresh() async {
     final epoch = _epoch;
+    final snapshotVersion = ++_snapshotVersion;
     final shiftId = _ref.read(shiftProvider);
     state = state.copyWith(loading: true);
     try {
       if (shiftId == null) {
         final target = _targetFrom(await _api.fetchDriverPreferences());
-        if (!_current(epoch)) return;
+        if (!_current(epoch, snapshotVersion)) return;
         state = state.copyWith(queue: state.queue.withTarget(target));
       } else {
         final queue = await _api.fetchOrderQueue(shiftId);
-        if (!_current(epoch)) return;
+        if (!_current(epoch, snapshotVersion)) return;
         state = state.copyWith(queue: queue);
       }
     } catch (_) {
       // Keep the last snapshot; the next event or refresh reconciles.
     } finally {
-      if (_current(epoch)) state = state.copyWith(loading: false);
+      if (_current(epoch, snapshotVersion)) {
+        state = state.copyWith(loading: false);
+      }
     }
   }
 
@@ -110,7 +118,8 @@ class OrderQueueNotifier extends StateNotifier<OrderQueueState> {
     if (queue.shiftId != null && shiftId != null && queue.shiftId != shiftId) {
       return;
     }
-    state = state.copyWith(queue: queue, clearError: true);
+    _snapshotVersion++;
+    state = state.copyWith(queue: queue, loading: false, clearError: true);
   }
 
   /// Marks a stop delivered by touch, then refreshes so the next stop
@@ -173,10 +182,14 @@ class OrderQueueNotifier extends StateNotifier<OrderQueueState> {
   /// (and the driver's target) arrives with the next [refresh].
   void reset() {
     _epoch++;
+    _snapshotVersion++;
     state = const OrderQueueState();
   }
 
-  bool _current(int epoch) => mounted && epoch == _epoch;
+  bool _current(int epoch, [int? snapshotVersion]) =>
+      mounted &&
+      epoch == _epoch &&
+      (snapshotVersion == null || snapshotVersion == _snapshotVersion);
 
   static int? _targetFrom(Map<String, String> preferences) =>
       parseTarget(preferences[dailyDeliveryTargetKey] ?? '');

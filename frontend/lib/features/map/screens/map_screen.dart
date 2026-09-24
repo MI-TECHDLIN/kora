@@ -147,8 +147,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _reframe() {
     if (!_mapReady) return;
     if (_framingRoute) {
-      if (ref.read(mapRouteProvider) case final route?)
+      if (ref.read(mapRouteProvider) case final route?) {
         unawaited(_fitRoute(route));
+      }
     } else if (_following) {
       if (ref.read(locationProvider).valueOrNull case final fix?) {
         unawaited(_moveTo(fix.point));

@@ -81,6 +81,19 @@ CLOSE_INTERNAL_ERROR = 1011    # upstream and internal failures
 # Open sessions per shift, so work started over REST (post-shift summary) can reach the app
 _sessions: Dict[str, Set["VoiceSession"]] = {}
 
+# AssemblyAI starts a fresh upstream session on every reconnect. Remember which
+# driver/shift pair already heard its opening so drops and voice swaps reconnect silently.
+# This process-local state naturally resets on deployment; shift ids keep entries isolated.
+_greeted_shifts: Set[Tuple[str, str]] = set()
+
+
+def _claim_shift_greeting(driver_id: str, shift_id: str) -> bool:
+    key = (driver_id, shift_id)
+    if key in _greeted_shifts:
+        return False
+    _greeted_shifts.add(key)
+    return True
+
 
 class UpstreamError(Exception):
     def __init__(self, code: str, message: str):
@@ -477,6 +490,7 @@ class VoiceSession:
             next_stop = f"{current.get('recipient_name') or 'Customer'} at {current['address']}"
             if current.get("time_window"):
                 next_stop += f", {current['time_window']}"
+        include_greeting = _claim_shift_greeting(self.driver_id, self.shift_id)
         await self.send_upstream(get_session_config(
             driver_id=self.driver_id,
             shift_id=self.shift_id,
@@ -485,6 +499,7 @@ class VoiceSession:
             vehicle_type=self.context.get("vehicle_type") or "vehicle",
             next_stop_info=next_stop,
             voice=self.voice,
+            include_greeting=include_greeting,
         ))
 
         try:
@@ -494,7 +509,8 @@ class VoiceSession:
                     raise UpstreamError("upstream_unavailable", "The voice service closed the connection.")
                 msg_type = data.get("type")
                 if msg_type in ("session.ready", "session.updated"):
-                    self._expect_reply_until = time.monotonic() + REPLY_GRACE  # the greeting is next
+                    if include_greeting:
+                        self._expect_reply_until = time.monotonic() + REPLY_GRACE
                     return
                 if msg_type in ("session.error", "error"):
                     logger.warning(f"[VoiceWS] Upstream rejected session: {data.get('code')}")
@@ -673,7 +689,8 @@ class VoiceSession:
         
         # Close the current session to force client reconnection with new voice
         # The client will automatically reconnect with the new voice parameter
-        await self.close()
+        await self.client.close(code=CLOSE_NORMAL)
+        self.client_gone = True
 
     # ------------------------------------------------------------------ upstream → app
 
