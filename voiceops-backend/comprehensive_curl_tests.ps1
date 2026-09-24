@@ -2,7 +2,11 @@
 # Tests all features from the spec: Gap 1, Gap 1b, and Gap 2
 
 $BASE_URL = "http://localhost:8000"
-$TOMTOM_KEY = "APxy4OvkI63alJEX8TQihGVO8NScCixb"
+$TOMTOM_KEY = $env:TOMTOM_API_KEY
+if ([string]::IsNullOrWhiteSpace($TOMTOM_KEY)) {
+    Write-Error "TOMTOM_API_KEY is required. Set it to your own TomTom key before running this script."
+    exit 1
+}
 $ORIGIN = "30.2672,-97.7431"
 $DESTINATION = "30.2711,-97.7428"
 
