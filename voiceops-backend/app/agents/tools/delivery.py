@@ -325,13 +325,13 @@ async def accept_order(parameters: dict, context: dict) -> dict:
     order_id is optional and defaults to the order currently offered to the driver.
 
     Trigger phrases: "yes, I'll take it", "accept", "add it to my run"
-    
+
     Prefers to check driver preferences for auto_accept_orders and max_order_distance_km.
     """
     order_id = parameters.get("order_id")
     shift_id = context.get("shift_id")
     driver_id = context.get("driver_id")
-    
+
     try:
         if not driver_id or not shift_id:
             logger.warning(
@@ -340,15 +340,15 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                 order_id or "-", shift_id or "-",
             )
             return {"success": False, "error": "No active shift to add the order to."}
-        
+
         # Check driver preferences
         from app.services.preference_service import preference_service
         preferences = await preference_service.get_preferences(driver_id)
-        
+
         # Resolve any preference conflicts
         from app.services.preference_models import PreferenceConflictResolver
         preferences = PreferenceConflictResolver.resolve_all_conflicts(preferences)
-        
+
         # If auto_decline_orders is set, reject the acceptance
         if preferences.get("auto_decline_orders") == "true":
             logger.info(
@@ -360,22 +360,24 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                 "success": False,
                 "error": "Cannot accept order: auto-decline preference is enabled."
             }
-        
-        # Get enhanced preferences for advanced checks
-        enhanced_prefs = await preference_service.get_enhanced_preferences(driver_id)
-        
-        # Get order details for comprehensive checking
-        dispatcher = get_order_dispatcher()
-        order = await dispatcher.get_order(order_id) if order_id else context.get("offered_order")
-        
+
+        # Use the order already surfaced to the driver by the dispatcher (from context),
+        # or any extra detail passed in parameters.  The dispatcher's accept() is the
+        # authoritative lookup — it uses _find() which is lock-safe.  We never call a
+        # non-existent get_order() method.
+        order = context.get("offered_order")
+
         if order:
+            # Get enhanced preferences for advanced checks
+            enhanced_prefs = await preference_service.get_enhanced_preferences(driver_id)
+
             # Check geographic zone preferences
             from app.utils.geo_preferences import is_order_acceptable_by_location
             order_lat = order.get("pickup_latitude") or order.get("latitude")
             order_lon = order.get("pickup_longitude") or order.get("longitude")
             driver_lat = context.get("latitude") or context.get("current_latitude")
             driver_lon = context.get("longitude") or context.get("current_longitude")
-            
+
             if order_lat and order_lon and driver_lat and driver_lon:
                 location_acceptable, location_reason = is_order_acceptable_by_location(
                     order_lat, order_lon, driver_lat, driver_lon,
@@ -383,7 +385,7 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                     pickup_radius_km=enhanced_prefs.pickup_radius_km,
                     zones=enhanced_prefs.geographic_zones
                 )
-                
+
                 if not location_acceptable:
                     logger.info(
                         "[Tool:accept_order] accept_rejected_by_location driver_id=%s reason=%s",
@@ -393,19 +395,19 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                         "success": False,
                         "error": f"Cannot accept order: {location_reason}"
                     }
-            
+
             # Check order type preferences
             from app.utils.order_type_preferences import is_order_type_accepted
             order_category = order.get("category", "delivery")
             order_weight = order.get("weight_kg")
             order_dimensions = order.get("dimensions")
             order_value = order.get("value")
-            
+
             type_acceptable, type_reason = is_order_type_accepted(
                 order_category, order_weight, order_dimensions, order_value,
                 enhanced_prefs.order_type_prefs
             )
-            
+
             if not type_acceptable:
                 logger.info(
                     "[Tool:accept_order] accept_rejected_by_type driver_id=%s reason=%s",
@@ -415,14 +417,14 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                     "success": False,
                     "error": f"Cannot accept order: {type_reason}"
                 }
-            
+
             # Check time-based preferences
             from app.utils.time_preferences import should_accept_order_by_time
             from datetime import datetime
             time_acceptable, time_reason = should_accept_order_by_time(
                 datetime.now(), enhanced_prefs.time_based_prefs
             )
-            
+
             if not time_acceptable:
                 logger.info(
                     "[Tool:accept_order] accept_rejected_by_time driver_id=%s reason=%s",
@@ -432,25 +434,25 @@ async def accept_order(parameters: dict, context: dict) -> dict:
                     "success": False,
                     "error": f"Cannot accept order: {time_reason}"
                 }
-        
-        # Legacy max_order_distance_km check (fallback)
-        max_distance = preferences.get("max_order_distance_km")
-        if max_distance and order and order.get("distance_km"):
-            try:
-                max_distance_km = float(max_distance)
-                if order["distance_km"] > max_distance_km:
-                    logger.info(
-                        "[Tool:accept_order] accept_rejected_by_distance driver_id=%s "
-                        "order_distance=%s max_allowed=%s",
-                        driver_id, order["distance_km"], max_distance_km,
-                    )
-                    return {
-                        "success": False,
-                        "error": f"Order distance ({order['distance_km']:.1f} km) exceeds your preference of {max_distance_km} km."
-                    }
-            except (ValueError, TypeError):
-                logger.warning(f"[Tool:accept_order] Invalid max_order_distance_km value: {max_distance}")
-        
+
+            # Legacy max_order_distance_km check (fallback)
+            max_distance = preferences.get("max_order_distance_km")
+            if max_distance and order.get("distance_km"):
+                try:
+                    max_distance_km = float(max_distance)
+                    if order["distance_km"] > max_distance_km:
+                        logger.info(
+                            "[Tool:accept_order] accept_rejected_by_distance driver_id=%s "
+                            "order_distance=%s max_allowed=%s",
+                            driver_id, order["distance_km"], max_distance_km,
+                        )
+                        return {
+                            "success": False,
+                            "error": f"Order distance ({order['distance_km']:.1f} km) exceeds your preference of {max_distance_km} km."
+                        }
+                except (ValueError, TypeError):
+                    logger.warning(f"[Tool:accept_order] Invalid max_order_distance_km value: {max_distance}")
+
         result = await get_order_dispatcher().accept(driver_id, shift_id, order_id)
         if not result.get("success"):
             logger.warning(

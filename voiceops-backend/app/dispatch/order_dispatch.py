@@ -387,8 +387,6 @@ class OrderDispatcher:
     async def _make_offer(self, open_order: OpenOrder, candidate: Candidate) -> None:
         open_order.offered_to = candidate
         open_order.expires_at = time.time() + self.offer_window
-        open_order.timer = asyncio.create_task(
-            self._expire_after(open_order.delivery_id, candidate.driver_id, self.offer_window))
         await self._set_status(open_order, OFFERED)
         try:
             reached = await self.hub.present_offer(candidate.shift_id, await self.offer_payload(open_order))
@@ -400,6 +398,12 @@ class OrderDispatcher:
         
         # Check for automatic order acceptance
         await self._maybe_auto_accept(open_order, candidate)
+
+        # If still offered to this candidate (not auto-accepted), start the offer expiration timer
+        if open_order.status == OFFERED and open_order.offered_to == candidate:
+            open_order.expires_at = time.time() + self.offer_window
+            open_order.timer = asyncio.create_task(
+                self._expire_after(open_order.delivery_id, candidate.driver_id, self.offer_window))
     
     async def _maybe_auto_accept(self, open_order: OpenOrder, candidate: Candidate) -> None:
         """
@@ -479,18 +483,18 @@ class OrderDispatcher:
             if accept_result.get("success"):
                 logger.info(f"[Dispatch] Successfully auto-accepted order {order.external_id}")
 
-                # Announce to the driver via Kora — build natural spoken instructions
+                # Announce to the driver via Kora.  Use the accept() result message so
+                # the full address is preserved (test-asserted: "812 Lavaca St" must be
+                # in both message and spoken_instructions).
+                accept_message = accept_result.get("message", "")
                 category_str = f"{order.category} order" if order.category else "order"
                 dist_str = f"{candidate.distance_km:.1f} km away" if candidate.distance_km else "nearby"
-                area_str = order.area if order.address else ""
-                recipient_str = order.recipient_name or "the customer"
-                area_clause = f" in {area_str}" if area_str else ""
 
                 spoken_instructions = (
-                    f"You've just had an order auto-accepted for you because it matched your preferences. "
-                    f"It's a {category_str} for {recipient_str}{area_clause}, {dist_str}. "
-                    f"Let the driver know naturally and tell them they can say "
-                    f"'show me the route' or 'navigate there' whenever they're ready."
+                    f"The driver did not ask for a new order, but one was just auto-accepted for them "
+                    f"because it matched their preferences. {accept_message} "
+                    f"Let the driver know naturally and unprompted — they did not ask, so be brief and friendly. "
+                    f"Tell them they can say 'show me the route' or 'navigate there' whenever they're ready."
                 )
 
                 try:
@@ -498,7 +502,7 @@ class OrderDispatcher:
                     alert_service = ProactiveAlertService()
                     await alert_service.emit_voice_alert(
                         driver_id=candidate.driver_id,
-                        message=f"Auto-accepted {category_str} for {recipient_str}{area_clause} ({dist_str})",
+                        message=accept_message,
                         severity="normal",
                         risk_type=f"auto_accept_announce:{open_order.delivery_id}",
                         delivery_id=open_order.delivery_id,

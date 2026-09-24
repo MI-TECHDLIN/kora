@@ -6,7 +6,7 @@ and operational metrics for dispatcher consoles.
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
-from app.dependencies import get_current_driver
+from app.dependencies import get_current_operator
 from app.agents.dispatcher_agent import dispatcher_agent
 from app.db.queries import get_supabase
 
@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/overview")
-async def get_fleet_overview(current_user: dict = Depends(get_current_driver)):
+async def get_fleet_overview(current_user: dict = Depends(get_current_operator)):
     """Summary metrics of current fleet operations."""
     snapshot = await dispatcher_agent.get_fleet_snapshot()
     recommendations = await dispatcher_agent.evaluate_fleet_risk(snapshot)
@@ -33,13 +33,14 @@ async def get_fleet_overview(current_user: dict = Depends(get_current_driver)):
 
 
 @router.get("/drivers")
-async def get_fleet_drivers(current_user: dict = Depends(get_current_driver)):
+async def get_fleet_drivers(current_user: dict = Depends(get_current_operator)):
     """List all active drivers with live telemetry and shift status."""
     try:
         supabase = get_supabase()
         res = (
             supabase.table("drivers")
-            .select("id, name, phone, vehicle_type, status, current_latitude, current_longitude, current_heading, current_speed, current_shift_id")
+            # phone is intentionally excluded — dispatcher console does not need it
+            .select("id, name, vehicle_type, status, current_latitude, current_longitude, current_heading, current_speed, current_shift_id")
             .execute()
         )
         return {"drivers": res.data or []}
@@ -51,7 +52,7 @@ async def get_fleet_drivers(current_user: dict = Depends(get_current_driver)):
 async def get_fleet_incidents(
     severity: Optional[str] = Query(None, description="Filter by severity: normal, urgent, critical"),
     resolved: bool = Query(False, description="Filter by resolution status"),
-    current_user: dict = Depends(get_current_driver),
+    current_user: dict = Depends(get_current_operator),
 ):
     """List operational alerts and driver incidents."""
     try:
@@ -66,7 +67,7 @@ async def get_fleet_incidents(
 
 @router.get("/analytics")
 async def get_fleet_analytics(
-    current_user: dict = Depends(get_current_driver),
+    current_user: dict = Depends(get_current_operator),
 ):
     """Aggregate fleet KPIs (completion rate, incident rate)."""
     try:

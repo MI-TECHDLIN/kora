@@ -898,7 +898,7 @@ def test_offer_waits_until_the_agent_and_driver_are_quiet(upstream, live_dispatc
 
 
 def test_offer_on_connect_waits_for_the_greeting(upstream, live_dispatch, monkeypatch):
-    monkeypatch.setattr(voice, "REPLY_GRACE", 1.0)
+    monkeypatch.setattr(voice, "REPLY_GRACE", 2.0)
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         upstream.wait_sent(lambda m: m["type"] == "session.update")
         ws.portal.call(live_dispatch.ingest, make_order())

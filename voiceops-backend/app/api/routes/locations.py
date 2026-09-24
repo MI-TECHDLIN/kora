@@ -7,7 +7,7 @@ import logging
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, status, Depends, Query, BackgroundTasks
 from pydantic import BaseModel, Field
-from app.dependencies import get_current_driver
+from app.dependencies import get_current_driver, get_current_operator
 from app.api.ownership import require_owned_shift
 from app.services.location_service import location_service
 from app.services.vehicle_modes import get_driver_vehicle_mode
@@ -180,9 +180,9 @@ async def receive_location_ping(
 @router.get("/drivers/{driver_id}/location")
 async def get_driver_live_location(
     driver_id: str,
-    current_user: dict = Depends(get_current_driver),
+    current_user: dict = Depends(get_current_operator),
 ):
-    """Get the current live location of a driver."""
+    """Get the current live location of a driver. Requires operator role."""
     if not is_valid_uuid(driver_id):
         raise HTTPException(status_code=400, detail="Invalid driver_id UUID")
 
@@ -205,9 +205,9 @@ async def get_driver_live_location(
 async def get_location_history(
     driver_id: str,
     limit: int = Query(50, ge=1, le=500),
-    current_user: dict = Depends(get_current_driver),
+    current_user: dict = Depends(get_current_operator),
 ):
-    """Get historical GPS breadcrumbs for a driver."""
+    """Get historical GPS breadcrumbs for a driver. Requires operator role."""
     if not is_valid_uuid(driver_id):
         raise HTTPException(status_code=400, detail="Invalid driver_id UUID")
 

@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
 from app.dependencies import get_current_driver
 from app.db.queries import get_driver_by_id, create_driver_profile
 from app.db.client import get_supabase_client
@@ -237,36 +236,25 @@ async def connect_platform(
 @router.post("/onboard")
 async def onboard_driver(
     request: OnboardDriverRequest,
-    authorization: Optional[str] = Header(None)
+    current_user: dict = Depends(get_current_driver),
 ):
     """
     Trigger driver onboarding workflow (Twilio welcome SMS + operator notifications).
-    Supports either an authenticated driver bearer token or direct payload parameters.
+    Requires a valid Supabase Bearer token.  Identity is taken from the JWT; any
+    driver_id / phone / email fields in the payload are ignored to prevent spoofing.
     """
-    driver_id = request.driver_id
-    driver_name = request.driver_name
-    phone = request.phone
-    email = request.email
+    # Identity is authoritative from the authenticated JWT
+    driver_id = current_user["id"]
+    metadata = current_user.get("user_metadata") or {}
+    driver_name = (
+        request.driver_name
+        or metadata.get("name")
+        or metadata.get("full_name")
+        or "Kora Driver"
+    )
+    phone = current_user.get("phone") or metadata.get("phone")
+    email = current_user.get("email") or metadata.get("email")
     vehicle_type = request.vehicle_type
-
-    # If Authorization header provided, extract driver info from Supabase session
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            supabase = get_supabase_client()
-            user_resp = supabase.auth.get_user(authorization[7:])
-            if user_resp and user_resp.user:
-                u = user_resp.user
-                driver_id = driver_id or u.id
-                phone = phone or getattr(u, "phone", None)
-                email = email or getattr(u, "email", None)
-                metadata = getattr(u, "user_metadata", {}) or {}
-                driver_name = driver_name or metadata.get("name") or metadata.get("full_name")
-        except Exception:
-            pass
-
-    # Defaults for onboarding
-    driver_id = driver_id or f"drv_{int(datetime.now(timezone.utc).timestamp())}"
-    driver_name = driver_name or "Kora Driver"
 
     # Fire-and-forget onboarding trigger
     trigger_driver_onboarding_background(
@@ -283,6 +271,5 @@ async def onboard_driver(
         "message": "Driver onboarding triggered",
         "driver_id": driver_id,
         "driver_name": driver_name,
-        "phone": phone
     }
 

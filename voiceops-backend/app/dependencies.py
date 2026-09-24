@@ -40,3 +40,39 @@ async def authenticate_bearer(authorization: Optional[str]) -> dict:
 async def get_current_driver(authorization: Optional[str] = Header(None)) -> dict:
     """Validate Supabase JWT and return driver info."""
     return await authenticate_bearer(authorization)
+
+
+# ---------------------------------------------------------------------------
+# Operator / dispatcher role gate
+# ---------------------------------------------------------------------------
+
+_OPERATOR_ROLES = {"operator", "dispatcher", "admin"}
+
+
+async def get_current_operator(authorization: Optional[str] = Header(None)) -> dict:
+    """
+    Validate Supabase JWT and assert that the caller holds an operator role.
+
+    The role is read from ``app_metadata.role`` (set server-side by Supabase or a
+    management API call — drivers cannot self-assign it).  A driver token that hits
+    an operator-gated endpoint receives 403 Forbidden.
+
+    Decision rationale (handoff §2): operator identity via a Supabase role claim
+    in the JWT was chosen over a separate ``operators`` table because it requires no
+    extra schema and can be enforced entirely in the auth layer.
+    To grant a user operator access:
+        supabase.auth.admin.update_user_by_id(uid, {"app_metadata": {"role": "operator"}})
+    """
+    user = await authenticate_bearer(authorization)
+
+    # app_metadata is set by Supabase admin APIs; users cannot modify it themselves.
+    app_meta = user.get("app_metadata") or {}
+    role = str(app_meta.get("role", "")).lower()
+
+    if role not in _OPERATOR_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operator or dispatcher role required.",
+        )
+
+    return user
