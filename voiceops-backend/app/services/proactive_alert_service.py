@@ -51,7 +51,7 @@ class ProactiveAlertService:
         """
         Dispatches proactive voice alert to the driver.
         Stores record in dispatcher_alerts for real-time WebSocket pickup and telemetry.
-        Pushes to the driver's active voice WebSocket and queues unprompted co-rider speech.
+        Pushes to the driver's authenticated voice WebSocket and queues unprompted co-rider speech.
         
         Args:
             route_suggestion: Optional dict with route data for ROUTE_DEVIATION alerts
@@ -89,24 +89,15 @@ class ProactiveAlertService:
                 route_suggestion=route_suggestion,
             )
 
-            # 1. Push to voice socket and trigger unprompted co-rider speech
+            # Push to the authenticated voice socket and trigger unprompted co-rider speech.
+            # The old unauthenticated driver socket was removed; the voice socket is the
+            # only live client channel for proactive alerts.
             await present_proactive_alert(
                 driver_id=driver_id,
                 alert_payload=ws_payload,
                 spoken_instructions=spoken_instructions,
                 shift_id=shift_id,
             )
-
-            # 2. Push to legacy driver WebSocket if connected
-            try:
-                from app.api.websocket.driver_ws import ws_manager
-                legacy_payload = {
-                    "type": "PROACTIVE_ALERT",
-                    **ws_payload
-                }
-                await ws_manager.send_to_driver(driver_id, legacy_payload)
-            except Exception:
-                pass
 
             return True
         except Exception as e:

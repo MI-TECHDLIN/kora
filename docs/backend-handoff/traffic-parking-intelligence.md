@@ -11,8 +11,9 @@ plumbing and should land as one branch.
 > (Links B and C closed); the event uses the contract's `"event": "PROACTIVE_ALERT"` key
 > (`events.proactive_alert()`), a `TOMTOM_API_KEY` startup warning exists (`app/main.py`), and
 > `pytest.ini` collects `test_reroute_risk.py`. Still open: the `get_traffic_ahead` tool, `access_notes`,
-> and any parking work. The legacy `/ws/driver/{driver_id}` push is still sent alongside the voice
-> socket. Read the sections below as the original design rationale, not a to-do list.
+> and any parking work. As of 2026-09-24, the unused unauthenticated `/ws/driver/{driver_id}` endpoint
+> and its duplicate alert push were removed; proactive alerts use only the authenticated voice socket.
+> Read the sections below as the original design rationale, not a to-do list.
 
 > **Status update (2026-09-17):** Link A's frontend half (see §3 below) has since been built —
 > the app now posts `POST /v1/locations/ping` every 10-15s while a voice session is connected, and

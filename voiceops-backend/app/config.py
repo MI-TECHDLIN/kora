@@ -88,6 +88,13 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 24
     environment: str = os.getenv("ENVIRONMENT", "development")  # Can be "development", "staging", or "production"
     tools_benchmark_enabled: bool = False  # Explicit opt-in; only honored in development
+    voice_agent_harness_enabled: bool = False  # Explicit opt-in; only honored in development
+    allow_mock_delivery_ids: bool = True  # Demo-only; always disabled in production
+
+    @property
+    def mock_delivery_ids_enabled(self) -> bool:
+        """Whether non-UUID demo delivery/shift IDs may bypass database ownership checks."""
+        return self.environment.lower() != "production" and self.allow_mock_delivery_ids
     
     # Security & Optimization
     allowed_origins: str = "*"  # Comma-separated list for production, "*" for development
