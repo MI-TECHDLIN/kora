@@ -15,6 +15,9 @@ are now mostly implemented. `docs/KNOWN_ISSUES.md` lists gotchas that already bi
 The SDD, TechFeasibility, and Synopsis (all v2) are historical and marked superseded. Where they
 disagree with the current docs, the current docs win.
 
+Post-hackathon ideas deliberately deferred from the current build are listed in
+`docs/roadmap/post-hackathon-ideas.md`; their research basis is `docs/research/fleetbase-review.md`.
+
 ---
 
 ## What This Is
