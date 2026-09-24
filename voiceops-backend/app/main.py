@@ -17,7 +17,6 @@ from app.api.routes import (
     logistics,
     preferences,
 )
-from app.api.websocket.driver_ws import router as driver_ws_router
 from app.api.websocket.voice import router as voice_router
 from app.dispatch.order_dispatch import get_order_dispatcher
 from app.services.preference_service import initialize_preference_service
@@ -87,7 +86,6 @@ app.include_router(locations.router, prefix="/v1", tags=["locations"])
 app.include_router(pod.router, prefix="/v1", tags=["pod"])
 app.include_router(fleet.router, prefix="/v1/fleet", tags=["fleet"])
 app.include_router(routes.router, prefix="/v1", tags=["routes"])
-app.include_router(driver_ws_router, tags=["websocket"])
 app.include_router(voice_router, tags=["voice-websocket"])
 app.include_router(preferences.router, prefix="/v1/driver", tags=["preferences"])
 

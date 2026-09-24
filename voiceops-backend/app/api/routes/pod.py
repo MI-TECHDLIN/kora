@@ -39,8 +39,8 @@ async def upload_proof_of_delivery(
     """
     driver_id = current_user.get("id")
 
-    # 1. Fetch and validate delivery ownership. Non-UUID mock IDs intentionally bypass
-    # the database check inside the shared helper and keep the demo behavior below.
+    # 1. Fetch and validate delivery ownership. Non-UUID mock IDs only bypass the
+    # database check when the demo setting is effective outside production.
     delivery = await require_owned_delivery(delivery_id, driver_id)
     current_status = delivery.get("status", "arrived") if delivery else "arrived"
 
@@ -133,10 +133,10 @@ async def get_proof_of_delivery(
     current_user: dict = Depends(get_current_driver),
 ):
     """Retrieve proof of delivery for a specific delivery."""
+    await require_owned_delivery(delivery_id, current_user.get("id"))
+
     if not is_valid_uuid(delivery_id):
         return {"pod": None}
-
-    await require_owned_delivery(delivery_id, current_user.get("id"))
 
     try:
         res = (

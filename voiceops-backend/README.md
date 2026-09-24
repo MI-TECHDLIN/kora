@@ -24,7 +24,7 @@ graph TD
     subgraph Frontend["Mobile / Web Client"]
         DriverUI["Driver UI (Flutter Mobile)"]
         Mic["Microphone (PCM16 24kHz)"]
-        WSClient["WebSocket Client (/ws/driver/{id})"]
+        WSClient["Authenticated Voice WebSocket (/ws/voice/{shift_id})"]
     end
 
     subgraph Backend["FastAPI Backend (VoiceOps Core)"]
@@ -32,7 +32,7 @@ graph TD
         ShiftAPI["/v1/shift & /v1/deliveries"]
         LocationsAPI["/v1/locations & /v1/deliveries/{id}/pod"]
         FleetAPI["/v1/fleet & /v1/routes"]
-        VoiceAgent["/v1/voice-agent (Session Pipeline)"]
+        VoiceAgent["Voice Session Pipeline"]
         ContextBuilder["Context Builder (JWT + DB + Memories)"]
         SafetyGate["Tool Safety Gate (Auth & State Guards)"]
         ToolRunner["Parallel Tool Orchestrator (Trace ID)"]
@@ -90,7 +90,7 @@ graph TD
 ## 🚀 System Capabilities & Milestones (100% Completed)
 
 ### 🔴 Milestone 1 — Core Plumbing & Live Database
-- **Live Driver Context**: [`context_builder.py`](app/agents/context_builder.py) dynamically resolves driver identity, vehicle details, active shift, and next delivery from Bearer JWTs, falling back to testing fixtures when unauthenticated.
+- **Live Driver Context**: [`context_builder.py`](app/agents/context_builder.py) dynamically resolves driver identity, vehicle details, active shift, and next delivery from Bearer JWTs. Its unauthenticated fixture fallback is reachable only through the explicitly enabled development test harness.
 - **Deterministic Delivery State Machine**: [`delivery_state_machine.py`](app/services/delivery_state_machine.py) enforces legal transitions (`pending` → `en_route` / `arrived` → `delivered` / `failed` → `rescheduled`), rejecting illegal state jumps.
 - **Real Database Wiring**: All 10 voice agent tools query and mutate live Supabase tables instead of returning mock data.
 - **Schema Hardening**: [`supabase_schema.sql`](supabase_schema.sql) updated with Row Level Security (`INSERT` for drivers, `service_role` full access) and tables: `delivery_events`, `customers`, `proof_of_delivery`, `customer_interactions`, `memories`, `agent_audit_trail`.
@@ -111,7 +111,7 @@ graph TD
 
 ### 🟡 Milestone 4 — Routing, WebSocket & Dispatcher
 - **Multi-Provider Routing**: [`routing_service.py`](app/services/routing_service.py) and [`osrm.py`](app/integrations/osrm.py) prioritize open-source OSRM, fall back to Google Directions API, and cascade to direct Heuristic calculation if network routes fail.
-- **Driver WebSocket Channel**: [`driver_ws.py`](app/api/websocket/driver_ws.py) maintains a persistent `/ws/driver/{driver_id}` connection for live proactive alert dispatching and telemetry streaming.
+- **Authenticated Voice WebSocket**: [`voice.py`](app/api/websocket/voice.py) serves `/ws/voice/{shift_id}`, authenticates the bearer token, verifies shift ownership, and carries audio, tool events, and proactive alerts. The unused unauthenticated `/ws/driver/{driver_id}` endpoint was removed.
 - **Dispatcher Agent**: [`dispatcher_agent.py`](app/agents/dispatcher_agent.py) analyzes fleet snapshots, identifies bottlenecks, prioritizes critical safety/delay incidents, and suggests shift rebalancing.
 - **Fleet Management APIs**: [`fleet.py`](app/api/routes/fleet.py) exposes overview metrics, driver locations, active incidents, and delivery completion KPIs.
 - **Tool Safety Gate**: [`tool_safety.py`](app/agents/tool_safety.py) verifies caller authorization (driver ownership) and state transitions before tool execution.
@@ -185,8 +185,7 @@ All 10 voice agent tools are registered in [`app/agents/tool_registry.py`](app/a
 - `GET /v1/fleet/analytics` — Fleet performance KPIs and delivery completion rates.
 
 ### Voice Agent (`/v1`)
-- `POST /v1/voice-agent` — Turn-based voice agent audio turn (PCM16 24kHz) with parallel tool dispatch.
-- `GET /v1/voice-agent/session-config` — AssemblyAI session configuration schema.
+- `POST /v1/voice-agent` — Legacy turn-based test harness. Returns 404 unless `ENVIRONMENT=development` and `VOICE_AGENT_HARNESS_ENABLED=true`; the app does not use it.
 
 ---
 
@@ -194,37 +193,13 @@ All 10 voice agent tools are registered in [`app/agents/tool_registry.py`](app/a
 
 ### Endpoint
 ```
-ws://<host>:8000/ws/driver/{driver_id}
+wss://<host>/ws/voice/{shift_id}
 ```
 
-### Supported Messages
-- **Client Heartbeat**:
-  ```json
-  {"type": "heartbeat"}
-  ```
-- **Client Location Ping**:
-  ```json
-  {
-    "type": "location_ping",
-    "payload": {
-      "latitude": 6.4286,
-      "longitude": 3.4108,
-      "speed": 28.5,
-      "heading": 180.0,
-      "shift_id": "uuid"
-    }
-  }
-  ```
-- **Server Proactive Alert**:
-  ```json
-  {
-    "type": "PROACTIVE_ALERT",
-    "severity": "HIGH",
-    "risk_type": "TIME_WINDOW_RISK",
-    "message": "Delivery is projected 20 minutes late. Notify customer?",
-    "delivery_id": "uuid"
-  }
-  ```
+Send `Authorization: Bearer <access_token>` on the upgrade request. The backend rejects a socket
+unless the authenticated driver owns `shift_id`. This is the app's single real-time channel for
+audio, tool events, order offers, and proactive alerts. GPS telemetry continues to use authenticated
+`POST /v1/locations/ping`; the removed legacy driver socket is not a fallback ingestion path.
 
 ---
 
@@ -302,7 +277,17 @@ OPERATOR_REPORT_EMAIL=ops@yourdomain.com
 JWT_SECRET=your_jwt_secret_key
 ENVIRONMENT=development
 ALLOWED_ORIGINS=*
+# Development-only legacy REST voice harness; leave false outside local testing
+VOICE_AGENT_HARNESS_ENABLED=false
+# Demo placeholder IDs; ignored (and blocked) when ENVIRONMENT=production
+ALLOW_MOCK_DELIVERY_IDS=true
 ```
+
+`ALLOW_MOCK_DELIVERY_IDS` preserves the non-UUID placeholders used by the development REST/demo
+context (`demo-delivery-001`) and the inline next-delivery fallback (`mock-delivery-123`). Production
+always rejects those placeholders regardless of the flag. The `MockAdapter` order feed is unaffected:
+its `MLX-*` value is an external platform ID, while the delivery itself is persisted with a database
+UUID before it is offered to a driver.
 
 ---
 

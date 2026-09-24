@@ -316,6 +316,9 @@ async def voice_agent_endpoint(request: AudioRequest):
     REST API endpoint for AssemblyAI voice agent interaction.
     Accepts base64-encoded PCM16 audio and returns AssemblyAI's voice response.
     """
+    if settings.environment.lower() != "development" or not settings.voice_agent_harness_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+
     from app.agents.context_builder import build_driver_context
 
     # Generate session ID if not provided

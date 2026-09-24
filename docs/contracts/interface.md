@@ -49,6 +49,10 @@ the `?token=` query the backend README used to describe, so REST and WS share on
 driver. Any other shift gets `auth_failed`. The REST prototype `POST /v1/voice-agent` (§2)
 still exists as a test harness and emits none of these events.
 
+The former unauthenticated `WS /ws/driver/{driver_id}` endpoint was removed because no app client
+used it and its path/payload identities were trusted. Proactive alerts remain on this authenticated
+voice socket, and GPS updates remain on authenticated `POST /v1/locations/ping`.
+
 ### Client → server
 
 | Frame | Shape | Notes |
@@ -307,8 +311,9 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 | POST | `/v1/voice-agent` | `{"audio": "<base64 PCM16>", "sample_rate": 24000, "session_id": null}` | `{"audio", "user_transcript", "agent_transcript", "audio_size", "session_id"}` |
 
 `/v1/voice-agent` is a **prototype test harness**, not part of the app contract. It is
-unauthenticated, single-shot, and runs with a hardcoded driver context. The app uses the §1
-WebSocket.
+single-shot and may run with a hardcoded driver context. It returns 404 by default and is available
+only when both `ENVIRONMENT=development` and `VOICE_AGENT_HARNESS_ENABLED=true`. The app uses the
+authenticated §1 WebSocket.
 
 **Order Intake API.** Server to server: a logistics platform pushes new orders here. The
 MockAdapter's order feed builds the same payload internally.
