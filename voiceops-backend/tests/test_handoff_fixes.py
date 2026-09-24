@@ -9,17 +9,21 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.config import Settings
 from app.dependencies import get_current_driver
 from app.api import ownership
 from app.api.routes import deliveries as delivery_routes
 from app.api.routes import pod as pod_routes
 from app.api.routes import shift as shift_routes
 from app.api.routes import tools as tool_routes
+from app.api.routes import voice_agent as voice_agent_routes
 from app.agents import tool_safety
 from app.services.risk_engine import RiskEngine, RiskType, RiskSeverity
+from app.services import proactive_alert_service as alert_service_module
 from app.intelligence.lemur_pipeline import LemurIntelligencePipeline
 from app.api.websocket import events
 from app.api.websocket.voice import present_proactive_alert, _sessions, VoiceSession
@@ -183,6 +187,65 @@ def test_tool_benchmark_is_off_by_default(monkeypatch, driver_a_client):
     assert response.status_code == 404
 
 
+def test_legacy_driver_websocket_is_not_mounted():
+    paths = {
+        route.path
+        for route in app.routes
+        if route.__class__.__name__ == "APIWebSocketRoute"
+    }
+
+    assert paths == {"/ws/voice/{shift_id}"}
+
+
+def test_mock_id_setting_defaults_on_outside_production_and_off_in_production():
+    development = Settings(_env_file=None, environment="development")
+    production = Settings(_env_file=None, environment="production")
+
+    assert development.allow_mock_delivery_ids is True
+    assert development.mock_delivery_ids_enabled is True
+    assert production.mock_delivery_ids_enabled is False
+
+
+@pytest.mark.parametrize(
+    ("environment", "enabled"),
+    [("development", False), ("staging", True), ("production", True)],
+)
+def test_voice_agent_harness_is_hidden_unless_both_gates_are_on(
+    monkeypatch, environment, enabled
+):
+    monkeypatch.setattr(voice_agent_routes.settings, "environment", environment)
+    monkeypatch.setattr(voice_agent_routes.settings, "voice_agent_harness_enabled", enabled)
+
+    response = TestClient(app).post(
+        "/v1/voice-agent",
+        json={"audio": "AAA=", "sample_rate": 24000, "session_id": "test-session"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found"}
+
+
+def test_voice_agent_harness_runs_when_both_gates_are_on(monkeypatch):
+    monkeypatch.setattr(voice_agent_routes.settings, "environment", "development")
+    monkeypatch.setattr(voice_agent_routes.settings, "voice_agent_harness_enabled", True)
+    monkeypatch.setattr(voice_agent_routes, "save_wav", MagicMock())
+    monkeypatch.setattr(
+        voice_agent_routes,
+        "handle_assemblyai_session",
+        AsyncMock(return_value=(b"response", ["driver text"], ["agent text"])),
+    )
+
+    response = TestClient(app).post(
+        "/v1/voice-agent",
+        json={"audio": "AAA=", "sample_rate": 24000, "session_id": "test-session"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "test-session"
+    assert response.json()["user_transcript"] == "driver text"
+    assert response.json()["agent_transcript"] == "agent text"
+
+
 def test_tool_delivery_argument_is_checked_through_its_shift(monkeypatch):
     async def get_delivery(delivery_id):
         return {"id": delivery_id, "shift_id": SHIFT_A}
@@ -227,6 +290,8 @@ def test_non_uuid_mock_delivery_paths_keep_demo_behavior(monkeypatch, driver_a_c
         def table(self, name):
             return FakePodTable()
 
+    monkeypatch.setattr(ownership.settings, "environment", "development")
+    monkeypatch.setattr(ownership.settings, "allow_mock_delivery_ids", True)
     monkeypatch.setattr(delivery_routes, "mark_delivery_status", mark)
     monkeypatch.setattr(delivery_routes, "create_delivery_event", event)
     monkeypatch.setattr(delivery_routes, "notify_queue_changed", notify)
@@ -249,6 +314,52 @@ def test_non_uuid_mock_delivery_paths_keep_demo_behavior(monkeypatch, driver_a_c
     assert read_response.status_code == 200
     assert read_response.json() == {"pod": None}
     assert calls == [("mock-delivery-123", "delivered")]
+
+
+def test_non_uuid_mock_delivery_paths_are_blocked_in_production(monkeypatch, driver_a_client):
+    monkeypatch.setattr(ownership.settings, "environment", "production")
+    monkeypatch.setattr(ownership.settings, "allow_mock_delivery_ids", True)
+
+    status_response = driver_a_client.put(
+        "/v1/deliveries/mock-delivery-123/status",
+        json={"status": "delivered"},
+    )
+    upload_response = driver_a_client.post(
+        "/v1/deliveries/mock-delivery-123/pod",
+        data={"latitude": "30.2672", "longitude": "-97.7431"},
+    )
+    read_response = driver_a_client.get("/v1/deliveries/mock-delivery-123/pod")
+
+    assert status_response.status_code == 404
+    assert upload_response.status_code == 404
+    assert read_response.status_code == 404
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(ownership.require_owned_shift(
+            "demo-shift-001", DRIVER_A, allow_mock_id=True
+        ))
+    assert exc_info.value.status_code == 404
+
+
+def test_proactive_alert_service_uses_authenticated_voice_socket(monkeypatch):
+    present = AsyncMock(return_value=1)
+    monkeypatch.setattr("app.api.websocket.voice.present_proactive_alert", present)
+    monkeypatch.setattr(
+        alert_service_module,
+        "get_supabase",
+        MagicMock(side_effect=RuntimeError("database unavailable")),
+    )
+
+    sent = asyncio.run(alert_service_module.alert_service.emit_voice_alert(
+        driver_id=DRIVER_A,
+        message="Traffic ahead.",
+        risk_type="ROUTE_DEVIATION",
+        shift_id=SHIFT_A,
+        spoken_instructions="Tell the driver about the traffic delay.",
+    ))
+
+    assert sent is True
+    present.assert_awaited_once()
 
 
 def test_lemur_fallback_honest_sentiment():
