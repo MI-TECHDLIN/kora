@@ -7,12 +7,19 @@ import json
 import base64
 import sys
 import os
-import sounddevice as sd
 import numpy as np
+import pytest
 import websockets
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError) as exc:  # OSError: PortAudio library not found
+    pytest.skip(f"sounddevice unavailable: {exc}", allow_module_level=True)
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+pytestmark = [pytest.mark.live, pytest.mark.audio, pytest.mark.asyncio]
 
 SAMPLE_RATE = 24000
 CHUNK_SIZE = 2400  # 50ms at 24kHz

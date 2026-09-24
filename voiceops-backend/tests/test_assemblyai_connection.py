@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import sys
+import pytest
 import requests
 import websockets
 
@@ -13,6 +14,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load settings
 from app.config import settings
+
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.credentials("assemblyai_api_key"),
+    pytest.mark.asyncio,
+]
 
 async def test_assemblyai_token():
     """Test generating temporary token"""
@@ -36,7 +43,7 @@ async def test_assemblyai_token():
         print("Failed to generate token")
         return None
 
-async def test_assemblyai_ws_with_token(token):
+async def check_assemblyai_ws_with_token(token):
     """Test WebSocket connection with token"""
     print("\n" + "=" * 60)
     print("TEST 2: WebSocket Connection with Token")
@@ -136,7 +143,7 @@ async def main():
     
     if token:
         # Test 2: Connect with token
-        await test_assemblyai_ws_with_token(token)
+        await check_assemblyai_ws_with_token(token)
     
     # Test 3: Connect with headers
     await test_assemblyai_ws_with_headers()

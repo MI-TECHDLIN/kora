@@ -33,15 +33,28 @@ def test_accept_reroute_tool_registered():
     print("[PASS] accept_reroute executor is mapped")
 
 
-def test_tool_count():
-    """Test that we have 14 tools total."""
-    print("Testing total tool count...")
-    
+def test_every_tool_schema_has_an_executor_and_is_well_formed():
+    """The schemas sent to AssemblyAI and the executor map must describe the same tools.
+
+    There is deliberately no hard-coded tool count: the registry is the source of truth, and
+    tests/test_tool_docs.py fails when the docs stop matching it.
+    """
     tools = get_tools()
-    print(f"Total tools registered: {len(tools)}")
-    
-    assert len(tools) == 14, f"Expected 14 tools, got {len(tools)}"
-    print("[PASS] Tool count is 14")
+    names = [tool["name"] for tool in tools]
+    print(f"Registered tools ({len(names)}): {sorted(names)}")
+
+    assert len(names) == len(set(names)), "duplicate tool name in get_tools()"
+    assert set(names) == set(TOOL_EXECUTORS), (
+        f"schemas without executors: {sorted(set(names) - set(TOOL_EXECUTORS))}; "
+        f"executors without schemas: {sorted(set(TOOL_EXECUTORS) - set(names))}"
+    )
+    for tool in tools:
+        assert tool["type"] == "function", tool["name"]
+        assert tool["description"], f"{tool['name']} has no description"
+        assert tool["parameters"]["type"] == "object", tool["name"]
+        assert isinstance(tool["parameters"]["properties"], dict), tool["name"]
+        for required in tool["parameters"].get("required", []):
+            assert required in tool["parameters"]["properties"], f"{tool['name']}: {required}"
 
 
 def test_accept_reroute_parameters():
@@ -71,7 +84,7 @@ if __name__ == "__main__":
     
     try:
         test_accept_reroute_tool_registered()
-        test_tool_count()
+        test_every_tool_schema_has_an_executor_and_is_well_formed()
         test_accept_reroute_parameters()
         
         print("\n" + "="*50)

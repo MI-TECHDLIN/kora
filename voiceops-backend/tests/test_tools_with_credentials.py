@@ -7,11 +7,16 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import asyncio
+
+import pytest
 from app.config import settings
 from app.integrations.twilio_client import get_twilio_client, make_call, send_sms
 from app.integrations.google_maps import get_directions
 
 
+@pytest.mark.live
+@pytest.mark.credentials("assemblyai_api_key")
+@pytest.mark.asyncio
 async def test_assemblyai_credentials():
     """Test AssemblyAI credentials are configured."""
     print("\n=== Testing AssemblyAI Credentials ===")
@@ -26,6 +31,9 @@ async def test_assemblyai_credentials():
         print("[FAIL] AssemblyAI Agent ID not configured")
 
 
+@pytest.mark.live
+@pytest.mark.credentials("supabase_url", "supabase_service_key")
+@pytest.mark.asyncio
 async def test_supabase_credentials():
     """Test Supabase credentials are configured."""
     print("\n=== Testing Supabase Credentials ===")
@@ -40,6 +48,9 @@ async def test_supabase_credentials():
         print("[FAIL] Supabase Service Key not configured")
 
 
+@pytest.mark.live
+@pytest.mark.credentials("effective_twilio_account_sid")
+@pytest.mark.asyncio
 async def test_twilio_credentials():
     """Test Twilio credentials and connection."""
     print("\n=== Testing Twilio Credentials ===")
@@ -79,6 +90,9 @@ async def test_twilio_credentials():
         print("[FAIL] Failed to create Twilio client")
 
 
+@pytest.mark.live
+@pytest.mark.credentials("google_maps_api_key")
+@pytest.mark.asyncio
 async def test_google_maps_credentials():
     """Test Google Maps credentials."""
     print("\n=== Testing Google Maps Credentials ===")

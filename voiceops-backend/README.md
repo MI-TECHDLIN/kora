@@ -307,6 +307,8 @@ Execute all 25 unit tests covering the state machine, location intelligence, ETA
 python -m pytest -v
 ```
 
+Plain `pytest` discovers every `tests/test_*.py` and runs the offline tests. Tests that need a running backend or a real service carry the `live` marker, tests that need a sound device carry `audio`, and tests that need real keys carry `credentials`. They are skipped with the reason printed. Run the live ones with `pytest --run-live` (or `VOICEOPS_RUN_LIVE=1`). Manual scripts live in `tests/live_*.py` and are not collected. `pytest-asyncio` must be the version pinned in `requirements.txt`: older releases crash on collection.
+
 Expected output:
 ```text
 tests/test_milestones_unit.py::test_delivery_state_machine_valid_transitions PASSED

@@ -124,14 +124,17 @@ Both layers must remain in the codebase.
 | `alert_dispatcher` | Push alert to operator | Supabase + n8n |
 | `show_screen` | Open an app screen by voice (map, settings/vehicle, summary, voice) | internal |
 | `end_conversation` | Close the driver's voice conversation when they're done | internal |
+| `get_preferences` | Read out the driver's saved preferences | Supabase |
+| `set_preference` | Save one preference (auto-accept, target, call/SMS rules); `daily_delivery_target` is 1-500 | Supabase |
+| `clear_preference` | Clear one preference back to its default | Supabase |
+| `reset_preferences` | Reset every preference to defaults | Supabase |
 
-This table is illustrative, not authoritative on count — it has drifted from the registry before
-(most recently missing the 4 `get_preferences`/`set_preference`/`clear_preference`/`reset_preferences`
-tools). `app/agents/tool_registry.py`'s `TOOL_EXECUTORS` dict is the source of truth for exactly which
-tools exist. Exact input/output JSON shapes and handler signatures live in
-`docs/VoiceOps_Agent_Tools_Reference.md` (v2.5, generated from the running code, itself lagging the
-registry the same way) — check the registry when in doubt, not this doc or that one. The WebSocket,
-REST, status-enum, and auth contract is `docs/contracts/interface.md`. Do not invent tool shapes.
+`app/agents/tool_registry.py`'s `TOOL_EXECUTORS` dict is the source of truth for which tools exist.
+The table above and `docs/VoiceOps_Agent_Tools_Reference.md` must list every one of
+them: `voiceops-backend/tests/test_tool_docs.py` fails when a tool is added to the registry without updating both.
+Exact input/output JSON shapes and handler signatures live in that reference, so check the registry
+when in doubt. The WebSocket, REST, status-enum, and auth contract is `docs/contracts/interface.md`.
+Do not invent tool shapes.
 
 **Shift-end triggering.** `end_shift_core()` (`voiceops-backend/app/api/routes/shift.py`) is the one
 place that marks a shift completed, persists `ended_at`/stats, and fires the n8n post-shift webhook;

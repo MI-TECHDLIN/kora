@@ -37,7 +37,10 @@ class FakeAuth:
 class _FakeQuery:
     def __init__(self, name):
         self._name = name
-    def select(self, *a, **kw):
+        self._columns = None
+    def select(self, columns="*", *a, **kw):
+        # Remember the column list so fakes can honour it like PostgREST does.
+        self._columns = None if columns.strip() == "*" else [c.strip() for c in columns.split(",")]
         return self
     def eq(self, *a, **kw):
         return self
@@ -60,6 +63,8 @@ def stub_supabase(monkeypatch):
     fake = FakeSupabase()
     monkeypatch.setattr("app.dependencies.get_supabase_client", lambda: fake)
     monkeypatch.setattr("app.db.queries.get_supabase", lambda: fake)
+    # fleet.py imports get_supabase by name, so it must be patched where it is used.
+    monkeypatch.setattr("app.api.routes.fleet.get_supabase", lambda: fake)
     from app.agents import dispatcher_agent as _da
     async def _snapshot():
         return {"active_drivers_count": 0, "active_shifts_count": 0, "open_deliveries_count": 0, "unresolved_alerts_count": 0, "timestamp": "2026-09-24T00:00:00Z"}
@@ -92,16 +97,22 @@ class TestFleetDriverRole:
 
 class TestFleetDriversPhoneNotExposed:
     def test_phone_absent_from_drivers_response(self, monkeypatch):
+        row = {"id": "d1", "name": "Test Driver", "phone": "+15125551234", "status": "active"}
+
         class _PhoneQuery(_FakeQuery):
             def execute(self):
-                return SimpleNamespace(data=[{"id": "d1", "name": "Test Driver", "phone": "+15125551234", "status": "active"}])
+                # Like PostgREST, return only the columns the route selected.
+                cols = self._columns or list(row)
+                return SimpleNamespace(data=[{k: v for k, v in row.items() if k in cols}])
         class _PhoneSupa(FakeSupabase):
             def table(self, name):
                 return _PhoneQuery(name)
-        monkeypatch.setattr("app.db.queries.get_supabase", lambda: _PhoneSupa())
+        monkeypatch.setattr("app.api.routes.fleet.get_supabase", lambda: _PhoneSupa())
         r = client.get("/v1/fleet/drivers", headers=OPERATOR_HEADERS)
         assert r.status_code == 200
-        for driver in r.json().get("drivers", []):
+        drivers = r.json()["drivers"]
+        assert drivers, "the fake row must reach the response or this test proves nothing"
+        for driver in drivers:
             assert "phone" not in driver
 
 

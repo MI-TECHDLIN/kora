@@ -2,7 +2,14 @@
 Simple test to verify audio playback is working.
 """
 import numpy as np
-import sounddevice as sd
+import pytest
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError) as exc:  # OSError: PortAudio library not found
+    pytest.skip(f"sounddevice unavailable: {exc}", allow_module_level=True)
+
+pytestmark = pytest.mark.audio
 
 SAMPLE_RATE = 24000
 
