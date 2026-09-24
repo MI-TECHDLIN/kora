@@ -10,19 +10,24 @@ Kora's strength stays the same: a voice-first co-rider for the driver. The ideas
 
 | Kora today | What is missing |
 |---|---|
-| One user type: the driver | No dispatcher or operator role, no fleet view, and the fleet routes leak driver phones and locations to any signed-in driver (review finding H3) |
+| Drivers plus a basic operator role (added in the hackathon build) | No dispatcher console or role management yet; an operator can only call the fleet routes directly |
 | Kora receives orders and offers them to the nearest driver | Nobody can see or steer the fleet, and nothing can be handed to another system |
 | Kora has ETAs, calls and texts to the customer | The customer has no tracking link and no proof of who handed over what |
 | Kora has a delivery audit trail | The driver and customer cannot see a readable timeline |
 
 ## Ideas, ranked by value to Kora
 
-### 1. Roles and a minimal dispatcher console (biggest gap)
+### 1. Dispatcher console and full role management (biggest gap)
 - **What Fleetbase does:** company-scoped accounts with bundled roles such as Dispatch Manager, Fleet Manager, Order Coordinator and Driver Operations.
-- **What Kora adds:** an operator role next to the driver role, then a small web console with a live fleet map, an order board, driver online status, and manual assign or reassign. Voice stays the driver's interface; the console is for the person supervising many drivers.
-- **Why it matters:** it closes the fleet-route leak, gives a real place to see incidents and shift reports, and makes Kora sellable to fleets, which was the business case in the pitch.
-- **Needs first:** Maria's role design (review item B2): how dispatchers are identified and what each role may see.
-- **Rough effort:** roles and route protection 1 to 2 weeks; a minimal console 3 to 5 weeks.
+- **Done already (hackathon build):** a basic operator role. A Supabase user whose app metadata says `role` is `operator`, `dispatcher` or `admin` passes the operator gate (`get_current_operator` in `voiceops-backend/app/dependencies.py`). The fleet overview, drivers, incidents and analytics routes and the other-driver location and history routes require it, phone numbers are removed from the fleet drivers response, and driver onboarding requires a signed-in driver. Someone is made an operator by an admin setting that value on their Supabase account (see "Granting the operator role today" below).
+- **Still to build after the hackathon:**
+  - **A dispatcher web console:** live fleet map, order board, driver online status and manual assign or reassign. Voice stays the driver's interface; the console is for the person supervising many drivers. Today an operator can only call the fleet routes directly with their login token, because nothing in the app uses them.
+  - **Role management and onboarding:** an admin screen or a small script to grant and revoke operator access safely, and a written "how to make a dispatcher" guide, instead of running SQL by hand.
+  - **Finer roles:** split operator into narrower roles (for example a dispatcher who assigns orders, a fleet manager who manages drivers and vehicles, a read-only viewer) instead of one broad gate. Roles other than the three accepted names are refused today.
+  - **An operator audit log:** who viewed or changed what, for the sensitive actions (assigning orders, viewing driver locations).
+  - **Company scoping** (idea 2), so an operator sees only their own fleet.
+- **Why it matters:** it makes Kora sellable to fleets, which was the business case in the pitch, and it is the supervising half of the product.
+- **Rough effort:** a minimal console 3 to 5 weeks; role management and finer roles 1 to 2 weeks; audit log 1 week.
 
 ### 2. Company scoping from the start
 - **What Fleetbase does:** every record belongs to a company, and it relies on each query remembering to filter (its own code notes there is no global safety net, which is a warning as well as a pattern).
@@ -101,3 +106,17 @@ Kora's strength stays the same: a voice-first co-rider for the driver. The ideas
 4. **Console and richer data:** the dispatcher console (1 frontend), places (6), vehicle records (7), stop sequencing (8).
 
 A good first batch of two when work resumes: the tracking link with handoff code, and the outbound webhooks with the order timeline. Both are self-contained, use parts Kora already has, and do not wait on the backend role design (`docs/backend-handoff/review-fixes-for-maria.md`, item 2).
+
+## Granting the operator role today
+
+An operator is a Supabase user whose app metadata contains a role of `operator`, `dispatcher` or `admin`. The backend asks Supabase who the caller is on every request, so the change takes effect immediately for an existing login. In the Supabase SQL Editor:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "operator"}'::jsonb
+where email = 'dispatcher@example.com';
+```
+
+To remove it: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = '...';`
+
+Do not put the role in the user-editable profile data (anyone can change that themselves), and do not change the top-level `role` column of `auth.users`, which is a separate database setting and can break logins. Use a separate account for a dispatcher rather than a driver's own account.
