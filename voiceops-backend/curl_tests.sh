@@ -4,7 +4,11 @@
 # Run these to test the new traffic-aware ETA and reroute functionality
 
 BASE_URL="http://localhost:8000"
-TOMTOM_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+if [[ -z "${TOMTOM_API_KEY:-}" ]]; then
+    echo "TOMTOM_API_KEY is required. Set it to your own TomTom key before running this script." >&2
+    exit 1
+fi
+TOMTOM_KEY="$TOMTOM_API_KEY"
 
 echo "======================================"
 echo "Traffic Routing curl Tests"

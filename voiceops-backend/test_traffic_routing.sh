@@ -25,7 +25,11 @@ echo "------------------------------------------------------"
 
 # Test TomTom API directly
 echo "Testing TomTom Routing API..."
-TOMTOM_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+if [[ -z "${TOMTOM_API_KEY:-}" ]]; then
+    echo "TOMTOM_API_KEY is required. Set it to your own TomTom key before running this script." >&2
+    exit 1
+fi
+TOMTOM_KEY="$TOMTOM_API_KEY"
 ORIGIN="30.2672,-97.7431"  # Austin, TX
 DESTINATION="30.2711,-97.7428"  # Nearby location
 

@@ -8,8 +8,11 @@ import sys
 import os
 sys.path.insert(0, '.')
 
-# Set TomTom API key
-os.environ['TOMTOM_API_KEY'] = 'APxy4OvkI63alJEX8TQihGVO8NScCixb'
+# Use the caller's TomTom API key without embedding credentials in this script.
+if not os.getenv("TOMTOM_API_KEY"):
+    raise SystemExit(
+        "TOMTOM_API_KEY is required. Set it in your environment to your own TomTom key."
+    )
 
 from app.services.eta_service import eta_service
 from app.integrations.traffic_routing import TrafficRoutingClient

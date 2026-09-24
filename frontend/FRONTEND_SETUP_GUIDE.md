@@ -22,7 +22,7 @@ Your LAN IP: **192.168.18.13** (based on your system)
 ### Start Backend with Network Access
 ```powershell
 cd voiceops-backend/voiceops-backend
-$env:TOMTOM_API_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+$env:TOMTOM_API_KEY="<YOUR_TOMTOM_API_KEY>" # use your own key; never commit it
 py -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -253,7 +253,7 @@ Backend changes don't require app restart, but frontend changes do.
 ```powershell
 # Backend (run in separate terminal)
 cd voiceops-backend/voiceops-backend
-$env:TOMTOM_API_KEY="APxy4OvkI63alJEX8TQihGVO8NScCixb"
+$env:TOMTOM_API_KEY="<YOUR_TOMTOM_API_KEY>" # use your own key; never commit it
 py -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Flutter (run in separate terminal)

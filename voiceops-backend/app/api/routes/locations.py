@@ -8,6 +8,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, status, Depends, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from app.dependencies import get_current_driver
+from app.api.ownership import require_owned_shift
 from app.services.location_service import location_service
 from app.services.vehicle_modes import get_driver_vehicle_mode
 from app.db.queries import (
@@ -43,6 +44,8 @@ async def receive_location_ping(
     """
     driver_id = current_user.get("id")
     shift_id = ping.shift_id or current_user.get("current_shift_id", "")
+    if shift_id:
+        await require_owned_shift(shift_id, driver_id, allow_mock_id=True)
 
     try:
         # 1. Store location ping

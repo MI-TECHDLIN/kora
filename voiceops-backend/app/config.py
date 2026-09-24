@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
     environment: str = os.getenv("ENVIRONMENT", "development")  # Can be "development", "staging", or "production"
+    tools_benchmark_enabled: bool = False  # Explicit opt-in; only honored in development
     
     # Security & Optimization
     allowed_origins: str = "*"  # Comma-separated list for production, "*" for development

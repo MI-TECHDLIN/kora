@@ -65,7 +65,7 @@ def test_accept_offer_calls_the_real_tool_endpoint_with_dispatch_context():
                 "arguments": {"order_id": "order-1"},
                 "call_id": "second-driver-order-1",
             }],
-            "context": {"driver_id": "driver-1", "shift_id": "shift-1"},
+            "context": {},
         },
     }
 

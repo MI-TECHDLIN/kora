@@ -2,12 +2,12 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, Background
 from pydantic import BaseModel, Field
 from typing import Optional
 from app.dependencies import get_current_driver
+from app.api.ownership import require_owned_delivery, require_owned_shift
 from app.services.delivery_state_machine import assert_transition
 from app.services.location_service import location_service
 from app.services.order_queue_service import notify_queue_changed
 from app.db.queries import (
     get_shift_deliveries,
-    get_delivery_by_id,
     mark_delivery_status,
     create_delivery_event,
     increment_delivery_attempts,
@@ -50,6 +50,7 @@ async def get_deliveries(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="shift_id query parameter required"
         )
+    await require_owned_shift(shift_id, current_user.get("id"), allow_mock_id=True)
     
     deliveries = await get_shift_deliveries(shift_id)
     return {"deliveries": deliveries}
@@ -64,10 +65,8 @@ async def update_delivery_status_endpoint(
     """Update delivery status with state machine enforcement and audit event."""
     driver_id = current_user.get("id")
 
-    # 1. Fetch current delivery state
-    delivery = await get_delivery_by_id(delivery_id) if is_valid_uuid(delivery_id) else None
-    if not delivery and is_valid_uuid(delivery_id):
-        raise HTTPException(status_code=404, detail=f"Delivery {delivery_id} not found")
+    # 1. Fetch current delivery state and verify its shift belongs to this driver.
+    delivery = await require_owned_delivery(delivery_id, driver_id)
 
     current_status = delivery.get("status", "pending") if delivery else "pending"
 
@@ -123,6 +122,7 @@ async def notify_customer_endpoint(
     current_user: dict = Depends(get_current_driver)
 ):
     """Send customer notification (SMS/call)."""
+    await require_owned_delivery(delivery_id, current_user.get("id"))
     return {
         "message": "Customer notification dispatched via Twilio",
         "delivery_id": delivery_id,
@@ -138,6 +138,7 @@ async def save_location_endpoint(
 ):
     """Save GPS location ping with driver update and geofence detection."""
     driver_id = current_user.get("id")
+    await require_owned_shift(shift_id, driver_id, allow_mock_id=True)
     try:
         ping = await save_location_ping(
             driver_id,

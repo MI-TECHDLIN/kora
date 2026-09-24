@@ -8,11 +8,11 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from app.dependencies import get_current_driver
+from app.api.ownership import require_owned_delivery
 from app.services.storage_service import storage_service
 from app.services.delivery_state_machine import assert_transition
 from app.services.order_queue_service import notify_queue_changed
 from app.db.queries import (
-    get_delivery_by_id,
     mark_delivery_status,
     create_delivery_event,
     get_supabase,
@@ -39,8 +39,9 @@ async def upload_proof_of_delivery(
     """
     driver_id = current_user.get("id")
 
-    # 1. Fetch and validate delivery
-    delivery = await get_delivery_by_id(delivery_id) if is_valid_uuid(delivery_id) else None
+    # 1. Fetch and validate delivery ownership. Non-UUID mock IDs intentionally bypass
+    # the database check inside the shared helper and keep the demo behavior below.
+    delivery = await require_owned_delivery(delivery_id, driver_id)
     current_status = delivery.get("status", "arrived") if delivery else "arrived"
 
     # Enforce state machine transition
@@ -134,6 +135,8 @@ async def get_proof_of_delivery(
     """Retrieve proof of delivery for a specific delivery."""
     if not is_valid_uuid(delivery_id):
         return {"pod": None}
+
+    await require_owned_delivery(delivery_id, current_user.get("id"))
 
     try:
         res = (
