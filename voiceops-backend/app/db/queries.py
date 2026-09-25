@@ -298,7 +298,6 @@ async def create_voice_session(shift_id: str, driver_id: str, delivery_id: Optio
             "shift_id": shift_id,
             "driver_id": driver_id,
             "delivery_id": delivery_id,
-            "started_at": "now()"
         })
         .execute()
     )
@@ -632,7 +631,6 @@ async def create_shift(driver_id: str) -> Dict[str, Any]:
         .insert({
             "driver_id": driver_id,
             "status": "active",
-            "started_at": "now()"
         })
         .execute()
     )
