@@ -143,6 +143,69 @@ void main() {
     });
   });
 
+  test('reply opens a bounded mic-hot follow-up window', () {
+    onFakeTime((async, flush) {
+      session().startConversation();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({'event': 'transcript', 'role': 'driver', 'text': 'Hi'})
+        ..emitAudio(Uint8List(960))
+        ..emit({'event': 'reply_done'});
+      flush();
+
+      expect(ptt(), PushToTalkState.recording);
+      expect(container.read(micLiveProvider), isTrue);
+      expect(recorder.isRecording, isTrue);
+
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+      expect(ptt(), PushToTalkState.recording);
+      expect(recorder.isRecording, isTrue);
+
+      async.elapse(const Duration(seconds: 1));
+      flush();
+      expect(ptt(), PushToTalkState.idle);
+      expect(container.read(micLiveProvider), isFalse);
+      expect(recorder.isRecording, isFalse);
+    });
+  });
+
+  test('speech refreshes the follow-up window without repeating Kora', () {
+    onFakeTime((async, flush) {
+      session().startConversation();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({'event': 'transcript', 'role': 'driver', 'text': 'Next stop'})
+        ..emit({'event': 'reply_done'});
+      flush();
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+
+      final speech = ByteData(voiceFrameBytes);
+      for (var offset = 0; offset < voiceFrameBytes; offset += 2) {
+        speech.setInt16(offset, 1000, Endian.little);
+      }
+      recorder.speak(speech.buffer.asUint8List());
+      flush();
+      expect(socket.sentAudio, isNotEmpty);
+
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+      expect(ptt(), PushToTalkState.recording);
+      expect(recorder.starts, 1);
+      expect(connector.sockets, hasLength(1));
+
+      socket.emit({
+        'event': 'transcript',
+        'role': 'driver',
+        'text': "What's up?",
+      });
+      flush();
+      expect(ptt(), PushToTalkState.processing);
+    });
+  });
+
   test('the saved co-rider voice rides on the voice socket', () {
     voices.value = CoRiderVoice.michael;
     onFakeTime((async, flush) {

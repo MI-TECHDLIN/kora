@@ -1,6 +1,6 @@
+K AO1 R AH0 @kora
 HH EY1 K AO1 R AH0 @hey_kora
 OW2 K EY1 K AO1 R AH0 @okay_kora
-K AO1 R AH0 @kora
 HH AY1 K AO1 R AH0 @hi_kora
 HH AH0 L OW1 K AO1 R AH0 @hello_kora
 G UH1 D M AO1 R N IH0 NG K AO1 R AH0 @good_morning_kora

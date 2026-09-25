@@ -36,6 +36,11 @@ enum VoiceConnection {
   failed,
 }
 
+/// How long the mic stays visibly hot after activation, speech, or an agent
+/// reply. During this bounded window the driver can say greetings and
+/// follow-ups without repeating “Kora”; expiry returns to keyword-only mode.
+const voiceFollowUpWindow = Duration(seconds: 12);
+
 class VoiceSessionState {
   const VoiceSessionState({
     this.connection = VoiceConnection.disconnected,
@@ -100,7 +105,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   /// Frees push-to-talk if the co-rider goes quiet mid-turn: no answer at
   /// all, or no `reply_done` after a tool turn's first reply.
   Timer? _answerWatchdog;
-  Timer? _idleTimer;
+  Timer? _followUpTimer;
 
   /// A `screen_navigate: map` waiting to see whether a `map_route` follows
   /// it. Route tools send the two back to back; alone, it means "show me
@@ -110,7 +115,6 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   static const _backoff = [1, 2, 4, 8, 16];
   static const _answerTimeout = Duration(seconds: 20);
   static const _routeGrace = Duration(milliseconds: 300);
-  static const idleTimeout = Duration(seconds: 10);
   static const _speechRms = 500;
 
   /// End-of-turn padding: the backend ends a turn on voice-activity
@@ -152,7 +156,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
         await _playback.stop();
         if (_micOpen) {
           _setPtt(PushToTalkState.recording);
-          _armIdle();
+          _armFollowUpWindow();
         } else {
           _setPtt(PushToTalkState.idle);
           await startConversation();
@@ -190,7 +194,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       if (_pttState != PushToTalkState.speaking) {
         _answerWatchdog?.cancel();
         _setPtt(PushToTalkState.recording);
-        _armIdle();
+        _armFollowUpWindow();
       }
     } catch (e) {
       debugPrint('Could not start the mic: $e');
@@ -211,7 +215,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   Future<void> endConversation() async {
     final mic = _mic;
     if (mic == null) return;
-    _idleTimer?.cancel();
+    _followUpTimer?.cancel();
     if (_pttState == PushToTalkState.recording) _setPtt(PushToTalkState.idle);
     await _stopMic();
     final socket = _socket;
@@ -281,7 +285,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _switchingVoice = false;
     _reconnectTimer?.cancel();
     _answerWatchdog?.cancel();
-    _idleTimer?.cancel();
+    _followUpTimer?.cancel();
     await _stopMic();
     _closeSocket();
     await _playback.stop();
@@ -296,7 +300,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   // ── Mic ──────────────────────────────────────────────────────────────
 
   void _onMic(Uint8List chunk) {
-    if (_pttState == PushToTalkState.recording && _loud(chunk)) _armIdle();
+    if (_pttState == PushToTalkState.recording && _loud(chunk)) {
+      _armFollowUpWindow();
+    }
     _micBuffer.add(chunk);
     if (_micBuffer.length < voiceFrameBytes) return;
     final bytes = _micBuffer.takeBytes();
@@ -348,9 +354,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     return sum / samples >= _speechRms * _speechRms;
   }
 
-  void _armIdle() {
-    _idleTimer?.cancel();
-    _idleTimer = Timer(idleTimeout, () {
+  void _armFollowUpWindow() {
+    _followUpTimer?.cancel();
+    _followUpTimer = Timer(voiceFollowUpWindow, () {
       if (mounted && _micOpen && _pttState == PushToTalkState.recording) {
         unawaited(endConversation());
       }
@@ -598,7 +604,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (_muted) return;
     _playback.add(pcm);
     if (_pttState != PushToTalkState.speaking) {
-      _idleTimer?.cancel();
+      _followUpTimer?.cancel();
       _setPtt(PushToTalkState.speaking);
     }
   }
@@ -606,7 +612,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   void _onDriverTurn() {
     _muted = false;
     if (_micOpen && _pttState == PushToTalkState.recording) {
-      _idleTimer?.cancel();
+      _followUpTimer?.cancel();
       _setPtt(PushToTalkState.processing);
       _armWatchdog();
     }
@@ -620,7 +626,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   void _onReplyDone({required bool interrupted}) {
     _answerWatchdog?.cancel();
-    _idleTimer?.cancel();
+    _followUpTimer?.cancel();
     if (interrupted) {
       unawaited(_playback.stop());
     } else if (!_muted) {
@@ -633,7 +639,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (_pttState case PushToTalkState.processing || PushToTalkState.speaking) {
       if (_micOpen) {
         _setPtt(PushToTalkState.recording);
-        _armIdle();
+        _armFollowUpWindow();
       } else {
         _setPtt(PushToTalkState.idle);
       }
@@ -652,7 +658,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       _answerWatchdog?.cancel();
       if (_micOpen) {
         _setPtt(PushToTalkState.recording);
-        _armIdle();
+        _armFollowUpWindow();
       } else {
         _setPtt(PushToTalkState.idle);
       }
@@ -661,14 +667,14 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   void _armWatchdog() {
     _answerWatchdog?.cancel();
-    _idleTimer?.cancel();
+    _followUpTimer?.cancel();
     _answerWatchdog = Timer(_answerTimeout, () {
       if (!mounted) return;
       switch (_pttState) {
         case PushToTalkState.processing:
           if (_micOpen) {
             _setPtt(PushToTalkState.recording);
-            _armIdle();
+            _armFollowUpWindow();
           } else {
             _setPtt(PushToTalkState.idle);
           }
@@ -677,7 +683,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
           // It answered but never closed the turn: just free the button.
           if (_micOpen) {
             _setPtt(PushToTalkState.recording);
-            _armIdle();
+            _armFollowUpWindow();
           } else {
             _setPtt(PushToTalkState.idle);
           }
@@ -692,7 +698,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _authSubscription.cancel();
     _reconnectTimer?.cancel();
     _answerWatchdog?.cancel();
-    _idleTimer?.cancel();
+    _followUpTimer?.cancel();
     _mapFocusTimer?.cancel();
     _mic?.cancel();
     _frames?.cancel();
