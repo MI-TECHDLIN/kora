@@ -1,5 +1,7 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.9 (draft), 2026-09-25. 1.9 documents the existing `conversation_end` server event
+(§1), a documentation-only addition. See "Changes in 1.9".
 **Version:** 1.8 (draft), 2026-09-23. 1.8 adds the shift order-queue snapshot, its
 `queue_updated` WebSocket event, and the `daily_delivery_target` preference. See "Changes in 1.8".
 **Version:** 1.7 (draft), 2026-09-23. 1.7 adds `POST /v1/driver/ensure-profile`, an
@@ -86,6 +88,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `order_offer` | see below | new-order card with a countdown; the co-rider reads it out unprompted |
 | `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
 | `queue_updated` | the queue snapshot below plus `"event": "queue_updated"` | Home, Order Queue, and Summary refresh from one synchronized snapshot |
+| `conversation_end` | `{"event": "conversation_end"}` | the driver's mic closes and push-to-talk goes to `idle`; sent when the `end_conversation` tool runs |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
 | `voice_change_accepted` | `{"event": "voice_change_accepted", "voice": "michael", "message": "Voice will change to michael. Reconnecting..."}` | Voice change accepted, client should reconnect with new voice parameter |
 | `voice_unchanged` | `{"event": "voice_unchanged", "voice": "anna", "message": "Voice is already set to anna"}` | Voice already set to requested value, no reconnection needed |
@@ -242,6 +245,7 @@ after that.
 | `update_delivery_status` → `delivered` | `agent_state: celebrating` |
 | `get_shift_summary` | `agent_state: summarizing`, `screen_navigate: summary`, `summary_chunk`s of the tool's `message` |
 | `show_screen` | `screen_navigate` with the requested screen |
+| `end_conversation` | `conversation_end` only. This tool is silent: no `agent_state` and no `task_step` events. The voice socket stays open |
 | order dispatcher offers this driver an order | `order_offer`. At the next quiet moment the relay sends AssemblyAI `reply.create`, and that reply arrives like any other: audio, `transcript` (`agent`), `reply_done`. An offer is spoken again on a new socket, because a new socket is a new conversation |
 | `accept_order` (success) | `order_offer_closed` (`accepted`) |
 | `decline_order` (success) | `order_offer_closed` (`declined`) |
@@ -594,6 +598,23 @@ All additive. The delivery-status enum is unchanged.
 **Frontend:** consume the queue endpoint for initial state and replace it with each
 `queue_updated` event. The frontend PR for Order Queue and Summary progress consumes this
 contract; it must not persist `active` as a delivery status.
+
+---
+
+## Changes in 1.9
+
+Documentation only. Nothing in the code changes, and no existing shape is touched.
+
+| Addition | Where |
+|---|---|
+| `conversation_end` server event, `{"event": "conversation_end"}`, with no other fields | §1 |
+
+**Why:** the relay has emitted `conversation_end` when the `end_conversation` tool runs
+(`app/api/websocket/voice.py`, `events.conversation_end()`), and the app already handles it
+(`ConversationEndEvent` in `voice_events.dart`), but the catalogue did not list it. It was only
+described in Tools Reference §15. This closes that gap.
+
+**Frontend:** none. The app closes the mic and sets push-to-talk to `idle` on this event.
 
 ---
 
