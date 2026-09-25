@@ -131,8 +131,18 @@ class AutoAcceptPreferencesController
   }
 
   Future<void> setEnabled(bool enabled) async {
-    state = state.copyWith(enabled: enabled);
-    await _write('auto_accept_orders', enabled ? 'true' : 'false');
+    try {
+      await _ref
+          .read(koraApiProvider)
+          .setDriverPreference(
+            'auto_accept_orders',
+            enabled ? 'true' : 'false',
+          );
+      if (!mounted) return;
+      state = state.copyWith(enabled: enabled);
+    } catch (_) {
+      // Keep showing the last value loaded from the backend when the write fails.
+    }
   }
 
   Future<void> setMaxDistanceKm(double? km) async {

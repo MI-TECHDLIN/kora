@@ -1254,17 +1254,46 @@ def test_driver_accepts_the_offer_by_voice(upstream, live_dispatch, store):
     assert len(reply_creates(upstream)) == 1  # nothing more announced
 
 
+def test_offer_announcement_cannot_accept_before_the_driver_answers(
+    upstream, live_dispatch, store,
+):
+    """A model tool call from the proactive reply is not a driver's consent."""
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+
+        # The proactive reply was created by the server. If the model emits a tool call in
+        # that reply, there has still been no transcript.user response from the driver.
+        upstream.push(
+            {"type": "reply.started"},
+            {"type": "transcript.agent", "text": "New order on Lavaca. Want it?"},
+            {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}},
+        )
+        collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        result = finish_turn(ws, upstream, "c1")
+        row = dict(store.delivery(placed["order_id"]))
+        ws.portal.call(live_dispatch.stop)
+
+    assert result == {
+        "success": False,
+        "error": "Wait for the driver to answer before accepting or declining an order.",
+    }
+    assert row["shift_id"] is None and row["status"] == "offered"
+
+
 def test_driver_accepts_second_offer_by_voice_after_finishing_first(upstream, live_dispatch, store):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
         first, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         first_result = finish_turn(ws, upstream, "c1")
         store.delivery(first["order_id"])["status"] = "delivered"
 
         second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take this one too"},
                       {"type": "tool.call", "call_id": "c2", "name": "accept_order", "arguments": {}})
         second_result = finish_turn(ws, upstream, "c2")
         ws.portal.call(live_dispatch.stop)
@@ -1279,6 +1308,7 @@ def test_accepted_order_can_be_navigated_to(upstream, live_dispatch, backend):
         connect_and_greet(ws, upstream)
         placed, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Accept it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         finish_turn(ws, upstream, "c1")
         upstream.push({"type": "reply.done", "status": "completed"},
@@ -1335,6 +1365,7 @@ def test_driver_accepts_second_offer_by_tap_after_finishing_first(upstream, live
         connect_and_greet(ws, upstream)
         first, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         first_result = finish_turn(ws, upstream, "c1")
         store.delivery(first["order_id"])["status"] = "delivered"
