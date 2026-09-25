@@ -1,11 +1,11 @@
 # Production Endpoint Testing Script
-# Tests all VoiceOps production endpoints at https://voiceops-ll41.onrender.com
+# Tests all VoiceOps production endpoints at https://kora-brd8.onrender.com
 
-$BASE_URL = "https://voiceops-ll41.onrender.com"
+$BASE_URL = "https://kora-brd8.onrender.com"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "PRODUCTION ENDPOINT TESTING" -ForegroundColor Cyan
-Write-Host "Backend: https://voiceops-ll41.onrender.com" -ForegroundColor Cyan
+Write-Host "Backend: https://kora-brd8.onrender.com" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

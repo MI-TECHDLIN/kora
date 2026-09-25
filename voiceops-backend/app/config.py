@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     timefold_url: str = "http://localhost:8080/route-plans"
     
     # Production URL (for frontend configuration reference)
-    production_url: str = "https://voiceops-ll41.onrender.com"
+    production_url: str = "https://kora-brd8.onrender.com"
     
     # Self-pinging to keep Render instance awake - DISABLED
     # Use external ping service (UptimeRobot, cron-job.org, etc.) instead

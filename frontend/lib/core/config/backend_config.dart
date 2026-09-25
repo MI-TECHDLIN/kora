@@ -8,7 +8,7 @@
 /// `<ws-url>/ws/voice/{shift_id}` (docs/contracts/interface.md sections 1-2).
 abstract final class BackendConfig {
   /// Production backend URL (Render deployment).
-  static const productionUrl = 'https://voiceops-ll41.onrender.com';
+  static const productionUrl = 'https://kora-brd8.onrender.com';
 
   static const url = String.fromEnvironment(
     'VOICEOPS_API_URL',
