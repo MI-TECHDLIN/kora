@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -392,6 +394,35 @@ void main() {
       password: 'correct-horse',
     ));
     expect(find.byType(MainShell), findsOneWidget);
+  });
+
+  testWidgets('a fresh sign-in gates its first profile read on row setup', (
+    tester,
+  ) async {
+    final ensureGate = Completer<void>();
+    api
+      ..ensureProfileGate = ensureGate
+      ..profileRequiresEnsure = true;
+    await pumpApp(tester);
+    await tap(tester, toSignIn);
+    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Password', 'correct-horse');
+    await tap(tester, signIn);
+
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(api.ensureProfileCalls, 1);
+    expect(api.profileCalls, 0);
+    await tester.tap(find.byKey(const Key('profile-button')));
+    await settle(tester);
+    expect(find.byKey(const Key('profile-loading')), findsOneWidget);
+    expect(find.byKey(const Key('profile-error')), findsNothing);
+    expect(api.profileCalls, 0);
+
+    ensureGate.complete();
+    await settle(tester);
+    expect(api.profileCalls, 1);
+    expect(find.byKey(const Key('profile-error')), findsNothing);
+    expect(find.byKey(const Key('profile-details')), findsOneWidget);
   });
 
   testWidgets('Google sign-in starts from both forms', (tester) async {
