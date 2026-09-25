@@ -5,9 +5,11 @@ import 'package:voiceops/core/wake/sherpa_wake_word_engine.dart';
 import 'package:voiceops/core/wake/wake_word_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   WakeWordService service({
     required FakeWakeWordEngine engine,
-    required FakeWakeWordAssets assets,
+    required WakeWordAssetSource assets,
     bool permission = true,
     Future<void> Function()? onWakeWord,
   }) => WakeWordService(
@@ -79,6 +81,22 @@ void main() {
       0.65,
       0.4,
     ]);
+  });
+
+  test('bundled manifest enables bare Kora at high sensitivity', () async {
+    final engine = FakeWakeWordEngine();
+    final wake = service(
+      engine: engine,
+      assets: const BundleWakeWordAssetSource(),
+    );
+
+    await wake.sync(enabled: true, sessionActive: false, foreground: true);
+
+    final keyword = engine.config!.keywords.singleWhere(
+      (entry) => entry.id == 'kora',
+    );
+    expect(keyword.phrase, 'Kora');
+    expect(keyword.sensitivity, 1.0);
   });
 
   test('an empty manifest disables wake-word detection', () async {

@@ -4,13 +4,13 @@
     "To add or change a phrase, edit id/phrase/enabled here, then run: python3 tool/generate_wake_keywords.py",
     "Sensitivity is 0.0 to 1.0. The app maps it to sherpa keyword score 1.0 to 3.0 and threshold 0.35 to 0.15; higher values are easier to trigger and may raise false accepts.",
     "Use a lowercase snake_case id without spaces. Token generation fails if a word is absent from the model's English phone lexicon.",
-    "Multi-word phrases are safer in road and cab noise. Keep bare Kora disabled unless phone testing shows an acceptable false-accept rate."
+    "Multi-word phrases are safer in road and cab noise. Bare Kora is enabled at high sensitivity so the product name works as a wake phrase; monitor device false accepts."
   ],
   "sensitivity_default": 0.5,
   "phrases": [
     { "id": "hey_kora", "phrase": "Hey Kora", "tier": 1, "enabled": true, "note": "Recommended primary phrase; 6/6 synthetic spike hits with the phone-token model." },
     { "id": "okay_kora", "phrase": "Okay Kora", "tier": 1, "enabled": true, "note": "Recommended alternate phrase; 6/6 synthetic spike hits with the phone-token model." },
-    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": false, "note": "Disabled by default: the isolated word scored 0/6 hits and falsely fired on Cora and corner in the synthetic spike." },
+    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": true, "sensitivity": 1.0, "note": "Enabled at high sensitivity for direct invocation; monitor false accepts for Cora and corner during device testing." },
 
     { "id": "hi_kora", "phrase": "Hi Kora", "tier": 2, "enabled": true, "note": "Greeting." },
     { "id": "hello_kora", "phrase": "Hello Kora", "tier": 2, "enabled": true, "note": "Greeting." },
