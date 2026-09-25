@@ -17,17 +17,17 @@ def test_simulated_customer_call_scenarios():
         with patch.object(settings, 'demo_simulated_customer', True):
             with patch.object(settings, 'demo_simulated_customer_scenario', scenario):
                 context = {"eta_minutes": 6}
-                result = asyncio.run(_simulated_customer_call("Tunde", context, None))
+                result = asyncio.run(_simulated_customer_call("Marcus", context, None))
 
                 assert result["success"] is True
                 assert result["call_sid"].startswith("demo-")
                 assert result["call_sid"].startswith(f"demo-{scenario}")
-                assert result["customer_name"] == "Tunde"
+                assert result["customer_name"] == "Marcus"
                 assert result["status"] == "initiated"
 
                 # Check outcome is stored in context
                 assert "simulated_customer_outcome" in context
-                assert "Tunde" in context["simulated_customer_outcome"]
+                assert "Marcus" in context["simulated_customer_outcome"]
 
 
 def test_simulated_customer_call_random_scenario():

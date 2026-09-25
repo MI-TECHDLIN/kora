@@ -80,7 +80,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `screen_navigate` | `{"event": "screen_navigate", "screen": "map"}` | tab switch (`navigationProvider.navigateForAgent`) |
 | `task_step` | `{"event": "task_step", "step": "Checking delivery route", "status": "active"}` or `{"event": "task_step", "step": "Checking delivery route", "status": "done", "reasoning": "This route saves about 7 min versus the alternative."}` | task progress card. Optional `reasoning` field (max 140 chars) appears only on `done` status when the tool result has `success: true` and the text can be deterministically derived from returned fields. Omitted from `pending` and `active` events, failed tool results, and successful results lacking required fields. |
 | `map_route` | see below | map pins, polyline, ETA card |
-| `call_started` | `{"event": "call_started", "call_id": "…", "delivery_id": "…", "customer_name": "Amara J.", "sequence": 4}` | call overlay opens |
+| `call_started` | `{"event": "call_started", "call_id": "…", "delivery_id": "…", "customer_name": "Jordan L.", "sequence": 4}` | call overlay opens |
 | `call_ended` | `{"event": "call_ended", "call_id": "…"}` | call overlay closes |
 | `summary_chunk` | `{"event": "summary_chunk", "text": "Today you completed…", "final": false}` | Summary screen typewriter; `final: true` on the last chunk |
 | `transcript` | `{"event": "transcript", "role": "driver", "text": "What's my next stop?"}` | home-screen transcript display; `role` ∈ `driver` \| `agent` |
@@ -119,11 +119,11 @@ outputs:
   "event": "map_route",
   "delivery_id": "…",
   "stops": [
-    {"delivery_id": "…", "sequence": 4, "recipient_name": "Amara Johnson",
-     "address": "14 Broad Street, Lagos Island", "latitude": 6.4541, "longitude": 3.3947}
+    {"delivery_id": "…", "sequence": 4, "recipient_name": "Jordan Lee",
+     "address": "812 Lavaca St, Austin, TX 78701", "latitude": 30.2713, "longitude": -97.7455}
   ],
   "polyline": "<Google encoded overview polyline>",
-  "summary": "Victoria Bridge",
+  "summary": "Congress Avenue",
   "distance_km": 3.2,
   "duration_mins": 11,
   "duration_text": "11 mins"
@@ -314,8 +314,8 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 |---|---|---|---|
 | GET | `/` | none | `{"message": "VoiceOps API", "version": "1.0.0", "status": "running"}` |
 | GET | `/health` | none | `{"status": "ok"}` |
-| POST | `/v1/auth/otp/send` | `{"phone": "+234…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
-| POST | `/v1/auth/otp/verify` | `{"phone": "+234…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
+| POST | `/v1/auth/otp/send` | `{"phone": "+1…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
+| POST | `/v1/auth/otp/verify` | `{"phone": "+1…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
 | POST | `/v1/voice-agent` | `{"audio": "<base64 PCM16>", "sample_rate": 24000, "session_id": null}` | `{"audio", "user_transcript", "agent_transcript", "audio_size", "session_id"}` |
 
 `/v1/voice-agent` is a **prototype test harness**, not part of the app contract. It is

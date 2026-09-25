@@ -35,20 +35,20 @@ Kora closes that gap. The driver says what they need; the app coordinates the st
 
 ![Speak, let Kora coordinate the work, and keep moving](docs/brand/readme/how-it-works.svg)
 
-1. **Speak.** While the app is open, say “Hey Kora” or use the large microphone button. Kora opens with a calm greeting and listens for the job.
+1. **Speak.** While the app is open, say “Kora” (also “Hey Kora” or “Okay Kora”) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for a short window.
 2. **Kora acts.** One request can check delivery information, work out a route and contact a customer at the same time.
 3. **Keep moving.** The route appears in Kora's live map, progress stays visible, and the driver hears one useful answer.
 
 ## A shift with Kora
 
-1. **Start.** Open Kora, say “Hey Kora” or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
+1. **Start.** Open Kora, say “Kora” (also “Hey Kora” or “Okay Kora”) or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
 2. **Handle changes.** Ask Kora to call or text a customer when access is blocked. New orders are announced aloud, ready to accept or decline; optional auto-accept rules can apply limits such as distance and preferred areas.
 3. **Complete the work.** Update each delivery, log exceptions, and store photo or signature proof with its location. The queue and daily-target progress stay visible in the app.
 4. **Finish.** Say “End my shift” to close the shift and prepare its report, then review the result in the app.
 
 ## What you can do with Kora today
 
-- Wake the foreground app with “Hey Kora” or “Okay Kora,” with the microphone button as a fallback.
+- Wake the foreground app with “Kora” (also “Hey Kora” or “Okay Kora”), then continue without repeating it for a short follow-up window; the microphone button remains available as a fallback.
 - Hear a warm first greeting and concise spoken replies from the co-rider.
 - Ask for the next stop, see the route on an in-app live map, and receive proactive estimated-arrival and reroute updates.
 - Choose car, motorbike, bicycle or walking mode so arrival times reflect how the driver is travelling.
@@ -92,7 +92,7 @@ Kora brings together a mobile app, a real-time voice service and a small operati
 | [FastAPI](https://fastapi.tiangolo.com/) | Coordinates delivery, routing, customer and shift work without slowing the conversation. |
 | [Supabase](https://supabase.com/) | Stores accounts, shifts, deliveries, preferences and reports. |
 | [MapLibre](https://maplibre.org/) + [OpenFreeMap](https://openfreemap.org/) | Draws the map and routes inside Kora without sending the driver to another app. |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Detects “Hey Kora” on the phone while the app is in the foreground. |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Detects “Kora,” including “Hey Kora” and “Okay Kora,” on the phone while the app is in the foreground. |
 | [OSRM](https://project-osrm.org/) + [TomTom](https://developer.tomtom.com/) | Supplies routes, travel times and traffic-aware reroute information. |
 | [Twilio](https://www.twilio.com/) | Handles customer calls and text messages when carrier integrations are configured. |
 | [n8n](https://n8n.io/) | Runs optional notifications and reports after live driver work is finished. |

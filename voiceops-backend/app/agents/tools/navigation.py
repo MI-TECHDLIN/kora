@@ -13,11 +13,11 @@ from app.services.vehicle_modes import get_driver_vehicle_mode
 
 logger = logging.getLogger(__name__)
 
-MOCK_ORIGIN = (6.44, 3.39)
+MOCK_ORIGIN = (30.2672, -97.7431)
 MOCK_DESTINATION = {
-    "address": "22 Victoria Island Drive",
-    "latitude": 6.4286,
-    "longitude": 3.4108,
+    "address": "812 Lavaca St, Austin, TX 78701",
+    "latitude": 30.2713,
+    "longitude": -97.7455,
 }
 
 # `screen_navigate.screen` in docs/contracts/interface.md.

@@ -91,10 +91,10 @@ void main() {
 
   Future<void> signUp(WidgetTester tester) async {
     await tap(tester, find.text('Get started'));
-    await enter(tester, 'Full name', 'Ada Obi');
-    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Full name', 'Elena Ramirez');
+    await enter(tester, 'Email', 'elena@voiceops.test');
     await enter(tester, 'Password', 'correct-horse');
-    await enter(tester, 'Phone number', '+234 801 234 5678');
+    await enter(tester, 'Phone number', '+1 512 555 0100');
     await tap(tester, find.byType(Checkbox));
     await tap(
       tester,
@@ -167,7 +167,7 @@ void main() {
         tester,
         find.text('Already have an account? Sign in', findRichText: true),
       );
-      await enter(tester, 'Email', 'ada@voiceops.test');
+      await enter(tester, 'Email', 'elena@voiceops.test');
       await enter(tester, 'Password', 'correct-horse');
       await tap(
         tester,

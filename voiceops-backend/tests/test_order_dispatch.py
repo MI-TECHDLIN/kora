@@ -36,7 +36,7 @@ from tests.test_voice_ws import (  # noqa: F401  (backend / upstream are fixture
 )
 
 # Drivers: the demo driver downtown, two more about 5 km out, and one off shift
-REAL = {"driver_id": DRIVER_ID, "shift_id": SHIFT_ID, "name": "Emeka Okafor", "at": (30.2672, -97.7431)}
+REAL = {"driver_id": DRIVER_ID, "shift_id": SHIFT_ID, "name": "Morgan Reed", "at": (30.2672, -97.7431)}
 MARIA = {"driver_id": "d1000000-0000-4000-8000-000000000001", "shift_id": "51000000-0000-4000-8000-000000000001",
          "name": "Maria Gonzalez", "at": (30.2990, -97.7035)}
 BEN = {"driver_id": "d1000000-0000-4000-8000-000000000002", "shift_id": "51000000-0000-4000-8000-000000000002",
@@ -45,7 +45,7 @@ BEN = {"driver_id": "d1000000-0000-4000-8000-000000000002", "shift_id": "5100000
 LONDON = {"driver_id": "d1000000-0000-4000-8000-000000000004", "shift_id": "51000000-0000-4000-8000-000000000004",
           "name": "Alex Reid", "at": (51.5074, -0.1278)}
 OFF_SHIFT = {"driver_id": "d1000000-0000-4000-8000-000000000003", "shift_id": "51000000-0000-4000-8000-000000000003",
-             "name": "Olu Bello", "at": (30.2700, -97.7450)}
+             "name": "Kevin Hughes", "at": (30.2700, -97.7450)}
 
 
 def ago(seconds):
@@ -518,7 +518,7 @@ def test_generated_order_is_an_order_intake_payload_in_the_demo_area(adapter):
         assert payload["event"] == "order.created" and payload["source"] == "mock-logistics"
         assert re.fullmatch(r"MLX-\d{8}-[A-Z0-9]{6}", order.external_id)
         assert haversine_km(*DEMO_AREA_CENTER, order.latitude, order.longitude) < 3.0
-        assert "Austin, TX" in order.address and "Lagos" not in json.dumps(payload)
+        assert "Austin, TX" in order.address
         assert re.fullmatch(r"\+151255501\d\d", order.recipient_phone)  # fictional 555-01xx
         assert re.fullmatch(r"\d{1,2}:\d\d [AP]M – \d{1,2}:\d\d [AP]M", order.time_window)
         assert not re.match(r"\d", order.area)

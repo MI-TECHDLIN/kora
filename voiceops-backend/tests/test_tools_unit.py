@@ -14,9 +14,9 @@ def mock_context():
         "shift_id": "test-shift-456",
         "current_delivery": {
             "id": "mock-delivery-789",
-            "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island",
-            "customer_phone": "+2348012345678"
+            "recipient_name": "Jordan Lee",
+            "address": "812 Lavaca St, Austin, TX 78701",
+            "customer_phone": "+15125550100"
         },
         "session_id": "test-session-000"
     }
@@ -90,17 +90,19 @@ def test_start_navigation_is_in_app_not_a_deep_link(mock_context, monkeypatch):
     from app.agents.tools import navigation
 
     async def get_directions(origin_lat, origin_lng, dest_lat, dest_lng, vehicle_type=None):
-        return [{"summary": "Victoria Bridge", "distance": 3200, "duration": 660,
+        return [{"summary": "Congress Avenue", "distance": 3200, "duration": 660,
                  "polyline": "_p~iF~ps|U_ulLnnqC_mqNvxq`@"}]
 
     monkeypatch.setattr(navigation, "get_directions", get_directions)
-    context = dict(mock_context, latitude=6.46, longitude=3.40)
-    context["current_delivery"] = dict(mock_context["current_delivery"], latitude=6.4541, longitude=3.3947)
+    context = dict(mock_context, latitude=30.2672, longitude=-97.7431)
+    context["current_delivery"] = dict(
+        mock_context["current_delivery"], latitude=30.2713, longitude=-97.7455
+    )
     result = asyncio.run(execute_tool("start_navigation", {"delivery_id": "mock-delivery-789"}, context))
     assert result.get("success") is True
     assert "navigation_url" not in result and "action" not in result
     assert result["delivery_id"] == "mock-delivery-789"
-    assert (result["latitude"], result["longitude"]) == (6.4541, 3.3947)
+    assert (result["latitude"], result["longitude"]) == (30.2713, -97.7455)
     assert set(result["route"]) == {"polyline", "summary", "distance_km", "duration_mins", "duration_text"}
     assert result["route"]["polyline"]
 

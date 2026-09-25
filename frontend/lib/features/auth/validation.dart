@@ -35,13 +35,13 @@ abstract final class AuthValidators {
   static String? phone(String? value) {
     if ((value ?? '').trim().isEmpty) return 'Your phone number is required';
     if (!_e164.hasMatch(normalizePhone(value!))) {
-      return 'Include your country code, e.g. +234 801 234 5678';
+      return 'Include your country code, e.g. +1 512 555 0100';
     }
     return null;
   }
 
-  /// Strips spaces, dashes, dots and brackets: `+234 (801) 234-5678` →
-  /// `+2348012345678`. Validate with [phone] first.
+  /// Strips spaces, dashes, dots and brackets: `+1 (512) 555-0100` →
+  /// `+15125550100`. Validate with [phone] first.
   static String normalizePhone(String value) =>
       value.trim().replaceAll(RegExp(r'[\s\-.()]'), '');
 }

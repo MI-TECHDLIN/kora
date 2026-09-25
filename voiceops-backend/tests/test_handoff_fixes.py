@@ -370,7 +370,7 @@ def test_lemur_fallback_honest_sentiment():
         {"id": "del-1", "address": "812 Lavaca St, Austin, TX"},
         {"id": "del-2", "address": "1200 Congress Ave, Austin, TX"},
     ]
-    # Transcript mentions Lavaca St and an incident, but NOT Lagos
+    # Transcript mentions Lavaca St and an incident, but not unrelated fallback streets.
     transcript = (
         "Driver: Next stop.\n"
         "Kora: Stop 1 is Lavaca St.\n"
@@ -383,10 +383,10 @@ def test_lemur_fallback_honest_sentiment():
     assert "(Estimated while AI analysis was unavailable)" in result["executive_summary"]
     assert "Overall sentiment estimated at" in result["executive_summary"]
     assert any("Lavaca St" in issue for issue in result["route_issues"])
-    # Ensure no hardcoded Lagos locations appear
+    # Ensure no hardcoded fallback locations appear.
     for issue in result["route_issues"]:
-        assert "Lagos" not in issue
-        assert "Marina" not in issue
+        assert "Rainey St" not in issue
+        assert "Guadalupe St" not in issue
 
 
 def test_idle_time_gated_outside_geofence():

@@ -147,7 +147,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                   3,
                   AuthTextField(
                     label: 'Phone number',
-                    hint: '+234 801 234 5678',
+                    hint: '+1 512 555 0100',
                     icon: TablerIcons.phone,
                     controller: _phone,
                     enabled: !busy,

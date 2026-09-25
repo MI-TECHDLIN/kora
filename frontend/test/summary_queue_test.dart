@@ -120,7 +120,7 @@ void main() {
         queueJson([
           orderJson('a', 1, 'completed'),
           orderJson('b', 2, 'failed', name: 'Bola'),
-          orderJson('c', 3, 'rescheduled', name: 'Chidi'),
+          orderJson('c', 3, 'rescheduled', name: 'Diego'),
           orderJson('d', 4, 'active'),
         ]),
       );

@@ -135,10 +135,10 @@ void main() {
   final signIn = find.widgetWithText(PrimaryButton, SignInScreen.title);
 
   Future<void> fillSignUp(WidgetTester tester) async {
-    await enter(tester, 'Full name', '  Ada Obi ');
-    await enter(tester, 'Email', ' ada@voiceops.test ');
+    await enter(tester, 'Full name', '  Elena Ramirez ');
+    await enter(tester, 'Email', ' elena@voiceops.test ');
     await enter(tester, 'Password', 'correct-horse');
-    await enter(tester, 'Phone number', '+234 801-234-5678');
+    await enter(tester, 'Phone number', '+1 512-555-0100');
   }
 
   testWidgets('a first launch shows onboarding, then welcome, then sign up', (
@@ -250,7 +250,7 @@ void main() {
     }
     expect(auth.lastSignUp, isNull);
 
-    await enter(tester, 'Email', 'ada@');
+    await enter(tester, 'Email', 'elena@');
     await enter(tester, 'Password', 'short');
     await enter(tester, 'Phone number', '0801 234 5678');
     await tap(tester, createAccount);
@@ -289,10 +289,10 @@ void main() {
     await tap(tester, createAccount);
 
     final sent = auth.lastSignUp!;
-    expect(sent.fullName, 'Ada Obi');
-    expect(sent.email, 'ada@voiceops.test');
+    expect(sent.fullName, 'Elena Ramirez');
+    expect(sent.email, 'elena@voiceops.test');
     expect(sent.password, 'correct-horse');
-    expect(sent.phone, '+2348012345678'); // E.164 for drivers.phone
+    expect(sent.phone, '+15125550100'); // E.164 for drivers.phone
 
     // The session lands: onboarding is behind the driver, and a never-shown
     // device meets the voice step before the gate hands over to the main app.
@@ -313,7 +313,7 @@ void main() {
 
     // The last field is focused and the keyboard is up, which leaves the
     // terms row at the bottom of what's still visible.
-    await enter(tester, 'Phone number', '+234 801 234 5678');
+    await enter(tester, 'Phone number', '+1 512 555 0100');
     for (var i = 1; i <= 10; i++) {
       tester.view.viewInsets = FakeViewPadding(bottom: 300 * 3 * i / 10);
       await tester.pump(const Duration(milliseconds: 16));
@@ -360,7 +360,7 @@ void main() {
     await tap(tester, createAccount);
 
     expect(find.text('Check your inbox'), findsOneWidget);
-    expect(find.textContaining('ada@voiceops.test'), findsOneWidget);
+    expect(find.textContaining('elena@voiceops.test'), findsOneWidget);
     expect(find.byType(MainShell), findsNothing);
     expect(api.ensureProfileCalls, 0);
 
@@ -377,7 +377,7 @@ void main() {
     expect(find.text('Your password is required'), findsOneWidget);
     expect(auth.lastSignIn, isNull);
 
-    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Email', 'elena@voiceops.test');
     await enter(tester, 'Password', 'wrong');
     auth.failure = const AuthFailure("That email and password don't match.");
     await tap(tester, signIn);
@@ -390,7 +390,7 @@ void main() {
     await enter(tester, 'Password', 'correct-horse');
     await tap(tester, signIn);
     expect(auth.lastSignIn, (
-      email: 'ada@voiceops.test',
+      email: 'elena@voiceops.test',
       password: 'correct-horse',
     ));
     expect(find.byType(MainShell), findsOneWidget);
@@ -405,7 +405,7 @@ void main() {
       ..profileRequiresEnsure = true;
     await pumpApp(tester);
     await tap(tester, toSignIn);
-    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Email', 'elena@voiceops.test');
     await enter(tester, 'Password', 'correct-horse');
     await tap(tester, signIn);
 
@@ -456,7 +456,7 @@ void main() {
     api.ensureProfileFailure = failure;
     await pumpApp(tester);
     await tap(tester, toSignIn);
-    await enter(tester, 'Email', 'ada@voiceops.test');
+    await enter(tester, 'Email', 'elena@voiceops.test');
     await enter(tester, 'Password', 'correct-horse');
     await tap(tester, signIn);
 
@@ -507,24 +507,24 @@ void main() {
 
   group('AuthValidators', () {
     test('email', () {
-      expect(AuthValidators.email('ada@voiceops.test'), isNull);
-      expect(AuthValidators.email(' ada@voiceops.test '), isNull);
+      expect(AuthValidators.email('elena@voiceops.test'), isNull);
+      expect(AuthValidators.email(' elena@voiceops.test '), isNull);
       expect(AuthValidators.email(''), isNotNull);
-      expect(AuthValidators.email('ada@voiceops'), isNotNull);
-      expect(AuthValidators.email('ada voiceops.test'), isNotNull);
+      expect(AuthValidators.email('elena@voiceops'), isNotNull);
+      expect(AuthValidators.email('elena voiceops.test'), isNotNull);
     });
 
     test('phone must be E.164 once spacing is stripped', () {
       expect(
-        AuthValidators.normalizePhone(' +234 (801) 234-5678 '),
-        '+2348012345678',
+        AuthValidators.normalizePhone(' +1 (512) 555-0100 '),
+        '+15125550100',
       );
-      expect(AuthValidators.phone('+234 801 234 5678'), isNull);
+      expect(AuthValidators.phone('+1 512 555 0100'), isNull);
       expect(AuthValidators.phone('+1 415 555 0100'), isNull);
       expect(AuthValidators.phone('08012345678'), isNotNull); // no country
       expect(AuthValidators.phone('+0 801 234 5678'), isNotNull);
-      expect(AuthValidators.phone('+234 80'), isNotNull);
-      expect(AuthValidators.phone('+234 801 234 5678 999 99'), isNotNull);
+      expect(AuthValidators.phone('+1 51'), isNotNull);
+      expect(AuthValidators.phone('+1 512 555 0100 999 99'), isNotNull);
     });
 
     test('passwords: new ones need length, sign-in only presence', () {
