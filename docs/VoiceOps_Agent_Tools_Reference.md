@@ -515,7 +515,8 @@ unassigned one. *Triggers: "next order in queue", "what's coming after this", "n
 The 2.1 fields stay. `sequence_order` is always `null`, because an order has no place on a run
 until a driver accepts it. `status` is `offered` or `unassigned` (`interface.md` §3).
 `expires_in_s` is `null` unless the order is offered to this driver. `distance_km` is
-straight-line from the driver's last ping, or from the demo area centre when there is none.
+straight-line from the driver's own last fresh ping (the position the offer was ranked from), or from
+the explicit demo area override; it is `null`, and the message omits "km away", when neither is known.
 With nothing waiting the result is
 `{"success": true, "has_next": false, "message": "No new orders are waiting right now."}`.
 

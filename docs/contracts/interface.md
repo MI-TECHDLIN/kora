@@ -138,8 +138,12 @@ It is a real encoded polyline.
 
 **`order_offer`.** A logistics platform's new order, offered to this driver
 (`app/dispatch/order_dispatch.py`). Only a driver with an open voice socket is ever offered
-an order. It goes to the nearest one (straight-line distance from their latest GPS ping, or
-the demo area centre before the app posts one), one offer per driver at a time. Nothing
+an order. It goes to the nearest one (straight-line distance from their own latest GPS ping),
+one offer per driver at a time. A driver whose position is not known and recent (no ping yet, or
+none in the last `ORDER_DISPATCH_PING_MAX_AGE_MINUTES`, 5 by default) is not offered anything until
+their next ping (`POST /v1/locations/ping`), so the app should post one as soon as the voice session
+opens; the explicit `DEMO_AREA_LAT`/`DEMO_AREA_LNG` override stands in for a missing position.
+Mock-feed orders are generated near a located online driver's own ping. Nothing
 reaches a driver without a session: no push, no wake-up. An order with nobody online waits
 `unassigned` and is offered when a driver connects. If the socket of a driver holding an offer
 closes, the offer moves to the next online driver at once.

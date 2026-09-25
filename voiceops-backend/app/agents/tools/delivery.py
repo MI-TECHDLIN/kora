@@ -301,16 +301,18 @@ async def get_next_order(parameters: dict, context: dict) -> dict:
     Trigger phrases: "next order in queue", "what's coming after this", "next job"
     """
     try:
-        found = get_order_dispatcher().next_order_for(
-            context.get("driver_id"), context.get("latitude"), context.get("longitude"))
+        dispatcher = get_order_dispatcher()
+        latitude, longitude = context.get("latitude"), context.get("longitude")
+        if latitude is None or longitude is None:  # the driver's own latest ping, never another's
+            latitude, longitude = (await dispatcher.driver_position(context.get("driver_id"))) or (None, None)
+        found = dispatcher.next_order_for(context.get("driver_id"), latitude, longitude)
         if not found:
             return {"success": True, "has_next": False, "message": "No new orders are waiting right now."}
+        away = f", {found['distance_km']:.1f} km away" if found["distance_km"] is not None else ""
         if found["offered_to_you"]:
-            message = (f"Order offered to you: {found['address']}, {found['distance_km']:.1f} km away. "
-                       "Accept or decline it.")
+            message = f"Order offered to you: {found['address']}{away}. Accept or decline it."
         else:
-            message = (f"Next order in the queue: {found['address']}, {found['distance_km']:.1f} km away. "
-                       "It is not assigned to anyone yet.")
+            message = f"Next order in the queue: {found['address']}{away}. It is not assigned to anyone yet."
         # sequence_order: an order has no place on a run until a driver accepts it
         return {"success": True, "has_next": True, **found, "sequence_order": None, "message": message}
 
