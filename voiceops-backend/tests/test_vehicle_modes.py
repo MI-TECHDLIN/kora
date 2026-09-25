@@ -50,10 +50,8 @@ ORIGIN, DESTINATION = (6.46, 3.40), (6.4541, 3.3947)
 @pytest.fixture(autouse=True)
 def fresh_caches():
     vehicle_modes._driver_mode_cache.clear()
-    ETAService._traffic_eta_cache.clear()
     yield
     vehicle_modes._driver_mode_cache.clear()
-    ETAService._traffic_eta_cache.clear()
 
 
 @pytest.fixture
