@@ -8,10 +8,10 @@ This guide helps frontend developers test the VoiceOps Flutter app with both loc
 ## Backend Deployments
 
 ### Production Backend
-- **URL:** https://voiceops-ll41.onrender.com
+- **URL:** https://kora-brd8.onrender.com
 - **Status:** Live and deployed
 - **Environment:** Production
-- **Health Check:** https://voiceops-ll41.onrender.com/health
+- **Health Check:** https://kora-brd8.onrender.com/health
 
 ### Local Backend
 - **URL:** http://localhost:8000
@@ -39,7 +39,7 @@ flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000
 ```bash
 # Run Flutter app with production backend
 cd frontend
-flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
+flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com
 ```
 
 ---
@@ -55,7 +55,7 @@ flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000
 
 #### Production Backend:
 ```bash
-flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
+flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com
 ```
 
 #### With Emulator/Simulator:
@@ -85,7 +85,7 @@ flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000 -d <device-id>
 #### Create/Edit `config/backend.prod.json`:
 ```json
 {
-  "VOICEOPS_API_URL": "https://voiceops-ll41.onrender.com"
+  "VOICEOPS_API_URL": "https://kora-brd8.onrender.com"
 }
 ```
 
@@ -121,7 +121,7 @@ ENVIRONMENT=development  # or production
 
 # Backend automatically selects appropriate URL
 - Development: http://localhost:8000
-- Production: https://voiceops-ll41.onrender.com
+- Production: https://kora-brd8.onrender.com
 ```
 
 ### Frontend Settings (`lib/core/config/backend_config.dart`)
@@ -180,7 +180,7 @@ static Uri? getEffectiveBaseUri() {
 2. Run Flutter with production backend:
    ```bash
    cd frontend
-   flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
+   flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com
    ```
 
 3. Test with real production data
@@ -203,7 +203,7 @@ static Uri? getEffectiveBaseUri() {
 2. Run Flutter with production backend:
    ```bash
    cd frontend
-   flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
+   flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com
    ```
 
 3. Test with real GPS and network conditions
@@ -238,7 +238,7 @@ static Uri? getEffectiveBaseUri() {
 
 ### Production Base URL
 ```
-https://voiceops-ll41.onrender.com
+https://kora-brd8.onrender.com
 ```
 
 ### Local Base URL
@@ -249,15 +249,15 @@ http://localhost:8000
 ### Key Endpoints
 
 #### Health Check
-- **Production:** https://voiceops-ll41.onrender.com/health
+- **Production:** https://kora-brd8.onrender.com/health
 - **Local:** http://localhost:8000/health
 
 #### REST API
-- **Production:** https://voiceops-ll41.onrender.com/v1/*
+- **Production:** https://kora-brd8.onrender.com/v1/*
 - **Local:** http://localhost:8000/v1/*
 
 #### WebSocket (Voice)
-- **Production:** wss://voiceops-ll41.onrender.com/ws/voice/{shift_id}
+- **Production:** wss://kora-brd8.onrender.com/ws/voice/{shift_id}
 - **Local:** ws://localhost:8000/ws/voice/{shift_id}
 
 ---
@@ -288,7 +288,7 @@ frontend/
 #### `config/backend.prod.json.example`
 ```json
 {
-  "VOICEOPS_API_URL": "https://voiceops-ll41.onrender.com",
+  "VOICEOPS_API_URL": "https://kora-brd8.onrender.com",
   "SUPABASE_URL": "https://your-project.supabase.co",
   "SUPABASE_ANON_KEY": "your-anon-key"
 }
@@ -318,7 +318,7 @@ frontend/
       "type": "dart",
       "flutterMode": "debug",
       "args": [
-        "--dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com"
+        "--dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com"
       ]
     }
   ]
@@ -342,7 +342,7 @@ frontend/
    - Stop the app (`q`)
    - Restart with production URL:
      ```bash
-     flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com
+     flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com
      ```
 
 **Note:** Dart-define values are compile-time constants, so you need to restart to change them.
@@ -471,7 +471,7 @@ ElevatedButton(
 | Environment | URL | Command |
 |-------------|-----|---------|
 | Local | http://localhost:8000 | `flutter run --dart-define=VOICEOPS_API_URL=http://localhost:8000` |
-| Production | https://voiceops-ll41.onrender.com | `flutter run --dart-define=VOICEOPS_API_URL=https://voiceops-ll41.onrender.com` |
+| Production | https://kora-brd8.onrender.com | `flutter run --dart-define=VOICEOPS_API_URL=https://kora-brd8.onrender.com` |
 
 ### Key Points
 - **Local:** Fast iteration, easy debugging
