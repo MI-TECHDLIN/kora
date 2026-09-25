@@ -43,6 +43,7 @@ Two distinct value layers:
 kora/
 ├── frontend/          Flutter app
 ├── voiceops-backend/  Python FastAPI + asyncio
+├── landing/           Static marketing site + interactive phone preview (Cloudflare Pages)
 ├── docs/              PRD, SDD, TechFeasibility, Synopsis, Agent Tools Reference,
 │                      contracts/interface.md, backend-handoff/, brand/, inspiration/
 ├── AGENTS.md          this file (agent context, all harnesses)
@@ -253,6 +254,7 @@ summaries, driver welcome SMS.
 - Typography: **Plus Jakarta Sans** (substitute for Circular Std /
   Sofia Pro until a licence is secured)
 - Icons: **Tabler Icons** via `tabler_icons_plus` — no emoji icons
+- `landing/` mirrors these tokens in `landing/css/tokens.css`. When `tokens.dart` changes, update that file too (details in `landing/README.md`)
 
 Push-to-talk button: large circular, minimum 80×80px.
 States: `idle → recording → processing → speaking`.

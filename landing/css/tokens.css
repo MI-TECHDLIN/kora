@@ -1,0 +1,148 @@
+/*
+ * Kora design tokens for the web.
+ *
+ * SOURCE OF TRUTH: frontend/lib/core/theme/tokens.dart (KoraColors, KoraGlass,
+ * KoraOrbColors, KoraMood, KoraSpacing, KoraRadius, KoraSize, KoraMotion,
+ * KoraText). Do not invent values here: change tokens.dart first, then mirror
+ * the change in this file. Every custom property names the Dart constant it
+ * copies. Brand rules: docs/brand/README.md.
+ *
+ * Lime (--kora-live) is the mic-hot state ONLY: the push-to-talk button while
+ * it is recording. Never use it as an accent, in the orb, or on the page.
+ */
+
+@font-face {
+  /* Plus Jakarta Sans, the app's typeface (KoraText). Self-hosted latin subset. */
+  font-family: "Plus Jakarta Sans";
+  src: url("../assets/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* KoraColors: surfaces, lowest to highest elevation */
+  --kora-canvas: #07060b;
+  --kora-raised: #0e0b18;
+  --kora-elevated: #151126;
+  --kora-overlay: #1d1834;
+
+  /* KoraColors: brand violet */
+  --kora-primary: #8b5cf6;
+  --kora-primary-light: #c4b5fd;
+  --kora-primary-dark: #4c1d95;
+  --kora-primary-tint: rgb(139 92 246 / 0.16); /* primaryTint */
+  --kora-primary-glow: rgb(139 92 246 / 0.35); /* primaryGlow */
+
+  /* KoraColors: live (mic-hot only) */
+  --kora-live: #c8f250;
+  --kora-live-glow: rgb(200 242 80 / 0.4);
+  --kora-on-live: var(--kora-canvas);
+
+  /* KoraColors: secondary accents (card use, sparing) */
+  --kora-pink: #f9a8d4;
+  --kora-blue: #7dd3fc;
+  --kora-amber: #fbbf24;
+  --kora-success: #34d399;
+  --kora-danger: #f87171;
+
+  /* KoraColors: text */
+  --kora-text: #f4f1ff; /* textPrimary */
+  --kora-text-muted: #a7a1c4;
+  --kora-text-faint: #7c7797;
+  --kora-reasoning-active: rgb(244 241 255 / 0.6); /* taskReasoningActive */
+  --kora-reasoning-done: rgb(244 241 255 / 0.7); /* taskReasoningDone */
+  --kora-on-primary: #fff;
+  --kora-on-accent: var(--kora-canvas);
+
+  /* KoraColors: lines */
+  --kora-divider: rgb(255 255 255 / 0.08);
+  --kora-scrim: rgb(7 6 11 / 0.7);
+
+  /* KoraColors: map grounds (OpenFreeMap styles/dark) */
+  --kora-map-ground: #0c0c0c;
+
+  /* KoraGlass: restrained glass */
+  --kora-glass-blur: 12px; /* never exceed */
+  --kora-glass-fill: rgb(255 255 255 / 0.05);
+  --kora-glass-border: rgb(255 255 255 / 0.12);
+  --kora-glass-shadow: 0 8px 24px rgb(139 92 246 / 0.18);
+
+  /* KoraOrbColors */
+  --kora-orb-holo-1: #c4b5fd;
+  --kora-orb-holo-2: #f9a8d4;
+  --kora-orb-holo-3: #7dd3fc;
+  --kora-orb-holo-4: #a7f3d0;
+  --kora-orb-specular: #fff;
+
+  /* KoraMood: onboarding / splash surfaces */
+  --kora-ink: #1b1538;
+  --kora-ink-muted: #4f4677;
+  --kora-paper: #fff;
+  --kora-paper-border: rgb(255 255 255 / 0.6);
+  --kora-holographic: linear-gradient(
+    135deg,
+    #c4b5fd,
+    #f9a8d4,
+    #7dd3fc,
+    #a7f3d0
+  ); /* KoraMood.holographic */
+  --kora-violet-gradient: linear-gradient(
+    135deg,
+    var(--kora-primary),
+    var(--kora-primary-dark)
+  ); /* PrimaryButton / push-to-talk idle */
+
+  /* KoraSpacing */
+  --kora-space-xs: 4px;
+  --kora-space-sm: 8px;
+  --kora-space-md: 12px;
+  --kora-space-lg: 16px;
+  --kora-space-xl: 24px;
+  --kora-space-xxl: 32px;
+  --kora-gutter: 22px;
+
+  /* KoraRadius */
+  --kora-radius-control: 14px;
+  --kora-radius-card: 20px;
+  --kora-radius-sheet: 28px;
+  --kora-radius-pill: 999px;
+
+  /* KoraSize */
+  --kora-touch-target: 48px;
+  --kora-control: 52px;
+  --kora-push-to-talk: 88px;
+  --kora-icon-sm: 16px;
+  --kora-icon-md: 20px;
+  --kora-icon-lg: 24px;
+  --kora-icon-xl: 32px;
+
+  /* KoraMotion (Curves.easeOutCubic / easeInOutCubic) */
+  --kora-fast: 150ms;
+  --kora-base: 250ms;
+  --kora-slow: 400ms;
+  --kora-orb-morph: 600ms;
+  --kora-ease: cubic-bezier(0.215, 0.61, 0.355, 1); /* standard */
+  --kora-ease-emphasized: cubic-bezier(0.645, 0.045, 0.355, 1);
+
+  /* KoraText: family and scale */
+  --kora-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --kora-fs-editorial: 50px; /* w300, -1.6 tracking, 1.12 */
+  --kora-fs-display: 40px; /* w800, -1.2 tracking, 1.05 */
+  --kora-fs-headline: 24px; /* w700, -0.4 tracking, 1.2 */
+  --kora-fs-title: 17px; /* w600, 1.3 */
+  --kora-fs-body: 15px; /* w400, 1.45 */
+  --kora-fs-label: 13px; /* w600, +0.1 tracking */
+  --kora-fs-caption: 11px; /* w700, +0.8 tracking, uppercase */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --kora-fast: 0.01ms;
+    --kora-base: 0.01ms;
+    --kora-slow: 0.01ms;
+    --kora-orb-morph: 0.01ms;
+  }
+}
