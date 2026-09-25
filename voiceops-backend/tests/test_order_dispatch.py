@@ -855,7 +855,11 @@ def offer_and_announce(ws, upstream, dispatcher, order=None):
     return placed, offer
 
 
-def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_dispatch):
+def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_dispatch, monkeypatch):
+    # Order ids are random uuids and the street number "812" is a private-address check below, so
+    # pin every uuid to one containing "812". Left random, about 1 run in 140 collided by chance.
+    ids = itertools.count(1)
+    monkeypatch.setattr(uuid, "uuid4", lambda: uuid.UUID(f"00000000-0000-4000-8000-812{next(ids):09d}"))
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
         placed, offer = offer_and_announce(ws, upstream, live_dispatch)
@@ -865,8 +869,10 @@ def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_disp
     assert offer["area"] == "Lavaca St, Austin"
     assert (offer["latitude"], offer["longitude"]) == (30.271, -97.746)  # ~100 m, not the door
     assert offer["time_window"] == "3:00 PM – 5:00 PM" and 0 < offer["expires_in_s"] <= 30
-    assert "812" not in json.dumps(offer) and "+1512" not in json.dumps(offer)
-    assert "Priya" not in json.dumps(offer)
+    # order_id is a random uuid, not customer data: its hex digits can contain "812" by chance
+    customer_facing = json.dumps({k: v for k, v in offer.items() if k != "order_id"})
+    assert "812" not in customer_facing and "+1512" not in customer_facing
+    assert "Priya" not in customer_facing
 
     [create] = reply_creates(upstream)
     assert placed["order_id"] in create["instructions"]

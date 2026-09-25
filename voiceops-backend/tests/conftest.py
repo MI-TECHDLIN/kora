@@ -99,9 +99,9 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(autouse=True)
 def _fresh_eta_cache():
-    """ETAService keeps its traffic ETA cache on the class, so it leaks between tests."""
-    from app.services.eta_service import ETAService
+    """The app-wide `eta_service` keeps its traffic ETA cache for the life of the process."""
+    from app.services.eta_service import eta_service
 
-    ETAService._traffic_eta_cache.clear()
+    eta_service.clear_cache()
     yield
-    ETAService._traffic_eta_cache.clear()
+    eta_service.clear_cache()
