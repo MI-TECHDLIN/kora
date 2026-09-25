@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/voiceops_api.dart';
+import '../../../core/config/backend_config.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
@@ -230,9 +232,46 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: KoraSpacing.lg),
+            Text('ABOUT', style: KoraText.caption),
+            const SizedBox(height: KoraSpacing.sm),
+            const _BackendCard(),
+            const SizedBox(height: KoraSpacing.lg),
             Text('More settings are on the way.', style: KoraText.bodyMuted),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Which backend this build talks to. A build pointed at the wrong one (an
+/// old or LAN address baked in with `--dart-define`) fails with messages that
+/// look like a server problem, so the host is shown here and in voice errors.
+class _BackendCard extends ConsumerWidget {
+  const _BackendCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final base = ref.watch(backendUriProvider);
+    return GlassCard(
+      key: const Key('backend-host'),
+      padding: const EdgeInsets.all(KoraSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Backend', style: KoraText.label),
+          const SizedBox(height: KoraSpacing.xs),
+          Text(backendLabel(base), style: KoraText.bodyMuted),
+          if (isDevelopmentBackend(base)) ...[
+            const SizedBox(height: KoraSpacing.xs),
+            Text(
+              'This build is not pointed at the production backend '
+              '(${BackendConfig.productionUrl}).',
+              key: const Key('backend-host-warning'),
+              style: KoraText.bodyMuted.copyWith(color: KoraColors.amber),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -1,5 +1,7 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 2.0 (draft), 2026-09-25. 2.0 adds the `voice_not_configured` error code (§1) and
+`GET /health/ready` (§2). Additive only. See "Changes in 2.0".
 **Version:** 1.9 (draft), 2026-09-25. 1.9 documents the existing `conversation_end` server event
 (§1), a documentation-only addition. See "Changes in 1.9".
 **Version:** 1.8 (draft), 2026-09-23. 1.8 adds the shift order-queue snapshot, its
@@ -106,7 +108,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
   label and identifies the step within the current task. The client shows "All complete" once
   every known step is `done`.
 - `error.code` ∈ `auth_failed | session_expired | upstream_unavailable | upstream_timeout |
-  invalid_message | internal`. `message` is short, human-readable, and safe to display.
+  invalid_message | internal | voice_not_configured`. `message` is short, human-readable, and safe to display.
 - `order_offer_closed.outcome` ∈ `accepted | declined | expired | withdrawn` (`OFFER_OUTCOMES`
   in `events.py`). `withdrawn` means the order is gone before this driver could take it: the
   database says it was already assigned.
@@ -260,6 +262,8 @@ after that.
 | `reply.done` (tool calls that turn) | nothing. The agent speaks again once it has the results, and that reply ends with `reply_done` |
 | app sends `change_voice` | `voice_change_accepted` (if voice changed) or `voice_unchanged` (if same voice), then socket closes to force reconnection with new voice parameter |
 | `session.error`, upstream drop, `session.ended` | `error` (`upstream_timeout` for AssemblyAI's `agent_timeout`, otherwise `upstream_unavailable`), then close |
+| the server cannot start the voice session because a setting it needs is missing or refused (no `ASSEMBLYAI_API_KEY`, AssemblyAI answered the upgrade with 401/403, or no Supabase server config for the token check) | `error` (`voice_not_configured`), then close `1011`. The app must not reconnect. `GET /health/ready` says which setting |
+| the AssemblyAI connect fails (unreachable, refused, HTTP error) | `error` (`upstream_unavailable`); on timeout `upstream_timeout`; then close |
 
 **`reply.create`** is the Voice Agent API's documented client message for an agent reply with
 no user audio: `{"type": "reply.create", "instructions": "<one-shot instructions>"}`. The
@@ -314,6 +318,7 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 |---|---|---|---|
 | GET | `/` | none | `{"message": "VoiceOps API", "version": "1.0.0", "status": "running"}` |
 | GET | `/health` | none | `{"status": "ok"}` |
+| GET | `/health/ready` | none | Whether the voice path can start: `{"ready": bool, "checked_at", "config": {"required": {"ASSEMBLYAI_API_KEY": bool, "SUPABASE_URL": bool, "SUPABASE_SERVICE_KEY": bool}, "optional": {…bool}}, "checks": {"database": {"ok": bool, "reason"?}, "assemblyai_session": {"ok": bool, "reason"?}}}`. Booleans and fixed reason tokens only, never a setting's value. 200 when `ready`, 503 otherwise. The AssemblyAI check opens one short session and ends it; results are cached for 30 s. Not used by the app |
 | POST | `/v1/auth/otp/send` | `{"phone": "+1…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
 | POST | `/v1/auth/otp/verify` | `{"phone": "+1…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
 | POST | `/v1/voice-agent` | `{"audio": "<base64 PCM16>", "sample_rate": 24000, "session_id": null}` | `{"audio", "user_transcript", "agent_transcript", "audio_size", "session_id"}` |
@@ -619,6 +624,27 @@ Documentation only. Nothing in the code changes, and no existing shape is touche
 described in Tools Reference §15. This closes that gap.
 
 **Frontend:** none. The app closes the mic and sets push-to-talk to `idle` on this event.
+
+---
+
+## Changes in 2.0
+
+Additive only. Existing shapes are untouched.
+
+| Addition | Where |
+|---|---|
+| `voice_not_configured` value in `error.code` | §1 |
+| `GET /health/ready` | §2 |
+| `POST /v1/shift/start` and any authenticated REST call answer `503` (was `401 Invalid or expired token`) when the server has no usable Supabase config | §2, §4 |
+
+**Why:** with a misconfigured service every voice failure surfaced as the generic "can't reach your
+co-rider" line, and a missing server setting looked like an expired driver token. The backend now
+logs a value-free reason for every voice-session failure (`[VoiceWS] Session failed: code=… reason=…`)
+and the app shows the specific message.
+
+**Frontend:** `voice_not_configured` is fatal like `auth_failed`: the app stops reconnecting and shows
+`message`. Any error `message` is shown instead of the generic line, and a socket that the backend
+closes right after an `error` no longer resets the reconnect backoff.
 
 ---
 

@@ -39,3 +39,28 @@ Uri voiceSocketUri(Uri base, String shiftId, {String? voice}) => base.replace(
 
 String _trimSlash(String path) =>
     path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+
+/// Where the app is talking to, for messages and Settings: `host[:port]`, or
+/// "no backend" when none is configured.
+String backendLabel(Uri? base) {
+  if (base == null || base.host.isEmpty) return 'no backend';
+  final defaultPort = base.scheme == 'https' ? 443 : 80;
+  return base.hasPort && base.port != defaultPort
+      ? '${base.host}:${base.port}'
+      : base.host;
+}
+
+/// Whether [base] is an address a phone away from the developer's computer
+/// can't reach in production: plain http, or a loopback / LAN address. A
+/// release build pointed at one talks to nothing on Render (see
+/// `config/supabase.prod.json.example`).
+bool isDevelopmentBackend(Uri? base) {
+  if (base == null) return false;
+  if (base.scheme != 'https') return true;
+  final host = base.host;
+  return host == 'localhost' ||
+      host.endsWith('.local') ||
+      RegExp(
+        r'^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)',
+      ).hasMatch(host);
+}

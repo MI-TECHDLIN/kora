@@ -817,6 +817,95 @@ void main() {
     });
   });
 
+  test('a server without a voice provider stops reconnecting and says so', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      session().onPushToTalk();
+      flush();
+      final socket = connector.last;
+      socket.emit({
+        'event': 'error',
+        'code': 'voice_not_configured',
+        'message': "The voice service isn't set up on the server yet.",
+      });
+      socket.drop();
+      flush();
+      async.elapse(const Duration(seconds: 30));
+      expect(voice().connection, VoiceConnection.failed);
+      expect(
+        voice().issue,
+        "The voice service isn't set up on the server yet.",
+      );
+      expect(connector.sockets, hasLength(1));
+    });
+  });
+
+  test('a backend that errors and closes every time is not redialled forever, '
+      'and the last thing it said is what the driver sees', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      session().onPushToTalk();
+      flush();
+      void serverFails() {
+        connector.last
+          ..emit({
+            'event': 'error',
+            'code': 'upstream_unavailable',
+            'message': 'The voice service is unavailable.',
+          })
+          ..drop();
+        flush();
+      }
+
+      serverFails();
+      for (final seconds in [1, 2, 4, 8, 16]) {
+        async.elapse(Duration(seconds: seconds));
+        serverFails();
+      }
+      async.elapse(const Duration(minutes: 5));
+
+      expect(connector.sockets, hasLength(6)); // the first, plus five retries
+      expect(voice().connection, VoiceConnection.failed);
+      expect(voice().issue, 'The voice service is unavailable.');
+    });
+  });
+
+  test('a connection that stays up restarts the backoff', () {
+    onFakeTime((async, flush) {
+      session().onPushToTalk();
+      flush();
+      session().onPushToTalk();
+      flush();
+      for (var drops = 0; drops < 8; drops++) {
+        async.elapse(const Duration(seconds: 20)); // healthy for a while
+        connector.serverUp = true;
+        connector.last.drop();
+        flush();
+        async.elapse(const Duration(seconds: 1));
+        flush();
+        expect(voice().connection, VoiceConnection.connected);
+      }
+    });
+  });
+
+  test('a failed shift start names the backend it tried', () {
+    onFakeTime((async, flush) {
+      api.shiftFailure = const ApiException(
+        'Kora had a problem. Try again.',
+        statusCode: 500,
+      );
+      session().onPushToTalk();
+      flush();
+      expect(voice().connection, VoiceConnection.failed);
+      expect(
+        voice().issue,
+        'Kora had a problem. Try again. (api.voiceops.test)',
+      );
+    });
+  });
+
   test('frees push-to-talk when the co-rider never answers', () {
     onFakeTime((async, flush) {
       session().onPushToTalk();
@@ -849,7 +938,7 @@ void main() {
       flush();
       expect(ptt(), PushToTalkState.idle);
       expect(voice().connection, VoiceConnection.failed);
-      expect(voice().issue, 'Kora had a problem.');
+      expect(voice().issue, 'Kora had a problem. (api.voiceops.test)');
       expect(connector.sockets, isEmpty);
     });
   });
