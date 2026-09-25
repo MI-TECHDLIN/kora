@@ -307,6 +307,7 @@ endpoints, delivery status enum, JWT auth header. They are defined in
 
 - Run the relevant checks (`flutter analyze` / `pytest`) — see your layer's rule file
 - Verify no `.env`, key, or token was committed
+- Run `gitleaks git --pre-commit --staged --redact --config .gitleaks.toml` on your staged changes (README "Secret scanning"); CI scans PR commits too
 - Confirm the diff touches only files your task required
 
 ---

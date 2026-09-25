@@ -1,0 +1,28 @@
+# Secret-scanner config (gitleaks). See README "Secret scanning".
+# Extends the built-in ruleset; only judges what a commit or PR adds.
+
+title = "Kora gitleaks config"
+
+[extend]
+useDefault = true
+
+# The TomTom key that once landed in tracked files was 32 alphanumerics
+# next to the words "tomtom" / "api key". Catch that shape explicitly.
+[[rules]]
+id = "tomtom-api-key"
+description = "TomTom API key assigned to a variable, flag or header"
+regex = '''(?i)tomtom[\w .-]{0,24}(?:key|api)[\w .-]{0,12}["'=:\s]{1,4}["']?([A-Za-z0-9]{32})\b'''
+keywords = ["tomtom"]
+entropy = 3.0
+
+[allowlist]
+description = "Placeholders and example files"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''\.example$''',
+]
+# Obvious placeholders in docs and scripts: YOUR_..., <token>, ${VAR}, $VAR,
+# "changeme", "example", "xxxx".
+regexes = [
+  '''(?i)(your[_-]|<[^>]{1,40}>|\$\{?[A-Z_]{3,}\}?|change[_-]?me|example|x{6,}|placeholder)''',
+]
