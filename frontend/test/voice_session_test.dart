@@ -143,6 +143,69 @@ void main() {
     });
   });
 
+  test('reply opens a bounded mic-hot follow-up window', () {
+    onFakeTime((async, flush) {
+      session().startConversation();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({'event': 'transcript', 'role': 'driver', 'text': 'Hi'})
+        ..emitAudio(Uint8List(960))
+        ..emit({'event': 'reply_done'});
+      flush();
+
+      expect(ptt(), PushToTalkState.recording);
+      expect(container.read(micLiveProvider), isTrue);
+      expect(recorder.isRecording, isTrue);
+
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+      expect(ptt(), PushToTalkState.recording);
+      expect(recorder.isRecording, isTrue);
+
+      async.elapse(const Duration(seconds: 1));
+      flush();
+      expect(ptt(), PushToTalkState.idle);
+      expect(container.read(micLiveProvider), isFalse);
+      expect(recorder.isRecording, isFalse);
+    });
+  });
+
+  test('speech refreshes the follow-up window without repeating Kora', () {
+    onFakeTime((async, flush) {
+      session().startConversation();
+      flush();
+      final socket = connector.last;
+
+      socket
+        ..emit({'event': 'transcript', 'role': 'driver', 'text': 'Next stop'})
+        ..emit({'event': 'reply_done'});
+      flush();
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+
+      final speech = ByteData(voiceFrameBytes);
+      for (var offset = 0; offset < voiceFrameBytes; offset += 2) {
+        speech.setInt16(offset, 1000, Endian.little);
+      }
+      recorder.speak(speech.buffer.asUint8List());
+      flush();
+      expect(socket.sentAudio, isNotEmpty);
+
+      async.elapse(voiceFollowUpWindow - const Duration(seconds: 1));
+      expect(ptt(), PushToTalkState.recording);
+      expect(recorder.starts, 1);
+      expect(connector.sockets, hasLength(1));
+
+      socket.emit({
+        'event': 'transcript',
+        'role': 'driver',
+        'text': "What's up?",
+      });
+      flush();
+      expect(ptt(), PushToTalkState.processing);
+    });
+  });
+
   test('the saved co-rider voice rides on the voice socket', () {
     voices.value = CoRiderVoice.michael;
     onFakeTime((async, flush) {
@@ -264,7 +327,7 @@ void main() {
         ..emit({
           'event': 'transcript',
           'role': 'agent',
-          'text': 'Amara on Broad Street.',
+          'text': 'Jordan on Lavaca St.',
         })
         ..emit({'event': 'summary_chunk', 'text': 'Today you ', 'final': false})
         ..emit({
@@ -276,7 +339,7 @@ void main() {
           'event': 'call_started',
           'call_id': 'c-1',
           'delivery_id': 'd-4',
-          'customer_name': 'Amara J.',
+          'customer_name': 'Jordan L.',
           'sequence': 4,
         })
         // Unknown and malformed frames are skipped, never fatal.
@@ -296,16 +359,16 @@ void main() {
       );
       expect(
         container.read(mapRouteProvider)!.target!.recipientName,
-        'Amara Johnson',
+        'Jordan Lee',
       );
       expect(container.read(transcriptProvider).map((l) => (l.role, l.text)), [
         (SpeakerRole.driver, "What's my next stop?"),
-        (SpeakerRole.agent, 'Amara on Broad Street.'),
+        (SpeakerRole.agent, 'Jordan on Lavaca St.'),
       ]);
       final summary = container.read(summaryStreamProvider)!;
       expect(summary.text, 'Today you did 7 stops.');
       expect(summary.isComplete, isTrue);
-      expect(container.read(activeCallProvider)!.customerName, 'Amara J.');
+      expect(container.read(activeCallProvider)!.customerName, 'Jordan L.');
 
       // The call overlay's end button sends end_call; call_ended closes it.
       expect(session().endCall('c-1'), isTrue);

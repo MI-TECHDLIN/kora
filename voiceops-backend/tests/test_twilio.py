@@ -18,7 +18,7 @@ def test_twilio_client_initialized():
 def test_make_call_structure():
     """Verify make_call returns expected structure."""
     result = asyncio.run(make_call(
-        to_phone="+2348012345678",
+        to_phone="+15125550100",
         message="Driver is arriving in 5 minutes.",
         delivery_id="del-test-123",
         recipient_name="Test Customer"
@@ -33,7 +33,7 @@ def test_make_call_structure():
 def test_send_sms_structure():
     """Verify send_sms returns expected structure."""
     result = asyncio.run(send_sms(
-        to_phone="+2348012345678",
+        to_phone="+15125550100",
         message="Driver is arriving in 5 minutes.",
         customer_name="Test Customer"
     ))

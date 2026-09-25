@@ -20,22 +20,22 @@ Map<String, Object?> sampleMapRoute() => {
     {
       'delivery_id': 'd-4',
       'sequence': 4,
-      'recipient_name': 'Amara Johnson',
-      'address': '14 Broad Street, Lagos Island',
-      'latitude': 6.4541,
-      'longitude': 3.3947,
+      'recipient_name': 'Jordan Lee',
+      'address': '812 Lavaca St, Austin, TX 78701',
+      'latitude': 30.2713,
+      'longitude': -97.7455,
     },
     {
       'delivery_id': 'd-5',
       'sequence': 5,
-      'recipient_name': 'Tunde Bakare',
-      'address': '3 Marina Road, Lagos Island',
-      'latitude': 6.4489,
-      'longitude': 3.4012,
+      'recipient_name': 'Marcus Brooks',
+      'address': '604 W 6th St, Austin, TX 78701',
+      'latitude': 30.2698,
+      'longitude': -97.7485,
     },
   ],
   'polyline': 'cqkf@{_vSzEcLfJwLjMwL',
-  'summary': 'Victoria Bridge',
+  'summary': 'Congress Avenue',
   'distance_km': 3.2,
   'duration_mins': 11,
   'duration_text': '11 mins',
@@ -76,20 +76,20 @@ void main() {
       final route = MapRoute.fromJson(sampleMapRoute());
       expect(route.deliveryId, 'd-4');
       expect(route.stops, hasLength(2));
-      expect(route.target!.recipientName, 'Amara Johnson');
+      expect(route.target!.recipientName, 'Jordan Lee');
       expect(route.target!.sequence, 4);
-      expect(route.target!.point, const LatLng(6.4541, 3.3947));
+      expect(route.target!.point, const LatLng(30.2713, -97.7455));
       expect(route.path, hasLength(4));
       expect(route.path.last.latitude, closeTo(6.4489, 1e-5));
       expect(route.line, same(route.path));
       expect(route.etaLabel, '11 mins');
       expect(route.distanceKm, 3.2);
-      expect(route.summary, 'Victoria Bridge');
+      expect(route.summary, 'Congress Avenue');
     });
 
     test('no road route: the stop stays, the line and stats go', () {
       final route = MapRoute.fromJson(noRoadMapRoute());
-      expect(route.stops.single.recipientName, 'Amara Johnson');
+      expect(route.stops.single.recipientName, 'Jordan Lee');
       expect(route.path, isEmpty);
       expect(route.line, isEmpty);
       expect(route.coordinates, [route.stops.single.point]);
@@ -152,11 +152,11 @@ void main() {
           'event': 'call_started',
           'call_id': 'c-1',
           'delivery_id': 'd-4',
-          'customer_name': 'Amara J.',
+          'customer_name': 'Jordan L.',
           'sequence': 4,
         }),
         isA<CallStartedEvent>()
-            .having((e) => e.customerName, 'name', 'Amara J.')
+            .having((e) => e.customerName, 'name', 'Jordan L.')
             .having((e) => e.sequence, 'sequence', 4),
       );
       // The backend doesn't always know the stop number (contract 1.1).
@@ -165,7 +165,7 @@ void main() {
           'event': 'call_started',
           'call_id': 'c-2',
           'delivery_id': 'd-9',
-          'customer_name': 'Ada L.',
+          'customer_name': 'Elena R.',
           'sequence': null,
         }),
         isA<CallStartedEvent>().having((e) => e.sequence, 'sequence', isNull),
@@ -285,7 +285,7 @@ void main() {
       TaskStepStatus.pending,
     ]);
     tasks.applyStep('Texting the customer', TaskStepStatus.done);
-    tasks.applyStep('Calling Amara', TaskStepStatus.active);
-    expect(tasks.state.map((s) => s.label), ['Calling Amara']);
+    tasks.applyStep('Calling Jordan', TaskStepStatus.active);
+    expect(tasks.state.map((s) => s.label), ['Calling Jordan']);
   });
 }

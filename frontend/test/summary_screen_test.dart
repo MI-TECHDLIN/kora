@@ -30,7 +30,7 @@ const _reportRow = <String, dynamic>{
   'success_rate': '85.00',
   'sentiment_score': '0.82',
   'recommendations': 'Pre-verify gate codes by SMS in congested zones.',
-  'route_issues': ['Congestion noted around Marina'],
+  'route_issues': ['Congestion noted around Congress Avenue'],
   'failure_patterns': {
     'executive_summary': 'Driver completed 17 of 20 stops.',
     'incidents': ['Customer security gate access delay', ''],
@@ -52,7 +52,7 @@ void main() {
       expect(report.successRate, 85);
       expect(report.sentimentScore, closeTo(0.82, 1e-9));
       expect(report.incidents, ['Customer security gate access delay']);
-      expect(report.routeIssues, ['Congestion noted around Marina']);
+      expect(report.routeIssues, ['Congestion noted around Congress Avenue']);
       expect(report.executiveSummary, 'Driver completed 17 of 20 stops.');
       expect(report.voiceSessions, 14);
       expect(report.shiftDuration, isNull);
@@ -244,7 +244,7 @@ void main() {
       expect(find.text('Calm and steady'), findsOneWidget);
       expect(find.text('INCIDENTS - 1'), findsOneWidget);
       expect(find.text('Customer security gate access delay'), findsOneWidget);
-      expect(find.text('Congestion noted around Marina'), findsOneWidget);
+      expect(find.text('Congestion noted around Congress Avenue'), findsOneWidget);
       expect(find.text("COACH'S NOTE"), findsOneWidget);
       expect(
         find.text('Pre-verify gate codes by SMS in congested zones.'),

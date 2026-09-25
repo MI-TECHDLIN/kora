@@ -11,13 +11,13 @@
   </p>
 </div>
 
-![A delivery rider follows a route with Kora's voice orb alongside](docs/brand/readme/banner.svg)
+![A courier follows a route with Kora's voice orb alongside](docs/brand/readme/banner.svg)
 
 Drivers should not have to choose between watching the road and managing work on a screen. Kora lets a driver ask for the next stop, start a route, contact a customer, handle a new order, or finish a shift by speaking naturally.
 
 Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon) on lablab.ai, September 1–30, 2026.
 
-[What Kora is](#what-is-kora) · [A day with Kora](#a-day-with-kora) · [What works today](#what-you-can-do-with-kora-today) · [For developers](#for-developers)
+[What Kora is](#what-is-kora) · [A shift with Kora](#a-shift-with-kora) · [What works today](#what-you-can-do-with-kora-today) · [For developers](#for-developers)
 
 ## What is Kora?
 
@@ -27,7 +27,7 @@ Kora listens, carries out the work across routes, orders and customer communicat
 
 ## The problem
 
-A delivery shift is full of tiny screen tasks: find the next address, check traffic, call a customer, update a stop, accept another order, and count what is left. Each task is simple at a desk. On a bike, scooter or in a car, every tap competes with the road.
+A delivery shift is full of tiny screen tasks: find the next address, check traffic, call a customer, update a stop, accept another order, and count what is left. Each task is simple at a desk. While travelling by bicycle, scooter, motorbike or car, every tap competes with the road.
 
 Kora closes that gap. The driver says what they need; the app coordinates the steps and speaks back.
 
@@ -35,21 +35,20 @@ Kora closes that gap. The driver says what they need; the app coordinates the st
 
 ![Speak, let Kora coordinate the work, and keep moving](docs/brand/readme/how-it-works.svg)
 
-1. **Speak.** While the app is open, say “Hey Kora” or use the large microphone button. Kora opens with a calm greeting and listens for the job.
+1. **Speak.** While the app is open, say “Kora” (also “Hey Kora” or “Okay Kora”) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for a short window.
 2. **Kora acts.** One request can check delivery information, work out a route and contact a customer at the same time.
 3. **Keep moving.** The route appears in Kora's live map, progress stays visible, and the driver hears one useful answer.
 
-## A day with Kora
+## A shift with Kora
 
-Picture Amina starting a morning delivery run on her scooter. With Kora open, she says, “Hey Kora.” Her co-rider greets her, and Amina asks for the next stop. The address and route appear on the live map, timed for a motorbike rather than a car.
-
-At a locked gate, she asks Kora to call the customer and send a message. Later, a new order becomes available. Kora says the offer out loud; Amina can accept it herself, or switch on auto-accept with limits she controls, such as distance and preferred areas. Her queue updates, along with progress toward her daily delivery target.
-
-At the door, the service can store photo or signature proof of delivery with the location. At the end of the run, Amina says, “End my shift.” Kora closes the shift, prepares a report from the day's activity, and shows the result in the app. When she is finished, she can sign out cleanly.
+1. **Start.** Open Kora, say “Kora” (also “Hey Kora” or “Okay Kora”) or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
+2. **Handle changes.** Ask Kora to call or text a customer when access is blocked. New orders are announced aloud, ready to accept or decline; optional auto-accept rules can apply limits such as distance and preferred areas.
+3. **Complete the work.** Update each delivery, log exceptions, and store photo or signature proof with its location. The queue and daily-target progress stay visible in the app.
+4. **Finish.** Say “End my shift” to close the shift and prepare its report, then review the result in the app.
 
 ## What you can do with Kora today
 
-- Wake the foreground app with “Hey Kora” or “Okay Kora,” with the microphone button as a fallback.
+- Wake the foreground app with “Kora” (also “Hey Kora” or “Okay Kora”), then continue without repeating it for a short follow-up window; the microphone button remains available as a fallback.
 - Hear a warm first greeting and concise spoken replies from the co-rider.
 - Ask for the next stop, see the route on an in-app live map, and receive proactive estimated-arrival and reroute updates.
 - Choose car, motorbike, bicycle or walking mode so arrival times reflect how the driver is travelling.
@@ -93,7 +92,7 @@ Kora brings together a mobile app, a real-time voice service and a small operati
 | [FastAPI](https://fastapi.tiangolo.com/) | Coordinates delivery, routing, customer and shift work without slowing the conversation. |
 | [Supabase](https://supabase.com/) | Stores accounts, shifts, deliveries, preferences and reports. |
 | [MapLibre](https://maplibre.org/) + [OpenFreeMap](https://openfreemap.org/) | Draws the map and routes inside Kora without sending the driver to another app. |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Detects “Hey Kora” on the phone while the app is in the foreground. |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Detects “Kora,” including “Hey Kora” and “Okay Kora,” on the phone while the app is in the foreground. |
 | [OSRM](https://project-osrm.org/) + [TomTom](https://developer.tomtom.com/) | Supplies routes, travel times and traffic-aware reroute information. |
 | [Twilio](https://www.twilio.com/) | Handles customer calls and text messages when carrier integrations are configured. |
 | [n8n](https://n8n.io/) | Runs optional notifications and reports after live driver work is finished. |
@@ -184,6 +183,18 @@ flutter analyze
 flutter test
 ```
 
+### Secret scanning
+
+Pull requests into `staging` and `main` are scanned by [gitleaks](https://github.com/gitleaks/gitleaks) (`.github/workflows/secret-scan.yml`, config in `.gitleaks.toml`). Only the commits a PR adds are judged, so old history does not fail the check. To catch a key before it is even committed, opt into the local hook:
+
+```bash
+brew install gitleaks        # or the release binary: https://github.com/gitleaks/gitleaks/releases
+pip install pre-commit
+pre-commit install           # from the repo root
+```
+
+Check the current tree by hand with `gitleaks dir . --config .gitleaks.toml --redact`. If a real key is ever committed, rotate it first; a passing scan is not a substitute.
+
 ### Two rules that protect the live experience
 
 1. When a request needs several tools, Kora runs them concurrently and brings the results back into one answer. Do not turn that work into a chain of slow, one-by-one waits.
@@ -203,7 +214,7 @@ AssemblyAI speech, reasoning, tool calls and audio replies travel over one live 
 
 1. Fetch `staging` and create a scoped feature branch from its current tip: `features/frontend/...`, `features/backend/...` or `features/ai/...`.
 2. Keep a change inside its layer and preserve the frozen interface contract.
-3. Run the relevant checks above and verify that no `.env`, credential or token is staged.
+3. Run the relevant checks above and verify that no `.env`, credential or token is staged (the [secret-scanning hook](#secret-scanning) helps).
 4. Open a pull request into `staging`. Releases are promoted by pull request from `staging` to `dev`, then from `dev` to `main`; do not push directly to `dev` or `main`.
 
 Read [`AGENTS.md`](AGENTS.md) and the matching file in [`.firstmate/rules/`](.firstmate/rules/) before changing code.

@@ -35,17 +35,17 @@ WS_PATH = f"/ws/voice/{SHIFT_ID}"
 DB_DELIVERY = {
     "id": "del-db-1",
     "shift_id": SHIFT_ID,
-    "recipient_name": "Tunde Bakare",
-    "address": "3 Marina Road, Lagos",
-    "phone": "+2348099999999",
+    "recipient_name": "Marcus Brooks",
+    "address": "604 W 6th St, Austin, TX 78701",
+    "phone": "+15125550101",
     "status": "pending",
     "notes": "Leave at reception",
     "time_window": "1:00 PM – 3:00 PM",
-    "latitude": 6.4500,
-    "longitude": 3.3900,
+    "latitude": 30.2698,
+    "longitude": -97.7485,
     "sequence_order": 2,
 }
-LAST_PING = {"latitude": 6.4611, "longitude": 3.4012}
+LAST_PING = {"latitude": 30.2672, "longitude": -97.7431}
 FAKE_POLYLINE = "_p~iF~ps|U_ulLnnqC"
 
 
@@ -106,7 +106,7 @@ class FakeAuth:
         if token == "bad-token":
             raise Exception("invalid JWT")
         return SimpleNamespace(user=SimpleNamespace(model_dump=lambda: {
-            "id": DRIVER_ID, "user_metadata": {"name": "Emeka Okafor"},
+            "id": DRIVER_ID, "user_metadata": {"name": "Morgan Reed"},
         }))
 
 
@@ -132,7 +132,7 @@ def backend(monkeypatch):
         return None
 
     async def get_driver_by_id(driver_id):
-        return {"id": driver_id, "name": "Emeka Okafor", "vehicle_type": "motorcycle"}
+        return {"id": driver_id, "name": "Morgan Reed", "vehicle_type": "motorcycle"}
 
     async def get_next_pending_delivery(shift_id, driver_id):
         return dict(DB_DELIVERY)
@@ -144,14 +144,14 @@ def backend(monkeypatch):
         return {
             "id": "mock-delivery-123",
             "shift_id": shift_id,
-            "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island",
-            "phone": "+2348012345678",
+            "recipient_name": "Jordan Lee",
+            "address": "812 Lavaca St, Austin, TX 78701",
+            "phone": "+15125550100",
             "status": "pending",
             "notes": "Ring bell twice. 3rd floor.",
             "time_window": "2:00 PM - 4:00 PM",
-            "latitude": 6.4541,
-            "longitude": 3.3947,
+            "latitude": 30.2713,
+            "longitude": -97.7455,
             "sequence_order": 4,
         }
 
@@ -187,7 +187,7 @@ def backend(monkeypatch):
         record["directions"].append(((origin_lat, origin_lng), (dest_lat, dest_lng)))
         return [
             {"summary": "Third Mainland Bridge", "distance": 5400, "duration": 1260, "polyline": "slow"},
-            {"summary": "Victoria Bridge", "distance": 3200, "duration": 660, "polyline": FAKE_POLYLINE},
+            {"summary": "Congress Avenue", "distance": 3200, "duration": 660, "polyline": FAKE_POLYLINE},
         ]
 
     monkeypatch.setattr(navigation, "get_directions", get_directions)
@@ -344,9 +344,9 @@ def test_session_update_carries_driver_context(upstream):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
         session = upstream.sent_of("session.update")[0]["session"]
-        assert "Emeka Okafor" in session["system_prompt"]
+        assert "Morgan Reed" in session["system_prompt"]
         assert "motorcycle" in session["system_prompt"]
-        assert "3 Marina Road, Lagos" in session["system_prompt"]
+        assert "604 W 6th St, Austin, TX 78701" in session["system_prompt"]
         assert "Kora" in session["system_prompt"]
         tool_names = {t["name"] for t in session["tools"]}
         assert tool_names == set(tool_registry.TOOL_EXECUTORS)
@@ -574,14 +574,14 @@ def test_next_stop_navigates_to_map_and_draws_route(upstream, backend):
         route = next(f for f in frames if is_event("map_route")(f))
         assert route["delivery_id"] == "mock-delivery-123"
         assert route["stops"] == [{
-            "delivery_id": "mock-delivery-123", "sequence": 4, "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island", "latitude": 6.4541, "longitude": 3.3947,
+            "delivery_id": "mock-delivery-123", "sequence": 4, "recipient_name": "Jordan Lee",
+            "address": "812 Lavaca St, Austin, TX 78701", "latitude": 30.2713, "longitude": -97.7455,
         }]
         assert route["polyline"] == FAKE_POLYLINE
         assert (route["summary"], route["distance_km"], route["duration_mins"], route["duration_text"]) == (
-            "Victoria Bridge", 3.2, 11, "11 mins")
+            "Congress Avenue", 3.2, 11, "11 mins")
         # The route starts from the driver's latest GPS ping
-        assert backend["directions"][-1] == ((6.4611, 3.4012), (6.4541, 3.3947))
+        assert backend["directions"][-1] == ((30.2672, -97.7431), (30.2713, -97.7455))
 
         # AssemblyAI takes tool results only after reply.done
         assert upstream.sent_of("tool.result") == []
@@ -589,10 +589,10 @@ def test_next_stop_navigates_to_map_and_draws_route(upstream, backend):
         assert result["success"] is True and result["delivery_id"] == "mock-delivery-123"
 
         # The spoken answer to the tool result ends the turn for the app
-        upstream.push({"type": "transcript.agent", "text": "Next is Amara on Broad Street."},
+        upstream.push({"type": "transcript.agent", "text": "Next is Jordan on Lavaca St."},
                       {"type": "reply.done", "status": "completed"})
         frames = collect_until(ws, is_event("reply_done"))
-        assert events.transcript("agent", "Next is Amara on Broad Street.") in frames
+        assert events.transcript("agent", "Next is Jordan on Lavaca St.") in frames
 
 
 def test_tool_turn_reply_done_is_not_forwarded(upstream):
@@ -615,13 +615,13 @@ def test_start_navigation_emits_map_route_not_a_deep_link(upstream):
     assert events.screen_navigate("map") in frames
     route = next(f for f in frames if is_event("map_route")(f))
     assert route["stops"][0] == {
-        "delivery_id": "del-db-1", "sequence": 2, "recipient_name": "Tunde Bakare",
-        "address": "3 Marina Road, Lagos", "latitude": 6.45, "longitude": 3.39,
+        "delivery_id": "del-db-1", "sequence": 2, "recipient_name": "Marcus Brooks",
+        "address": "604 W 6th St, Austin, TX 78701", "latitude": 30.2698, "longitude": -97.7485,
     }
     assert route["polyline"] == FAKE_POLYLINE
     assert "navigation_url" not in result and "action" not in result
     assert result["route"]["polyline"] == FAKE_POLYLINE
-    assert result["address"] == "3 Marina Road, Lagos"
+    assert result["address"] == "604 W 6th St, Austin, TX 78701"
     # Nothing server-side ever tells the app to leave for an external maps app
     assert not any("google.com/maps" in json.dumps(f) for f in frames if isinstance(f, dict))
 
@@ -632,16 +632,16 @@ def test_best_route_draws_the_fastest_route(upstream):
         frames = tool_turn(ws, upstream, "get_best_route", {"delivery_id": "del-db-1"})
         result = finish_turn(ws, upstream)
     route = next(f for f in frames if is_event("map_route")(f))
-    assert route["summary"] == "Victoria Bridge" and route["polyline"] == FAKE_POLYLINE
-    assert route["stops"][0]["address"] == "3 Marina Road, Lagos"
-    assert result["destination_address"] == "3 Marina Road, Lagos"
+    assert route["summary"] == "Congress Avenue" and route["polyline"] == FAKE_POLYLINE
+    assert route["stops"][0]["address"] == "604 W 6th St, Austin, TX 78701"
+    assert result["destination_address"] == "604 W 6th St, Austin, TX 78701"
     assert events.task_step("Checking delivery route", "active") in frames
 
 
 def test_call_customer_opens_call_overlay_without_phone_number(upstream, monkeypatch, backend):
     async def make_call(**kwargs):
-        return {"success": True, "call_sid": "mock-call-del-db-1", "customer_name": "Tunde Bakare",
-                "customer_phone": "+2348099999999", "message": "Calling Tunde Bakare now."}
+        return {"success": True, "call_sid": "mock-call-del-db-1", "customer_name": "Marcus Brooks",
+                "customer_phone": "+15125550101", "message": "Calling Marcus Brooks now."}
 
     monkeypatch.setattr(communication, "make_call", make_call)
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
@@ -649,8 +649,8 @@ def test_call_customer_opens_call_overlay_without_phone_number(upstream, monkeyp
         frames = tool_turn(ws, upstream, "call_customer", {"delivery_id": "del-db-1"})
         assert events.agent_state("calling") in frames
         started = next(f for f in frames if is_event("call_started")(f))
-        assert started == events.call_started("mock-call-del-db-1", "del-db-1", "Tunde Bakare", 2)
-        assert "+234" not in json.dumps(frames[:-1] + [started])
+        assert started == events.call_started("mock-call-del-db-1", "del-db-1", "Marcus Brooks", 2)
+        assert "+1512" not in json.dumps(frames[:-1] + [started])
 
         ws.send_json({"event": "end_call", "call_id": "mock-call-del-db-1"})
         assert next_frame(ws) == events.call_ended("mock-call-del-db-1")
@@ -659,8 +659,8 @@ def test_call_customer_opens_call_overlay_without_phone_number(upstream, monkeyp
 
 def test_driver_end_call_hangs_up_a_real_call(upstream, monkeypatch, backend):
     async def make_call(**kwargs):
-        return {"success": True, "call_sid": "CA123", "customer_name": "Tunde Bakare",
-                "customer_phone": "+2348099999999", "message": "Calling Tunde Bakare now."}
+        return {"success": True, "call_sid": "CA123", "customer_name": "Marcus Brooks",
+                "customer_phone": "+15125550101", "message": "Calling Marcus Brooks now."}
 
     monkeypatch.setattr(communication, "make_call", make_call)
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
@@ -673,8 +673,8 @@ def test_driver_end_call_hangs_up_a_real_call(upstream, monkeypatch, backend):
 
 def test_call_ended_when_provider_reports_the_call_finished(upstream, monkeypatch):
     async def make_call(**kwargs):
-        return {"success": True, "call_sid": "CA456", "customer_name": "Tunde Bakare",
-                "customer_phone": "+2348099999999", "message": "Calling."}
+        return {"success": True, "call_sid": "CA456", "customer_name": "Marcus Brooks",
+                "customer_phone": "+15125550101", "message": "Calling."}
 
     monkeypatch.setattr(communication, "make_call", make_call)
     monkeypatch.setattr(voice, "get_call_status", lambda call_sid: "completed")
@@ -872,7 +872,7 @@ def test_simulated_customer_call_full_lifecycle(upstream, monkeypatch):
         started = next(f for f in frames if is_event("call_started")(f))
         assert started["call_id"].startswith("demo-")
         assert started["delivery_id"] == "del-db-1"
-        assert started["customer_name"] == "Tunde Bakare"
+        assert started["customer_name"] == "Marcus Brooks"
 
         # Wait for call_ended (timer fires after DEMO_SIMULATED_CALL_SECONDS)
         ended_frame = collect_until(ws, is_event("call_ended"), timeout=2.0)[-1]

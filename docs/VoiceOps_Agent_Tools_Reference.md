@@ -155,10 +155,10 @@ The next delivery in the current shift. *Triggers: "next stop", "where to?", "ne
   "success": true,
   "has_next": true,
   "delivery_id": "uuid",
-  "recipient_name": "Amara Johnson",
-  "address": "14 Broad Street, Lagos Island",
-  "latitude": 6.4541,
-  "longitude": 3.3947,
+  "recipient_name": "Jordan Lee",
+  "address": "812 Lavaca St, Austin, TX 78701",
+  "latitude": 30.2713,
+  "longitude": -97.7455,
   "notes": "Ring bell twice. 3rd floor.",
   "time_window": "2:00 PM – 4:00 PM",
   "sequence": 4
@@ -271,7 +271,7 @@ The origin is the driver's current position. Destination coordinates come from t
 {
   "success": true,
   "best_route": {
-    "summary": "Victoria Bridge",
+    "summary": "Congress Avenue",
     "distance_km": 3.2,
     "duration_mins": 11,
     "duration_text": "11 mins"
@@ -279,23 +279,23 @@ The origin is the driver's current position. Destination coordinates come from t
   "time_saved_mins": 7,
   "has_faster_route": true,
   "all_routes": [
-    {"summary": "Victoria Bridge", "distance": 3200, "duration": 660, "polyline": "<encoded>"}
+    {"summary": "Congress Avenue", "distance": 3200, "duration": 660, "polyline": "<encoded>"}
   ],
-  "destination_address": "22 Victoria Island Drive"
+  "destination_address": "812 Lavaca St, Austin, TX 78701"
 }
 ```
 
 `all_routes[].distance` is in metres and `duration` is in seconds (from OSRM, rounded to whole
 numbers). `summary` is OSRM's leg summary, up to two main road names such as
-`"Victoria Bridge, Ahmadu Bello Way"`, or `"Route"` when OSRM gives none. When OSRM returns
+`"Congress Avenue, 6th Street"`, or `"Route"` when OSRM gives none. When OSRM returns
 nothing, the tool still succeeds:
 `{"success": true, "has_faster_route": false, "best_route": {"summary": "Current route", "duration_mins": 14}, "time_saved_mins": 0, "destination_address": "…"}`.
 The `polyline` of the fastest entry in `all_routes` feeds the `map_route` event (`interface.md` §1).
 
 The origin is `context.latitude` / `longitude` (the latest GPS ping). The destination is the
 delivery's coordinates from `context.deliveries` or `context.current_delivery`. **Gap:** either
-one falls back to mock coordinates when the session doesn't know it: origin `6.44, 3.39`,
-destination `22 Victoria Island Drive`. Routes come from OSRM (`app/integrations/osrm.py`) with
+one falls back to mock coordinates when the session doesn't know it: origin `30.2672, -97.7431`,
+destination `812 Lavaca St, Austin, TX 78701`. Routes come from OSRM (`app/integrations/osrm.py`) with
 an 8 s client timeout and no API key: the public demo server `router.project-osrm.org` unless
 `OSRM_BASE_URL` points at a self-hosted `osrm-routed`. OSRM has no live traffic, so durations
 are typical driving times and the first route is already the fastest (`has_faster_route` is
@@ -322,17 +322,17 @@ Start navigation to the delivery. *Triggers: "navigate", "take me there", "get d
 {
   "success": true,
   "delivery_id": "uuid",
-  "address": "22 Victoria Island Drive",
-  "latitude": 6.4286,
-  "longitude": 3.4108,
+  "address": "812 Lavaca St, Austin, TX 78701",
+  "latitude": 30.2713,
+  "longitude": -97.7455,
   "route": {
     "polyline": "<Google encoded overview polyline>",
-    "summary": "Victoria Bridge",
+    "summary": "Congress Avenue",
     "distance_km": 3.2,
     "duration_mins": 11,
     "duration_text": "11 mins"
   },
-  "message": "Route to 22 Victoria Island Drive is on your map: 11 mins via Victoria Bridge."
+  "message": "Route to 812 Lavaca St, Austin, TX 78701 is on your map: 11 mins via Congress Avenue."
 }
 ```
 
@@ -383,8 +383,8 @@ Accept a suggested reroute and set it as the active navigation route. *Triggers:
     "provider": "traffic_reroute",
     "geometry": "route_geometry_string"
   },
-  "message": "Rerouting to 22 Victoria Island Drive. Estimated time: 12 mins.",
-  "destination_address": "22 Victoria Island Drive"
+  "message": "Rerouting to 812 Lavaca St, Austin, TX 78701. Estimated time: 12 mins.",
+  "destination_address": "812 Lavaca St, Austin, TX 78701"
 }
 ```
 
@@ -418,9 +418,9 @@ prototype calls Twilio. The shapes below don't depend on the provider.
 {
   "success": true,
   "call_sid": "CA123…",
-  "customer_name": "Amara Johnson",
-  "customer_phone": "+2348012345678",
-  "message": "Calling Amara Johnson now."
+  "customer_name": "Jordan Lee",
+  "customer_phone": "+15125550100",
+  "message": "Calling Jordan Lee now."
 }
 ```
 
@@ -469,9 +469,9 @@ Please call to reschedule."). An unknown type falls back to `nearby`.
   "success": true,
   "status": "delivered",
   "message_sid": "SM…",
-  "customer_name": "Amara Johnson",
-  "message_sent": "Hi Amara, your driver is nearby — please be ready to receive your delivery.",
-  "message": "SMS sent to Amara Johnson."
+  "customer_name": "Jordan Lee",
+  "message_sent": "Hi Jordan, your driver is nearby — please be ready to receive your delivery.",
+  "message": "SMS sent to Jordan Lee."
 }
 ```
 
@@ -515,7 +515,8 @@ unassigned one. *Triggers: "next order in queue", "what's coming after this", "n
 The 2.1 fields stay. `sequence_order` is always `null`, because an order has no place on a run
 until a driver accepts it. `status` is `offered` or `unassigned` (`interface.md` §3).
 `expires_in_s` is `null` unless the order is offered to this driver. `distance_km` is
-straight-line from the driver's last ping, or from the demo area centre when there is none.
+straight-line from the driver's own last fresh ping (the position the offer was ranked from), or from
+the explicit demo area override; it is `null`, and the message omits "km away", when neither is known.
 With nothing waiting the result is
 `{"success": true, "has_next": false, "message": "No new orders are waiting right now."}`.
 
@@ -559,7 +560,7 @@ Escalate to the dispatcher. *Triggers: "alert the dispatcher", "contact dispatch
 ```json
 {
   "delivery_id": "uuid",
-  "message": "Customer is being aggressive. Need support at 14 Broad Street.",
+  "message": "Customer is being aggressive. Need support at 812 Lavaca St.",
   "priority": "urgent"
 }
 ```

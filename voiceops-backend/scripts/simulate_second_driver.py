@@ -40,8 +40,9 @@ DEMO_DRIVER_PHONE = "+15125550199"  # 555-01xx is reserved for fictional use
 DEMO_VEHICLE = "Simulated delivery van"
 
 # The existing "Maria" second-driver fixture from tests/test_order_dispatch.py: about 5 km
-# outside downtown Austin. The real phone's no-ping fallback at DEMO_AREA_CENTER is nearer to
-# every current MockAdapter drop-off, so the phone gets the first offer and Maria gets the next.
+# outside downtown Austin. The real phone pings from downtown, which is nearer to every current
+# MockAdapter drop-off, so the phone gets the first offer and Maria gets the next. Orders only go
+# to a driver with a fresh ping, so the phone must be posting its location.
 DEMO_LOCATION = (30.2990, -97.7035)
 
 

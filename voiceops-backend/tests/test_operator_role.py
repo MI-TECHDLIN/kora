@@ -123,14 +123,14 @@ class TestLocationDriverRole:
     def test_location_rejects_driver(self, monkeypatch):
         monkeypatch.setattr("app.api.routes.locations.is_valid_uuid", lambda uid: True)
         async def _mock_driver(driver_id):
-            return {"id": driver_id, "name": "Emeka"}
+            return {"id": driver_id, "name": "Morgan"}
         monkeypatch.setattr("app.api.routes.locations.get_driver_by_id", _mock_driver)
         assert client.get(f"/v1/drivers/{DRIVER_UUID}/location", headers=DRIVER_HEADERS).status_code == 403
 
     def test_location_allows_operator(self, monkeypatch):
         monkeypatch.setattr("app.api.routes.locations.is_valid_uuid", lambda uid: True)
         async def _mock_driver(driver_id):
-            return {"id": driver_id, "name": "Emeka"}
+            return {"id": driver_id, "name": "Morgan"}
         monkeypatch.setattr("app.api.routes.locations.get_driver_by_id", _mock_driver)
         assert client.get(f"/v1/drivers/{DRIVER_UUID}/location", headers=OPERATOR_HEADERS).status_code == 200
 

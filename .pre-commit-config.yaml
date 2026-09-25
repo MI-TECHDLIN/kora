@@ -1,0 +1,12 @@
+# Opt-in local hook:  pip install pre-commit && pre-commit install
+# Needs the gitleaks binary on PATH (brew install gitleaks, or the release
+# binary from https://github.com/gitleaks/gitleaks/releases). See README
+# "Secret scanning".
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged changes)
+        entry: gitleaks git --pre-commit --staged --redact --no-banner --config .gitleaks.toml
+        language: system
+        pass_filenames: false

@@ -22,8 +22,8 @@ async def main():
     context = {
         "driver_id": "10ed22c4-c1c0-4d37-8683-dbb8f510e4c6",
         "shift_id": "093375a3-06ab-4584-8331-f5df775f150b",
-        "latitude": 6.4541,
-        "longitude": 3.3947
+        "latitude": 30.2713,
+        "longitude": -97.7455
     }
 
     # -------------------------------------------------------------
@@ -54,7 +54,7 @@ async def main():
     nav_tools = [
         {"name": "update_delivery_status", "arguments": {"status": "delivered"}, "call_id": "n1"},
         {"name": "get_next_delivery", "arguments": {}, "call_id": "n2"},
-        {"name": "get_best_route", "arguments": {"origin": "Marina, Lagos", "destination": "14 Broad Street, Lagos Island"}, "call_id": "n3"}
+        {"name": "get_best_route", "arguments": {"origin": "Downtown Austin, TX", "destination": "812 Lavaca St, Austin, TX 78701"}, "call_id": "n3"}
     ]
 
     b2 = await ToolOrchestrator.benchmark_sequential_vs_parallel(nav_tools, context)

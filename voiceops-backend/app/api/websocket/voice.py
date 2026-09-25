@@ -73,6 +73,7 @@ DEMO_SIMULATED_CALL_SECONDS = 1.5  # timer for simulated customer call demo
 
 # Tools whose origin is the driver's position: refresh it from the latest GPS ping first
 ROUTING_TOOLS = {"get_next_delivery", "get_best_route", "start_navigation"}
+ORDER_RESPONSE_TOOLS = {"accept_order", "decline_order"}
 
 CLOSE_NORMAL = 1000
 CLOSE_POLICY_VIOLATION = 1008  # auth_failed, session_expired
@@ -265,6 +266,7 @@ class VoiceSession:
         self._announcements: List[Tuple[str, str]] = []  # (key, reply.create instructions)
         self._announce_wake = asyncio.Event()
         self.offers: Dict[str, dict] = {}   # order_id → offer shown to this driver
+        self._driver_answered_offers: Set[str] = set()
         self._spoken_offers: Set[str] = set()
         self._background: Set[asyncio.Task] = set()
         self._in_audio_burst = False  # Track if we're in an audio burst for speaking state
@@ -298,12 +300,14 @@ class VoiceSession:
     async def present_offer(self, offer: dict) -> None:
         order_id = offer["order_id"]
         self.offers[order_id] = offer
+        self._driver_answered_offers.discard(order_id)
         await self.emit(events.order_offer(offer))
         self._drop_announcement(f"offer:{order_id}")
         self._announce(f"offer:{order_id}", self._offer_instructions(offer))
 
     async def close_offer(self, order_id: str, outcome: str) -> None:
         offer = self.offers.pop(order_id, None)
+        self._driver_answered_offers.discard(order_id)
         self._drop_announcement(f"offer:{order_id}")  # never spoken: nothing to take back
         await self.emit(events.order_offer_closed(order_id, outcome))
         if outcome == "expired" and order_id in self._spoken_offers:
@@ -650,7 +654,12 @@ class VoiceSession:
 
     async def _run_tapped_order(self, action: str, order_id: str) -> None:
         spoken = order_id in self._spoken_offers  # close_offer forgets it
-        outcome = await self._run_tool(action, f"tap-{action}-{order_id}", {"order_id": order_id})
+        outcome = await self._run_tool(
+            action,
+            f"tap-{action}-{order_id}",
+            {"order_id": order_id},
+            driver_confirmed=True,
+        )
         result = outcome.get("parsed_result")
         if isinstance(result, dict) and result.get("success"):
             closed_outcome = "accepted" if action == "accept_order" else "declined"
@@ -727,6 +736,7 @@ class VoiceSession:
                 text = (data.get("text") or "").strip()
                 if text:
                     self.driver_turns.append(text)
+                    self._driver_answered_offers.update(self.offers)
                     await self.emit(events.transcript("driver", text))
                     await self.emit(events.agent_state("thinking"))
             elif msg_type == "transcript.agent":
@@ -820,7 +830,20 @@ class VoiceSession:
         return {"call_id": call_id, "tool_name": name, "result": json.dumps(result),
                 "parsed_result": result, "is_error": True}
 
-    async def _run_tool(self, name: str, call_id: str, arguments: dict) -> dict:
+    def _driver_answered_offer(self, arguments: dict) -> bool:
+        """Whether a driver turn happened after the offer the tool would resolve."""
+        order_id = arguments.get("order_id")
+        if order_id not in self.offers:
+            order_id = next(iter(self.offers), None)
+        return order_id is None or order_id in self._driver_answered_offers
+
+    async def _run_tool(
+        self,
+        name: str,
+        call_id: str,
+        arguments: dict,
+        driver_confirmed: bool = False,
+    ) -> dict:
         step = events.step_for_tool(name)
         silent = name == "end_conversation"
         if not silent:
@@ -832,15 +855,26 @@ class VoiceSession:
             if ping:
                 self._set_location(ping)
 
-        try:
-            outcome = await asyncio.wait_for(
-                ToolOrchestrator.execute_single_tool(name, arguments, self.context, call_id),
-                TOOL_TIMEOUT,
+        if (
+            name in ORDER_RESPONSE_TOOLS
+            and not driver_confirmed
+            and not self._driver_answered_offer(arguments)
+        ):
+            outcome = self._error_result(
+                name,
+                call_id,
+                "Wait for the driver to answer before accepting or declining an order.",
             )
-        except asyncio.TimeoutError:
-            outcome = self._error_result(name, call_id, f"{name} took too long to respond.")
-        except Exception as e:
-            outcome = self._error_result(name, call_id, str(e))
+        else:
+            try:
+                outcome = await asyncio.wait_for(
+                    ToolOrchestrator.execute_single_tool(name, arguments, self.context, call_id),
+                    TOOL_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                outcome = self._error_result(name, call_id, f"{name} took too long to respond.")
+            except Exception as e:
+                outcome = self._error_result(name, call_id, str(e))
 
         self.tool_calls.append({"name": name, "call_id": call_id, "arguments": arguments})
         self.tool_results.append({"call_id": call_id, "result": outcome["parsed_result"],

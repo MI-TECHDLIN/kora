@@ -34,26 +34,24 @@ OSRM_OK = {
     "code": "Ok",
     "routes": [
         {"geometry": "abc", "distance": DISTANCE_M, "duration": DRIVING_S,
-         "legs": [{"summary": "Broad Street", "distance": DISTANCE_M, "duration": DRIVING_S}]},
+         "legs": [{"summary": "Lavaca St", "distance": DISTANCE_M, "duration": DRIVING_S}]},
     ],
 }
 CONTEXT = {
     "driver_id": "test-driver-123",
-    "latitude": 6.46,
-    "longitude": 3.40,
-    "current_delivery": {"id": "del-1", "address": "14 Broad Street, Lagos Island",
-                         "latitude": 6.4541, "longitude": 3.3947},
+    "latitude": 30.2672,
+    "longitude": -97.7431,
+    "current_delivery": {"id": "del-1", "address": "812 Lavaca St, Austin, TX 78701",
+                         "latitude": 30.2713, "longitude": -97.7455},
 }
-ORIGIN, DESTINATION = (6.46, 3.40), (6.4541, 3.3947)
+ORIGIN, DESTINATION = (30.2672, -97.7431), (30.2713, -97.7455)
 
 
 @pytest.fixture(autouse=True)
 def fresh_caches():
     vehicle_modes._driver_mode_cache.clear()
-    ETAService._traffic_eta_cache.clear()
     yield
     vehicle_modes._driver_mode_cache.clear()
-    ETAService._traffic_eta_cache.clear()
 
 
 @pytest.fixture

@@ -16,7 +16,7 @@ class SignUpDetails {
   final String email;
   final String password;
 
-  /// E.164, e.g. `+2348012345678`.
+  /// E.164, e.g. `+15125550100`.
   final String phone;
 }
 

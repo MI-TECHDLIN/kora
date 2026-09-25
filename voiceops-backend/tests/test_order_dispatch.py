@@ -13,6 +13,7 @@ import random
 import re
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -35,13 +36,21 @@ from tests.test_voice_ws import (  # noqa: F401  (backend / upstream are fixture
 )
 
 # Drivers: the demo driver downtown, two more about 5 km out, and one off shift
-REAL = {"driver_id": DRIVER_ID, "shift_id": SHIFT_ID, "name": "Emeka Okafor", "at": (30.2672, -97.7431)}
+REAL = {"driver_id": DRIVER_ID, "shift_id": SHIFT_ID, "name": "Morgan Reed", "at": (30.2672, -97.7431)}
 MARIA = {"driver_id": "d1000000-0000-4000-8000-000000000001", "shift_id": "51000000-0000-4000-8000-000000000001",
          "name": "Maria Gonzalez", "at": (30.2990, -97.7035)}
 BEN = {"driver_id": "d1000000-0000-4000-8000-000000000002", "shift_id": "51000000-0000-4000-8000-000000000002",
        "name": "Ben Carter", "at": (30.2350, -97.7830)}
+# A driver in London (far from the Austin drivers above), for "whose position is this order near?"
+LONDON = {"driver_id": "d1000000-0000-4000-8000-000000000004", "shift_id": "51000000-0000-4000-8000-000000000004",
+          "name": "Alex Reid", "at": (51.5074, -0.1278)}
 OFF_SHIFT = {"driver_id": "d1000000-0000-4000-8000-000000000003", "shift_id": "51000000-0000-4000-8000-000000000003",
-             "name": "Olu Bello", "at": (30.2700, -97.7450)}
+             "name": "Kevin Hughes", "at": (30.2700, -97.7450)}
+
+
+def ago(seconds):
+    """An ISO timestamp this many seconds in the past."""
+    return (datetime.now(timezone.utc) - timedelta(seconds=seconds)).isoformat()
 
 
 def make_order(external_id="MLX-TEST-1", at=(30.2713, -97.7455)):
@@ -136,17 +145,18 @@ class FakeStore:
     def rows(self, name):
         return self.tables.setdefault(name, [])
 
-    def add_driver(self, driver, ping=True, active=True, old_ping_at=None):
+    def add_driver(self, driver, ping=True, active=True, old_ping_at=None, ping_age_s=5):
+        """`ping`: a latest ping `ping_age_s` seconds old (fresh by default); `old_ping_at`: an older one."""
         self.rows("drivers").append({"id": driver["driver_id"], "name": driver["name"]})
         self.rows("shifts").append({"id": driver["shift_id"], "driver_id": driver["driver_id"],
                                     "status": "active" if active else "completed",
                                     "started_at": "2026-09-01T08:00:00+00:00"})
         if old_ping_at:
             self.rows("location_pings").append({"shift_id": driver["shift_id"], "latitude": old_ping_at[0],
-                                                "longitude": old_ping_at[1], "pinged_at": "2026-09-01T09:00:00+00:00"})
+                                                "longitude": old_ping_at[1], "pinged_at": ago(ping_age_s + 3600)})
         if ping:
             self.rows("location_pings").append({"shift_id": driver["shift_id"], "latitude": driver["at"][0],
-                                                "longitude": driver["at"][1], "pinged_at": "2026-09-01T10:00:00+00:00"})
+                                                "longitude": driver["at"][1], "pinged_at": ago(ping_age_s)})
 
     def delivery(self, order_id):
         return next(r for r in self.rows("deliveries") if r["id"] == order_id)
@@ -302,6 +312,205 @@ def test_feed_pauses_for_lapsed_offers_but_not_for_declines(store, adapter):
     assert run(scenario()) == (True, False)
 
 
+@pytest.fixture
+def no_geocoding(monkeypatch):
+    """Orders away from Austin reverse-geocode over the network; keep the tests offline."""
+    async def none(lat, lng):
+        return None
+    monkeypatch.setattr("app.integrations.logistics.mock_adapter.reverse_geocode_async", none)
+
+
+def fast_feed_dispatcher(hub):
+    adapter = MockAdapter(0.01, 0.02, rng=random.Random(3))
+    adapter.location_retry_seconds = 0.01  # how often a held order re-checks
+    return OrderDispatcher(adapter, hub=hub, feed_enabled=True, offer_window=30, max_open_orders=5)
+
+
+def _within_km(row, at, km):
+    return haversine_km(*at, row["latitude"], row["longitude"]) <= km
+
+
+def test_feed_never_places_orders_near_another_drivers_ping(store, no_geocoding):
+    """
+    The reported bug. Initiating trigger: the feed asks for a place to put the next order.
+    Masking condition: driver A (London) is online but has not pinged yet, while driver B (Austin,
+    the friend) pinged most recently and is not on a voice socket. The old code read the newest
+    row of `location_pings` across all drivers, so B's ping placed the order and A was offered it.
+    Visible symptom: A is offered a delivery ~7,900 km from where A is.
+    The order must wait for A's own first ping, and then appear near A.
+    """
+    store.add_driver(LONDON, ping=False)
+    store.add_driver(REAL)  # the friend: newest ping in the table, app closed
+    hub = online(LONDON)
+    dispatcher = fast_feed_dispatcher(hub)
+
+    async def scenario():
+        await dispatcher.start()
+        await asyncio.sleep(0.3)
+        before_ping = (list(store.rows("deliveries")), list(hub.offers))
+        store.rows("location_pings").append({"shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+                                             "longitude": LONDON["at"][1], "pinged_at": ago(0)})
+        dispatcher.location_ping(LONDON["driver_id"])
+        deadline = time.monotonic() + 3
+        while not hub.offers and time.monotonic() < deadline:
+            await asyncio.sleep(0.02)
+        await dispatcher.stop()
+        return before_ping
+
+    (rows_before, offers_before) = run(scenario())
+    assert rows_before == [] and offers_before == []  # held, not placed at the friend's position
+    rows = store.rows("deliveries")
+    assert rows and all(_within_km(r, LONDON["at"], 3.0) for r in rows)
+    assert not any(_within_km(r, REAL["at"], 50) for r in rows)
+    assert hub.offers[0][0] == LONDON["shift_id"]
+    assert hub.offers[0][1]["distance_km"] <= 3.0
+
+
+def test_feed_holds_with_no_ping_then_resumes_on_the_first_one(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    hub = online(LONDON)
+    dispatcher = fast_feed_dispatcher(hub)
+
+    async def scenario():
+        await dispatcher.start()
+        await asyncio.sleep(0.2)
+        held = list(store.rows("deliveries"))
+        store.rows("location_pings").append({"shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+                                             "longitude": LONDON["at"][1], "pinged_at": ago(0)})
+        deadline = time.monotonic() + 3
+        while not store.rows("deliveries") and time.monotonic() < deadline:  # resumes with no other nudge
+            await asyncio.sleep(0.02)
+        await dispatcher.stop()
+        return held
+
+    assert run(scenario()) == []
+    assert store.rows("deliveries") and all(_within_km(r, LONDON["at"], 3.0) for r in store.rows("deliveries"))
+
+
+def test_feed_holds_while_the_only_ping_is_stale(store, no_geocoding):
+    store.add_driver(LONDON, ping_age_s=30 * 60)
+    dispatcher = fast_feed_dispatcher(online(LONDON))
+
+    async def scenario():
+        await dispatcher.start()
+        await asyncio.sleep(0.3)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert store.rows("deliveries") == []
+
+
+def test_feed_places_each_order_near_a_located_online_driver_only(store, no_geocoding):
+    """Two online drivers, only one located: every order lands near that one and goes to them."""
+    store.add_driver(LONDON, ping=False)
+    store.add_driver(REAL)  # located, downtown Austin (curated drop-offs, no geocoding)
+    hub = online(LONDON, REAL)
+    dispatcher = fast_feed_dispatcher(hub)
+
+    async def scenario():
+        await dispatcher.start()
+        deadline = time.monotonic() + 3
+        while not hub.offers and time.monotonic() < deadline:
+            await asyncio.sleep(0.02)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert hub.offers and {shift for shift, _ in hub.offers} == {REAL["shift_id"]}
+    assert all(_within_km(r, REAL["at"], 3.5) for r in store.rows("deliveries"))
+
+
+def test_feed_honours_the_demo_area_override_even_with_no_ping(store, monkeypatch, no_geocoding):
+    monkeypatch.setattr(settings, "demo_area_lat", LONDON["at"][0])
+    monkeypatch.setattr(settings, "demo_area_lng", LONDON["at"][1])
+    store.add_driver(REAL, ping=False)
+    hub = online(REAL)
+    dispatcher = fast_feed_dispatcher(hub)
+
+    async def scenario():
+        await dispatcher.start()
+        deadline = time.monotonic() + 3
+        while not hub.offers and time.monotonic() < deadline:
+            await asyncio.sleep(0.02)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert hub.offers  # an explicit override needs no ping
+    assert all(_within_km(r, LONDON["at"], 3.0) for r in store.rows("deliveries"))
+
+
+def test_mock_adapter_holds_the_order_until_a_location_is_known():
+    log, located = [], []
+
+    async def sleep(seconds):
+        log.append(seconds)
+        if len(log) > 6:
+            raise asyncio.CancelledError
+
+    async def get_location():
+        return located[0] if located and len(log) >= 4 else None
+
+    async def on_order(order):
+        located.append("dispatched")
+
+    located.append((51.5074, -0.1278))
+    adapter = MockAdapter(180, 420, rng=random.Random(5), sleep=sleep, location_retry_seconds=7)
+
+    async def scenario():
+        await adapter.run_feed(on_order, lambda: True, get_location)
+
+    with pytest.raises(asyncio.CancelledError):
+        run(scenario())
+    assert 180 <= log[0] <= 420          # one random interval first
+    assert log[1:4] == [7, 7, 7]         # then short retries, not another 3-7 minute wait
+    assert "dispatched" in located       # the order went out once the position appeared
+
+
+def test_mock_adapter_stops_holding_when_nobody_can_take_an_order_any_more():
+    flags, sleeps = iter([True, False]), []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) > 5:
+            raise asyncio.CancelledError
+
+    async def nowhere():
+        return None
+
+    async def on_order(order):
+        raise AssertionError("no order without a location")
+
+    adapter = MockAdapter(1, 2, sleep=sleep, location_retry_seconds=3)
+    with pytest.raises(asyncio.CancelledError):
+        run(adapter.run_feed(on_order, lambda: next(flags, False), nowhere))
+    assert sleeps[1] == 3 and all(s != 3 for s in sleeps[2:])  # one retry, then back to full intervals
+
+
+def test_next_order_for_measures_from_the_drivers_own_position(store, adapter):
+    """Not from a default city centre or any other driver's position."""
+    store.add_driver(REAL, ping=False)
+    dispatcher = dispatcher_with(adapter, FakeHub())
+    dispatcher._orders["o1"] = order_dispatch.OpenOrder("o1", make_order(), "unassigned")
+    assert dispatcher.next_order_for("anyone")["distance_km"] is None  # position unknown: no made-up number
+    at = MARIA["at"]
+    assert dispatcher.next_order_for("anyone", *at)["distance_km"] == pytest.approx(
+        haversine_km(*at, 30.2713, -97.7455), abs=0.01)
+
+
+def test_get_next_order_tool_uses_the_callers_own_latest_ping(store, adapter, monkeypatch):
+    store.add_driver(REAL, ping=False)
+    store.add_driver(MARIA)  # the newest ping in the table belongs to someone else
+    dispatcher = dispatcher_with(adapter, FakeHub())
+    monkeypatch.setattr(order_dispatch, "_dispatcher", dispatcher)
+    dispatcher._orders["o1"] = order_dispatch.OpenOrder("o1", make_order(), "unassigned")
+    ctx = {"driver_id": REAL["driver_id"], "shift_id": REAL["shift_id"]}
+    unlocated = run(execute_tool("get_next_order", {}, ctx))
+    assert unlocated["has_next"] and unlocated["distance_km"] is None and "km away" not in unlocated["message"]
+    store.rows("location_pings").append({"shift_id": REAL["shift_id"], "latitude": REAL["at"][0],
+                                         "longitude": REAL["at"][1], "pinged_at": ago(1)})
+    located = run(execute_tool("get_next_order", {}, ctx))
+    assert located["distance_km"] == pytest.approx(haversine_km(*REAL["at"], 30.2713, -97.7455), abs=0.01)
+
+
 def test_generated_order_is_an_order_intake_payload_in_the_demo_area(adapter):
     for _ in range(40):
         payload = adapter.build_order_event()
@@ -309,7 +518,7 @@ def test_generated_order_is_an_order_intake_payload_in_the_demo_area(adapter):
         assert payload["event"] == "order.created" and payload["source"] == "mock-logistics"
         assert re.fullmatch(r"MLX-\d{8}-[A-Z0-9]{6}", order.external_id)
         assert haversine_km(*DEMO_AREA_CENTER, order.latitude, order.longitude) < 3.0
-        assert "Austin, TX" in order.address and "Lagos" not in json.dumps(payload)
+        assert "Austin, TX" in order.address
         assert re.fullmatch(r"\+151255501\d\d", order.recipient_phone)  # fictional 555-01xx
         assert re.fullmatch(r"\d{1,2}:\d\d [AP]M – \d{1,2}:\d\d [AP]M", order.time_window)
         assert not re.match(r"\d", order.area)
@@ -357,11 +566,41 @@ def test_ranking_is_straight_line_distance(store, adapter):
     assert ranked == sorted(ranked, key=lambda c: c.distance_km)
 
 
-def test_online_driver_without_a_ping_stands_at_the_demo_centre(store, adapter):
+def test_online_driver_without_a_ping_is_not_offered_a_position_dependent_order(store, adapter):
     store.add_driver(REAL, ping=False)
-    ranked = run(dispatcher_with(adapter, online(REAL))._candidates(make_order(), exclude=set()))
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        placed = await dispatcher.ingest(make_order())
+        await dispatcher.stop()
+        return placed
+
+    assert run(dispatcher._candidates(make_order(), exclude=set())) == []
+    placed = run(scenario())
+    assert placed["status"] == "unassigned" and hub.offers == []
+
+
+def test_database_outage_does_not_make_unlocated_sockets_candidates(store, adapter, monkeypatch):
+    store.add_driver(REAL)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+
+    async def down():
+        raise RuntimeError("supabase down")
+
+    monkeypatch.setattr(order_dispatch, "get_active_driver_positions", down)
+    assert run(dispatcher._candidates(make_order(), exclude=set())) == []
+
+
+def test_demo_area_override_stands_in_for_a_missing_ping(store, adapter, monkeypatch):
+    monkeypatch.setattr(settings, "demo_area_lat", DEMO_AREA_CENTER[0])
+    monkeypatch.setattr(settings, "demo_area_lng", DEMO_AREA_CENTER[1])
+    store.add_driver(REAL, ping=False)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+    ranked = run(dispatcher._candidates(make_order(), exclude=set()))
     assert [c.driver_id for c in ranked] == [REAL["driver_id"]]
     assert ranked[0].distance_km == pytest.approx(haversine_km(*DEMO_AREA_CENTER, 30.2713, -97.7455), abs=0.01)
+    assert run(dispatcher.get_target_location()) == DEMO_AREA_CENTER  # and it is where orders appear
 
 
 def test_drivers_without_an_open_session_are_never_offered(store, adapter):
@@ -383,10 +622,31 @@ def test_drivers_without_an_open_session_are_never_offered(store, adapter):
     assert run(dispatcher_with(adapter, FakeHub())._candidates(make_order(), set())) == []
 
 
-def test_stale_pings_are_ignored_when_a_max_age_is_set(store, adapter):
-    store.add_driver(MARIA)  # ping from 2026-09-01, long before "now"
-    dispatcher = dispatcher_with(adapter, online(MARIA), ping_max_age_minutes=5)
-    [maria] = run(dispatcher._candidates(make_order(), set()))
+def test_stale_pings_are_ignored_by_default(store, adapter):
+    store.add_driver(MARIA, ping_age_s=10 * 60)  # her last ping is ten minutes old
+    dispatcher = dispatcher_with(adapter, online(MARIA))
+    assert dispatcher.ping_max_age_minutes == 5  # the default: a few minutes, not unlimited
+    assert run(dispatcher._candidates(make_order(), set())) == []
+    assert run(dispatcher.get_target_location()) is None
+
+
+def test_ping_max_age_is_configurable(store, adapter, monkeypatch):
+    store.add_driver(MARIA, ping_age_s=10 * 60)
+    lenient = dispatcher_with(adapter, online(MARIA), ping_max_age_minutes=15)
+    assert [c.driver_id for c in run(lenient._candidates(make_order(), set()))] == [MARIA["driver_id"]]
+    monkeypatch.setattr(settings, "order_dispatch_ping_max_age_minutes", None)  # explicit opt-out: any age
+    unlimited = dispatcher_with(adapter, online(MARIA))
+    assert [c.driver_id for c in run(unlimited._candidates(make_order(), set()))] == [MARIA["driver_id"]]
+    strict = dispatcher_with(adapter, online(MARIA), ping_max_age_minutes=5)
+    assert run(strict._candidates(make_order(), set())) == []
+
+
+def test_stale_ping_does_not_stand_in_for_the_demo_area_unless_it_is_set(store, adapter, monkeypatch):
+    store.add_driver(MARIA, ping_age_s=3600)
+    assert run(dispatcher_with(adapter, online(MARIA))._candidates(make_order(), set())) == []
+    monkeypatch.setattr(settings, "demo_area_lat", DEMO_AREA_CENTER[0])
+    monkeypatch.setattr(settings, "demo_area_lng", DEMO_AREA_CENTER[1])
+    [maria] = run(dispatcher_with(adapter, online(MARIA))._candidates(make_order(), set()))
     assert maria.distance_km == pytest.approx(haversine_km(*DEMO_AREA_CENTER, 30.2713, -97.7455), abs=0.01)
 
 
@@ -721,7 +981,7 @@ def test_accept_after_the_offer_expired_is_refused(store, adapter):
 
 
 def test_unassigned_orders_are_offered_when_a_driver_comes_online(store, adapter):
-    store.add_driver(REAL, ping=False)
+    store.add_driver(REAL)
     hub = FakeHub()
     dispatcher = dispatcher_with(adapter, hub)
 
@@ -736,6 +996,63 @@ def test_unassigned_orders_are_offered_when_a_driver_comes_online(store, adapter
     placed = run(scenario())
     assert hub.offers[0][0] == REAL["shift_id"]
     assert store.delivery(placed["order_id"])["status"] == "offered"
+
+
+def test_waiting_orders_are_offered_when_the_first_ping_arrives(store, adapter):
+    """Online but not located yet: the order waits, and the driver's first ping releases it."""
+    store.add_driver(REAL, ping=False)
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        placed = await dispatcher.ingest(make_order())
+        await dispatcher.driver_available(REAL["driver_id"], REAL["shift_id"])
+        held = (placed["status"], list(hub.offers))
+        store.rows("location_pings").append({"shift_id": REAL["shift_id"], "latitude": REAL["at"][0],
+                                             "longitude": REAL["at"][1], "pinged_at": ago(1)})
+        dispatcher.location_ping(REAL["driver_id"])  # what POST /v1/locations/ping does after storing it
+        await asyncio.sleep(0.05)
+        await dispatcher.stop()
+        return placed, held
+
+    placed, held = run(scenario())
+    assert held == ("unassigned", [])
+    assert [shift for shift, _ in hub.offers] == [REAL["shift_id"]]
+    assert hub.offers[0][1]["distance_km"] == pytest.approx(haversine_km(*REAL["at"], 30.2713, -97.7455), abs=0.01)
+    assert store.delivery(placed["order_id"])["status"] == "offered"
+
+
+def test_a_ping_from_an_already_located_driver_does_not_redispatch(store, adapter):
+    store.add_driver(REAL)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+    spawned = []
+    dispatcher._spawn = lambda coro: (spawned.append(coro), coro.close())
+
+    async def scenario():
+        dispatcher._orders["x"] = order_dispatch.OpenOrder("x", make_order(), "unassigned")
+        dispatcher.location_ping(REAL["driver_id"])  # first ping seen: worth a retry
+        dispatcher.location_ping(REAL["driver_id"])  # the next one 15 s later: nothing changed
+
+    run(scenario())
+    assert len(spawned) == 1
+
+
+def test_distance_and_eta_origin_are_the_offered_drivers_own_position(store, adapter):
+    """A far-away friend's ping must not leak into the offered driver's distance or ETA origin."""
+    store.add_driver(REAL)
+    store.add_driver(MARIA, ping_age_s=1)  # newest ping in the table, but she is not the one offered
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        await dispatcher.ingest(make_order())
+        await dispatcher.stop()
+
+    run(scenario())
+    [(shift_id, offer)] = hub.offers
+    assert shift_id == REAL["shift_id"]
+    assert offer["distance_km"] == pytest.approx(haversine_km(*REAL["at"], 30.2713, -97.7455), abs=0.01)
+    assert dispatcher._orders and next(iter(dispatcher._orders.values())).offered_to.origin == REAL["at"]
 
 
 def test_startup_reloads_open_orders_as_unassigned(store, adapter):
@@ -855,7 +1172,11 @@ def offer_and_announce(ws, upstream, dispatcher, order=None):
     return placed, offer
 
 
-def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_dispatch):
+def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_dispatch, monkeypatch):
+    # Order ids are random uuids and the street number "812" is a private-address check below, so
+    # pin every uuid to one containing "812". Left random, about 1 run in 140 collided by chance.
+    ids = itertools.count(1)
+    monkeypatch.setattr(uuid, "uuid4", lambda: uuid.UUID(f"00000000-0000-4000-8000-812{next(ids):09d}"))
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
         placed, offer = offer_and_announce(ws, upstream, live_dispatch)
@@ -865,8 +1186,10 @@ def test_offer_is_shown_and_spoken_without_the_driver_asking(upstream, live_disp
     assert offer["area"] == "Lavaca St, Austin"
     assert (offer["latitude"], offer["longitude"]) == (30.271, -97.746)  # ~100 m, not the door
     assert offer["time_window"] == "3:00 PM – 5:00 PM" and 0 < offer["expires_in_s"] <= 30
-    assert "812" not in json.dumps(offer) and "+1512" not in json.dumps(offer)
-    assert "Priya" not in json.dumps(offer)
+    # order_id is a random uuid, not customer data: its hex digits can contain "812" by chance
+    customer_facing = json.dumps({k: v for k, v in offer.items() if k != "order_id"})
+    assert "812" not in customer_facing and "+1512" not in customer_facing
+    assert "Priya" not in customer_facing
 
     [create] = reply_creates(upstream)
     assert placed["order_id"] in create["instructions"]
@@ -931,17 +1254,46 @@ def test_driver_accepts_the_offer_by_voice(upstream, live_dispatch, store):
     assert len(reply_creates(upstream)) == 1  # nothing more announced
 
 
+def test_offer_announcement_cannot_accept_before_the_driver_answers(
+    upstream, live_dispatch, store,
+):
+    """A model tool call from the proactive reply is not a driver's consent."""
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        placed, _ = offer_and_announce(ws, upstream, live_dispatch)
+
+        # The proactive reply was created by the server. If the model emits a tool call in
+        # that reply, there has still been no transcript.user response from the driver.
+        upstream.push(
+            {"type": "reply.started"},
+            {"type": "transcript.agent", "text": "New order on Lavaca. Want it?"},
+            {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}},
+        )
+        collect_until(ws, is_event("task_step", step="Accepting the order", status="done"))
+        result = finish_turn(ws, upstream, "c1")
+        row = dict(store.delivery(placed["order_id"]))
+        ws.portal.call(live_dispatch.stop)
+
+    assert result == {
+        "success": False,
+        "error": "Wait for the driver to answer before accepting or declining an order.",
+    }
+    assert row["shift_id"] is None and row["status"] == "offered"
+
+
 def test_driver_accepts_second_offer_by_voice_after_finishing_first(upstream, live_dispatch, store):
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         connect_and_greet(ws, upstream)
         first, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         first_result = finish_turn(ws, upstream, "c1")
         store.delivery(first["order_id"])["status"] = "delivered"
 
         second, _ = offer_and_announce(ws, upstream, live_dispatch, make_order("MLX-TEST-2"))
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take this one too"},
                       {"type": "tool.call", "call_id": "c2", "name": "accept_order", "arguments": {}})
         second_result = finish_turn(ws, upstream, "c2")
         ws.portal.call(live_dispatch.stop)
@@ -956,6 +1308,7 @@ def test_accepted_order_can_be_navigated_to(upstream, live_dispatch, backend):
         connect_and_greet(ws, upstream)
         placed, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Accept it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         finish_turn(ws, upstream, "c1")
         upstream.push({"type": "reply.done", "status": "completed"},
@@ -1012,6 +1365,7 @@ def test_driver_accepts_second_offer_by_tap_after_finishing_first(upstream, live
         connect_and_greet(ws, upstream)
         first, _ = offer_and_announce(ws, upstream, live_dispatch)
         upstream.push({"type": "reply.done", "status": "completed"},
+                      {"type": "transcript.user", "text": "Yes, I'll take it"},
                       {"type": "tool.call", "call_id": "c1", "name": "accept_order", "arguments": {}})
         first_result = finish_turn(ws, upstream, "c1")
         store.delivery(first["order_id"])["status"] = "delivered"
@@ -1138,8 +1492,7 @@ def test_offer_that_expires_before_it_was_spoken_is_never_announced(upstream, li
 
 
 def test_connecting_driver_is_offered_the_waiting_queue(upstream, live_dispatch, store):
-    store.rows("location_pings").clear()  # nobody placeable until the socket opens
-    placed = run(live_dispatch.ingest(make_order()))
+    placed = run(live_dispatch.ingest(make_order()))  # nobody online yet
     assert placed["status"] == "unassigned"
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         frames = collect_until(ws, is_event("order_offer"))

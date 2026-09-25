@@ -23,12 +23,20 @@ class WakeWordKeyword {
     required this.phrase,
     required this.tokens,
     required this.sensitivity,
+    this.score,
+    this.threshold,
   });
 
   final String id;
   final String phrase;
   final String tokens;
   final double sensitivity;
+
+  /// Optional per-phrase sherpa overrides. Keeping the short bare-name phrase
+  /// conservative avoids silently applying the broad sensitivity curve used
+  /// by the safer multi-word phrases.
+  final double? score;
+  final double? threshold;
 }
 
 class WakeWordEngineConfig {
@@ -250,6 +258,8 @@ class WakeWordService {
             value['sensitivity'],
             fallback: defaultSensitivity,
           ),
+          score: _score(value['score']),
+          threshold: _threshold(value['threshold']),
         ),
       );
     }
@@ -260,6 +270,18 @@ class WakeWordService {
     if (value is! num) return fallback;
     final sensitivity = value.toDouble();
     return sensitivity >= 0 && sensitivity <= 1 ? sensitivity : fallback;
+  }
+
+  static double? _score(Object? value) {
+    if (value is! num) return null;
+    final score = value.toDouble();
+    return score > 0 && score <= 4 ? score : null;
+  }
+
+  static double? _threshold(Object? value) {
+    if (value is! num) return null;
+    final threshold = value.toDouble();
+    return threshold > 0 && threshold <= 1 ? threshold : null;
   }
 
   void _onDetected(int keywordIndex) {

@@ -122,8 +122,9 @@ class LogisticsAdapter(ABC):
         """
         Start delivering new orders to `on_order`. `should_generate()` is false while nobody
         could take an order, and a feed that creates orders itself skips them then.
-        `get_location()` optionally supplies the (latitude, longitude) of online drivers
-        around which to generate mock drop-offs.
+        `get_location()` optionally supplies the (latitude, longitude) of one online driver's own
+        fresh position around which to generate mock drop-offs; None means no driver is located
+        yet, and a feed that creates orders itself holds until one is (never another driver's).
         A platform that only pushes through the Order Intake API makes this a no-op.
         """
 

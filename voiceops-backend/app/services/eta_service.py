@@ -38,9 +38,16 @@ class ETAService:
         hours = dist_km / effective_speed
         return max(1, math.ceil(hours * 60))
 
-    # Cache for traffic-aware ETA results: {delivery_id: (timestamp, result)}
-    _traffic_eta_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
     _cache_ttl_seconds: int = 75  # Cache traffic results for ~75 seconds
+
+    def __init__(self) -> None:
+        # Cache for traffic-aware ETA results: {"<delivery_id>:<mode>": (timestamp, result)}.
+        # Held per instance, not on the class, so separate instances never share entries.
+        self._traffic_eta_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
+    def clear_cache(self) -> None:
+        """Drop every cached traffic ETA."""
+        self._traffic_eta_cache.clear()
 
     async def compute_eta_minutes_traffic_aware(
         self,

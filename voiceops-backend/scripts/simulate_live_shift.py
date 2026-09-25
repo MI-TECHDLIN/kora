@@ -39,14 +39,14 @@ async def main():
         driver = driver_res.data[0]
     else:
         driver_ins = sb.table("drivers").insert({
-            "name": "Emeka Okafor",
-            "phone": "+2348012345678",
+            "name": "Morgan Reed",
+            "phone": "+15125550100",
             "vehicle_type": "Logistics Van"
         }).execute()
         driver = driver_ins.data[0]
     
     driver_id = driver["id"]
-    driver_name = driver.get("name") or "Emeka Okafor"
+    driver_name = driver.get("name") or "Morgan Reed"
     print(f"   Driver: {driver_name} | ID: {driver_id}")
 
     # 2. Start Shift
@@ -66,24 +66,24 @@ async def main():
     deliveries_data = [
         {
             "shift_id": shift_id,
-            "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island",
+            "recipient_name": "Jordan Lee",
+            "address": "812 Lavaca St, Austin, TX 78701",
             "status": "delivered",
             "sequence_order": 1,
             "notes": "Leave with receptionist on ground floor"
         },
         {
             "shift_id": shift_id,
-            "recipient_name": "Tunde Bakare",
-            "address": "25 Marina Road, Lagos",
+            "recipient_name": "Marcus Brooks",
+            "address": "604 W 6th St, Austin, TX 78701",
             "status": "delivered",
             "sequence_order": 2,
             "notes": "Call upon arrival"
         },
         {
             "shift_id": shift_id,
-            "recipient_name": "Fatima Bello",
-            "address": "8 Adeola Odeku, Victoria Island",
+            "recipient_name": "Priya Patel",
+            "address": "501 Brazos St, Austin, TX 78701",
             "status": "failed",
             "failure_reason": "Gate locked. Security denied entry without resident badge.",
             "sequence_order": 3,
@@ -91,16 +91,16 @@ async def main():
         },
         {
             "shift_id": shift_id,
-            "recipient_name": "Chidi Obi",
-            "address": "12 Awolowo Road, Ikoyi",
+            "recipient_name": "Diego Morales",
+            "address": "215 E 11th St, Austin, TX 78701",
             "status": "delivered",
             "sequence_order": 4,
             "notes": "Doorbell ring twice"
         },
         {
             "shift_id": shift_id,
-            "recipient_name": "Kolawole Adams",
-            "address": "45 Allen Avenue, Ikeja",
+            "recipient_name": "Hannah Carter",
+            "address": "1705 Guadalupe St, Austin, TX 78701",
             "status": "delivered",
             "sequence_order": 5,
             "notes": "Commercial drop-off"
@@ -116,24 +116,24 @@ async def main():
             "shift_id": shift_id,
             "driver_id": driver_id,
             "driver_transcript": "What is my first stop for today?",
-            "agent_transcript": "Your first stop is 14 Broad Street, Lagos Island for Amara Johnson. Leave with ground floor reception.",
+            "agent_transcript": "Your first stop is 812 Lavaca St, Austin, TX 78701 for Jordan Lee. Leave with ground floor reception.",
             "tool_calls": [{"name": "get_next_delivery", "arguments": {}}],
             "started_at": (datetime.now(timezone.utc) - timedelta(hours=3, minutes=45)).isoformat()
         },
         {
             "shift_id": shift_id,
             "driver_id": driver_id,
-            "driver_transcript": "Road is completely blocked by road construction near Marina Road, alert the dispatcher right now.",
-            "agent_transcript": "Alerting dispatcher with high priority. Alternate route suggested via Marina bypass.",
+            "driver_transcript": "Road is completely blocked by road construction near W 6th St, alert the dispatcher right now.",
+            "agent_transcript": "Alerting dispatcher with high priority. Alternate route suggested via 5th Street.",
             "tool_calls": [{"name": "alert_dispatcher", "arguments": {"message": "Construction road blockage", "severity": "high"}}],
             "started_at": (datetime.now(timezone.utc) - timedelta(hours=2, minutes=30)).isoformat()
         },
         {
             "shift_id": shift_id,
             "driver_id": driver_id,
-            "driver_transcript": "Gate is locked at Adeola Odeku and security will not let me through without clearance. Call customer Fatima.",
-            "agent_transcript": "Connecting you to customer Fatima Bello via secure masked phone bridge.",
-            "tool_calls": [{"name": "call_customer", "arguments": {"recipient": "Fatima Bello"}}],
+            "driver_transcript": "Gate is locked at Brazos St and security will not let me through without clearance. Call customer Priya.",
+            "agent_transcript": "Connecting you to customer Priya Patel via secure masked phone bridge.",
+            "tool_calls": [{"name": "call_customer", "arguments": {"recipient": "Priya Patel"}}],
             "started_at": (datetime.now(timezone.utc) - timedelta(hours=1, minutes=40)).isoformat()
         },
         {

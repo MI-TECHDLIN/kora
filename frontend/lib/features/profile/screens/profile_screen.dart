@@ -72,7 +72,7 @@ class ProfileScreen extends ConsumerWidget {
                       ? error.message
                       : 'Something went wrong. Try again.',
                   actionLabel: 'Retry',
-                  onAction: () => ref.invalidate(driverDetailsProvider),
+                  onAction: () => retryDriverDetails(ref),
                 ),
               ],
               data: (driver) => [

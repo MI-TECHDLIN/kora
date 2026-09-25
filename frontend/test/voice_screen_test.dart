@@ -92,7 +92,7 @@ void main() {
       expect(find.byKey(const Key('map-preview')), findsNothing);
       expect(find.textContaining('sample', findRichText: true), findsNothing);
       expect(find.text('1400 Lavaca Street'), findsNothing);
-      expect(find.text('Ada O.'), findsNothing);
+      expect(find.text('Elena R.'), findsNothing);
       expect(find.text('Where am I heading next?'), findsNothing);
 
       final mascot = find.byType(MascotDisplay);
@@ -118,8 +118,8 @@ void main() {
     expect(find.byKey(const Key('home-status-populated')), findsOneWidget);
     expect(find.text('SHIFT ACTIVE'), findsOneWidget);
     expect(find.text('NEXT STOP · 4'), findsOneWidget);
-    expect(find.text('Amara Johnson'), findsOneWidget);
-    expect(find.text('14 Broad Street, Lagos Island'), findsOneWidget);
+    expect(find.text('Jordan Lee'), findsOneWidget);
+    expect(find.text('812 Lavaca St, Austin, TX 78701'), findsOneWidget);
     expect(find.text('11 mins'), findsOneWidget);
   });
 

@@ -1,0 +1,15 @@
+{
+  "_readme": "Drop the real files next to this manifest under the filenames below; no code changes are needed. Missing files keep their placeholder. Sizes are the expected pixel dimensions. Videos: muted, looping, H.264 MP4 (optional WebM), 15 s or less for phone clips. Images: PNG, WebP or JPG. See landing/README.md.",
+  "items": [
+    { "id": "clip-demo-reel", "type": "video", "src": "assets/media/clip-demo-reel.mp4", "webm": "assets/media/clip-demo-reel.webm", "poster": "assets/media/clip-demo-reel.jpg", "width": 1920, "height": 1080, "alt": "Screen recording of a full delivery shift with Kora, from the first stop to the shift summary." },
+    { "id": "clip-next-delivery", "type": "video", "src": "assets/media/clip-next-delivery.mp4", "webm": "assets/media/clip-next-delivery.webm", "poster": "assets/media/clip-next-delivery.jpg", "width": 1080, "height": 2400, "alt": "Screen recording: the driver asks for the next delivery and the route draws on the map." },
+    { "id": "clip-auto-accept", "type": "video", "src": "assets/media/clip-auto-accept.mp4", "webm": "assets/media/clip-auto-accept.webm", "poster": "assets/media/clip-auto-accept.jpg", "width": 1080, "height": 2400, "alt": "Screen recording: auto-accept is switched on by voice and a new order is taken out loud." },
+    { "id": "clip-call-customer", "type": "video", "src": "assets/media/clip-call-customer.mp4", "webm": "assets/media/clip-call-customer.webm", "poster": "assets/media/clip-call-customer.jpg", "width": 1080, "height": 2400, "alt": "Screen recording: the driver asks Kora to call the customer and send a message." },
+    { "id": "screen-voice", "type": "image", "src": "assets/media/screen-voice.png", "width": 1080, "height": 2400, "alt": "Kora's voice screen with the chrome orb, next stop, target and conversation." },
+    { "id": "screen-map", "type": "image", "src": "assets/media/screen-map.png", "width": 1080, "height": 2400, "alt": "Kora's map screen with the route to the next stop and the trip card." },
+    { "id": "screen-order-offer", "type": "image", "src": "assets/media/screen-order-offer.png", "width": 1080, "height": 2400, "alt": "A new delivery offer card with distance, time window and Accept and Decline buttons." },
+    { "id": "screen-summary", "type": "image", "src": "assets/media/screen-summary.png", "width": 1080, "height": 2400, "alt": "Kora's summary screen with today's activity, the daily target and the order queue." },
+    { "id": "screen-settings", "type": "image", "src": "assets/media/screen-settings.png", "width": 1080, "height": 2400, "alt": "Kora's settings screen with the auto-accept rules switched on." }
+  ],
+  "social": { "ogImage": "assets/og-image.jpg", "width": 1200, "height": 630 }
+}

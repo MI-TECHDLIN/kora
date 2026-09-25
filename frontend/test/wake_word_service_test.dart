@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:voiceops/core/wake/sherpa_wake_word_engine.dart';
@@ -247,11 +248,15 @@ Map<String, Object?> phrase(
   String id, {
   bool enabled = true,
   double? sensitivity,
+  double? score,
+  double? threshold,
 }) => {
   'id': id,
   'phrase': id.replaceAll('_', ' '),
   'enabled': enabled,
   'sensitivity': ?sensitivity,
+  'score': ?score,
+  'threshold': ?threshold,
 };
 
 String manifest(

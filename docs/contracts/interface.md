@@ -1,5 +1,7 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 1.9 (draft), 2026-09-25. 1.9 documents the existing `conversation_end` server event
+(§1), a documentation-only addition. See "Changes in 1.9".
 **Version:** 1.8 (draft), 2026-09-23. 1.8 adds the shift order-queue snapshot, its
 `queue_updated` WebSocket event, and the `daily_delivery_target` preference. See "Changes in 1.8".
 **Version:** 1.7 (draft), 2026-09-23. 1.7 adds `POST /v1/driver/ensure-profile`, an
@@ -78,7 +80,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `screen_navigate` | `{"event": "screen_navigate", "screen": "map"}` | tab switch (`navigationProvider.navigateForAgent`) |
 | `task_step` | `{"event": "task_step", "step": "Checking delivery route", "status": "active"}` or `{"event": "task_step", "step": "Checking delivery route", "status": "done", "reasoning": "This route saves about 7 min versus the alternative."}` | task progress card. Optional `reasoning` field (max 140 chars) appears only on `done` status when the tool result has `success: true` and the text can be deterministically derived from returned fields. Omitted from `pending` and `active` events, failed tool results, and successful results lacking required fields. |
 | `map_route` | see below | map pins, polyline, ETA card |
-| `call_started` | `{"event": "call_started", "call_id": "…", "delivery_id": "…", "customer_name": "Amara J.", "sequence": 4}` | call overlay opens |
+| `call_started` | `{"event": "call_started", "call_id": "…", "delivery_id": "…", "customer_name": "Jordan L.", "sequence": 4}` | call overlay opens |
 | `call_ended` | `{"event": "call_ended", "call_id": "…"}` | call overlay closes |
 | `summary_chunk` | `{"event": "summary_chunk", "text": "Today you completed…", "final": false}` | Summary screen typewriter; `final: true` on the last chunk |
 | `transcript` | `{"event": "transcript", "role": "driver", "text": "What's my next stop?"}` | home-screen transcript display; `role` ∈ `driver` \| `agent` |
@@ -86,6 +88,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `order_offer` | see below | new-order card with a countdown; the co-rider reads it out unprompted |
 | `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
 | `queue_updated` | the queue snapshot below plus `"event": "queue_updated"` | Home, Order Queue, and Summary refresh from one synchronized snapshot |
+| `conversation_end` | `{"event": "conversation_end"}` | the driver's mic closes and push-to-talk goes to `idle`; sent when the `end_conversation` tool runs |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
 | `voice_change_accepted` | `{"event": "voice_change_accepted", "voice": "michael", "message": "Voice will change to michael. Reconnecting..."}` | Voice change accepted, client should reconnect with new voice parameter |
 | `voice_unchanged` | `{"event": "voice_unchanged", "voice": "anna", "message": "Voice is already set to anna"}` | Voice already set to requested value, no reconnection needed |
@@ -116,11 +119,11 @@ outputs:
   "event": "map_route",
   "delivery_id": "…",
   "stops": [
-    {"delivery_id": "…", "sequence": 4, "recipient_name": "Amara Johnson",
-     "address": "14 Broad Street, Lagos Island", "latitude": 6.4541, "longitude": 3.3947}
+    {"delivery_id": "…", "sequence": 4, "recipient_name": "Jordan Lee",
+     "address": "812 Lavaca St, Austin, TX 78701", "latitude": 30.2713, "longitude": -97.7455}
   ],
   "polyline": "<Google encoded overview polyline>",
-  "summary": "Victoria Bridge",
+  "summary": "Congress Avenue",
   "distance_km": 3.2,
   "duration_mins": 11,
   "duration_text": "11 mins"
@@ -135,8 +138,12 @@ It is a real encoded polyline.
 
 **`order_offer`.** A logistics platform's new order, offered to this driver
 (`app/dispatch/order_dispatch.py`). Only a driver with an open voice socket is ever offered
-an order. It goes to the nearest one (straight-line distance from their latest GPS ping, or
-the demo area centre before the app posts one), one offer per driver at a time. Nothing
+an order. It goes to the nearest one (straight-line distance from their own latest GPS ping),
+one offer per driver at a time. A driver whose position is not known and recent (no ping yet, or
+none in the last `ORDER_DISPATCH_PING_MAX_AGE_MINUTES`, 5 by default) is not offered anything until
+their next ping (`POST /v1/locations/ping`), so the app should post one as soon as the voice session
+opens; the explicit `DEMO_AREA_LAT`/`DEMO_AREA_LNG` override stands in for a missing position.
+Mock-feed orders are generated near a located online driver's own ping. Nothing
 reaches a driver without a session: no push, no wake-up. An order with nobody online waits
 `unassigned` and is offered when a driver connects. If the socket of a driver holding an offer
 closes, the offer moves to the next online driver at once.
@@ -242,6 +249,7 @@ after that.
 | `update_delivery_status` → `delivered` | `agent_state: celebrating` |
 | `get_shift_summary` | `agent_state: summarizing`, `screen_navigate: summary`, `summary_chunk`s of the tool's `message` |
 | `show_screen` | `screen_navigate` with the requested screen |
+| `end_conversation` | `conversation_end` only. This tool is silent: no `agent_state` and no `task_step` events. The voice socket stays open |
 | order dispatcher offers this driver an order | `order_offer`. At the next quiet moment the relay sends AssemblyAI `reply.create`, and that reply arrives like any other: audio, `transcript` (`agent`), `reply_done`. An offer is spoken again on a new socket, because a new socket is a new conversation |
 | `accept_order` (success) | `order_offer_closed` (`accepted`) |
 | `decline_order` (success) | `order_offer_closed` (`declined`) |
@@ -306,8 +314,8 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 |---|---|---|---|
 | GET | `/` | none | `{"message": "VoiceOps API", "version": "1.0.0", "status": "running"}` |
 | GET | `/health` | none | `{"status": "ok"}` |
-| POST | `/v1/auth/otp/send` | `{"phone": "+234…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
-| POST | `/v1/auth/otp/verify` | `{"phone": "+234…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
+| POST | `/v1/auth/otp/send` | `{"phone": "+1…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
+| POST | `/v1/auth/otp/verify` | `{"phone": "+1…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
 | POST | `/v1/voice-agent` | `{"audio": "<base64 PCM16>", "sample_rate": 24000, "session_id": null}` | `{"audio", "user_transcript", "agent_transcript", "audio_size", "session_id"}` |
 
 `/v1/voice-agent` is a **prototype test harness**, not part of the app contract. It is
@@ -594,6 +602,23 @@ All additive. The delivery-status enum is unchanged.
 **Frontend:** consume the queue endpoint for initial state and replace it with each
 `queue_updated` event. The frontend PR for Order Queue and Summary progress consumes this
 contract; it must not persist `active` as a delivery status.
+
+---
+
+## Changes in 1.9
+
+Documentation only. Nothing in the code changes, and no existing shape is touched.
+
+| Addition | Where |
+|---|---|
+| `conversation_end` server event, `{"event": "conversation_end"}`, with no other fields | §1 |
+
+**Why:** the relay has emitted `conversation_end` when the `end_conversation` tool runs
+(`app/api/websocket/voice.py`, `events.conversation_end()`), and the app already handles it
+(`ConversationEndEvent` in `voice_events.dart`), but the catalogue did not list it. It was only
+described in Tools Reference §15. This closes that gap.
+
+**Frontend:** none. The app closes the mic and sets push-to-talk to `idle` on this event.
 
 ---
 

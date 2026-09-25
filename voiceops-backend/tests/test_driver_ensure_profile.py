@@ -22,7 +22,7 @@ GOOGLE_TOKEN = "google-token"
 GOOGLE_USER = {
     "id": DRIVER_ID,
     "phone": None,
-    "user_metadata": {"full_name": "Ada Obi"},
+    "user_metadata": {"full_name": "Elena Ramirez"},
 }
 
 
@@ -108,7 +108,7 @@ def test_google_sign_in_gets_a_driver_row_without_a_phone(store, auth):
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == DRIVER_ID
-    assert body["name"] == "Ada Obi"
+    assert body["name"] == "Elena Ramirez"
     assert body.get("phone") is None
     assert len(store.tables["drivers"]) == 1
 
@@ -128,7 +128,7 @@ def test_ensure_profile_is_idempotent_and_safe_under_a_race(store, auth):
     # of surfacing the database's duplicate-key error to the driver.
     store.tables["drivers"].clear()
     store.fail_insert = True
-    store.tables["drivers"].append({"id": DRIVER_ID, "phone": None, "name": "Ada Obi"})
+    store.tables["drivers"].append({"id": DRIVER_ID, "phone": None, "name": "Elena Ramirez"})
     third = client.post("/v1/driver/ensure-profile", headers=headers)
     assert third.status_code == 200
     assert third.json()["id"] == DRIVER_ID

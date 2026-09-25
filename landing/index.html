@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kora: talk to your operations</title>
+  <meta name="description" content="Kora is a voice-first co-rider for last-mile delivery drivers. Say what you need; it acts across routes, orders and customers and answers out loud. Try the interactive preview.">
+  <meta name="theme-color" content="#07060b">
+  <meta name="color-scheme" content="dark">
+
+  <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/brand/favicon.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
+
+  <!-- Open Graph / Twitter. og:image must be an absolute URL once the domain is
+       known: replace the relative path with https://<your-domain>/assets/og-image.jpg
+       (see landing/README.md, "Before launch"). -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kora">
+  <meta property="og:title" content="Kora: talk to your operations. Let your operations talk back.">
+  <meta property="og:description" content="A voice-first co-rider for last-mile drivers. Try the interactive phone preview.">
+  <meta property="og:image" content="/assets/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Kora's chrome orb beside the words: Talk to your operations. Let your operations talk back.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kora: talk to your operations">
+  <meta name="twitter:description" content="A voice-first co-rider for last-mile drivers. Try the interactive phone preview.">
+  <meta name="twitter:image" content="/assets/og-image.jpg">
+
+  <link rel="preload" href="assets/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="js/js-flag.js"></script>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/phone.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav" data-nav>
+    <div class="wrap nav__in">
+      <a class="brand" href="#top" aria-label="Kora, back to top">
+        <img src="assets/kora-mark.svg" width="32" height="32" alt="">
+        <span>Kora</span>
+      </a>
+      <nav class="nav__links" aria-label="Sections">
+        <a href="#how">How it works</a>
+        <a href="#demo">Ride a shift</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#screens">Screens</a>
+        <a href="#tech">Tech</a>
+      </nav>
+      <div class="nav__cta">
+        <a class="btn btn--icon btn--glass" href="https://github.com/MI-TECHDLIN/kora" aria-label="Kora on GitHub" rel="noopener">
+          <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-github"/></svg>
+        </a>
+        <a class="btn btn--violet btn--sm" href="#android" data-android-cta>
+          <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-android"/></svg>
+          <span>Android</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- 1. Hero: strongest message + the interactive phone -->
+    <section class="hero" id="top">
+      <div class="hero__glow" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="wrap hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="dot"></span>Built for the AssemblyAI Voice Agent Hackathon</p>
+          <h1 class="editorial">
+            Talk to your operations.
+            <span class="editorial__2">Let your operations <span class="holo-pill"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-wave-sine"/></svg>talk back</span>.</span>
+          </h1>
+          <p class="lede">Kora is a voice-first co-rider for last-mile drivers. Say what you need, and it works across routes, orders and customers while you keep your eyes on the road.</p>
+          <div class="hero__ctas">
+            <a class="btn btn--paper" href="#android" data-android-cta>
+              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-android"/></svg>
+              <span data-android-label>Try Kora on Android</span>
+              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-arrow-right"/></svg>
+            </a>
+            <a class="btn btn--glass" href="https://github.com/MI-TECHDLIN/kora" rel="noopener">
+              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-github"/></svg>
+              <span>GitHub</span>
+            </a>
+          </div>
+          <p class="fine" data-android-note>Android build coming soon. The phone preview follows the app's real flow, scripted in your browser.</p>
+        </div>
+
+        <div class="hero__try try" data-try="hero">
+          <p class="try__label">Try saying</p>
+          <div class="prompts" data-prompts role="group" aria-label="Example prompts"></div>
+          <form class="ask" data-ask autocomplete="off">
+            <label class="sr-only" for="ask-hero">Ask Kora</label>
+            <input id="ask-hero" name="q" type="text" placeholder="Or ask in your own words…" maxlength="120" enterkeyhint="send">
+            <button class="ask__mic" type="button" data-mic hidden aria-pressed="false" aria-label="Use my microphone" title="Use my microphone (your browser's speech recognition)">
+              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg>
+            </button>
+            <button class="ask__go" type="submit" aria-label="Send">
+              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-send"/></svg>
+            </button>
+          </form>
+          <p class="fine" data-mic-note hidden></p>
+          <noscript><p class="fine">The interactive preview needs JavaScript. Kora itself does not run in the browser.</p></noscript>
+        </div>
+
+        <div class="hero__phone">
+          <div class="phone-stage" data-phone-stage>
+            <div class="phone" data-phone="hero" role="group" aria-label="Interactive Kora app preview"></div>
+          </div>
+          <p class="fine fine--center"><svg class="i i--sm" aria-hidden="true"><use href="assets/icons.svg#i-shield-check"/></svg> A scripted simulation: no calls or messages are sent, and nothing is recorded.
+            <button class="linkbtn" type="button" data-reset="hero">Reset</button></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Problem -> solution -->
+    <section class="section" id="problem" aria-labelledby="problem-h">
+      <div class="wrap">
+        <p class="kicker">The gap</p>
+        <h2 id="problem-h" class="h2">Every tap is a glance <em>off the road.</em></h2>
+        <div class="ps2">
+          <article class="ps2__card ps2__card--problem reveal">
+            <p class="pcap">Without Kora</p>
+            <h3 class="h3">One stop, six screen tasks</h3>
+            <ul class="taps" aria-label="Screen tasks per stop">
+              <li style="--d:0"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-map-pin"/></svg>Find the next address</li>
+              <li style="--d:1"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-route"/></svg>Check the route</li>
+              <li style="--d:2"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-phone-call"/></svg>Call the customer</li>
+              <li style="--d:3"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-check"/></svg>Update the stop</li>
+              <li style="--d:4"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-package"/></svg>Accept a new order</li>
+              <li style="--d:5"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-list-check"/></svg>Count what's left</li>
+            </ul>
+            <p class="ps2__foot">Simple at a desk. On a bike, scooter or in a car, each one competes with the road.</p>
+          </article>
+
+          <div class="ps2__arrow" aria-hidden="true"><svg class="i"><use href="assets/icons.svg#i-arrow-narrow-right"/></svg></div>
+
+          <article class="ps2__card ps2__card--solution reveal">
+            <p class="pcap">With Kora</p>
+            <h3 class="h3">One sentence, one answer</h3>
+            <div class="say">
+              <div class="say__you"><span class="pcap">You</span>“Kora, what's next?”</div>
+              <div class="say__orb"><canvas class="orb" data-orb data-mood="speaking" width="96" height="96" aria-hidden="true"></canvas></div>
+              <div class="say__kora"><span class="pcap pcap--accent">Kora</span>“Stop 9, Alex K., 12 Central Avenue. Nine minutes. The route is on your map.”</div>
+            </div>
+            <p class="ps2__foot">Hands on the bars. Eyes on the road. The work happens anyway.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. How Kora works -->
+    <section class="section" id="how" aria-labelledby="how-h">
+      <div class="wrap">
+        <p class="kicker">How Kora works</p>
+        <h2 id="how-h" class="h2">Speak. Understand. <em>Act.</em> Respond.</h2>
+        <ol class="steps">
+          <li class="step reveal" style="--d:0">
+            <span class="step__n">01</span>
+            <span class="step__ic"><svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg></span>
+            <h3>Speak</h3>
+            <p>Say it the way you'd say it to a person.</p>
+          </li>
+          <li class="step reveal" style="--d:1">
+            <span class="step__n">02</span>
+            <span class="step__ic"><svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-ear"/></svg></span>
+            <h3>Understand</h3>
+            <p>One live voice connection hears you and decides what to do.</p>
+          </li>
+          <li class="step reveal" style="--d:2">
+            <span class="step__n">03</span>
+            <span class="step__ic"><svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-arrows-split"/></svg></span>
+            <h3>Act</h3>
+            <p>Tools run side by side across routes, orders and customers.</p>
+          </li>
+          <li class="step reveal" style="--d:3">
+            <span class="step__n">04</span>
+            <span class="step__ic"><svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-wave-sine"/></svg></span>
+            <h3>Respond</h3>
+            <p>One spoken answer. The map and cards follow.</p>
+          </li>
+        </ol>
+
+        <figure class="par reveal" aria-labelledby="par-cap">
+          <div class="par__say"><span class="pcap">You</span> “Call the customer and tell them I'm arriving soon.”</div>
+          <div class="par__lanes" data-parallel>
+            <div class="lane"><code>call_customer</code><span class="lane__bar" style="--w:78%"></span></div>
+            <div class="lane"><code>notify_customer</code><span class="lane__bar" style="--w:52%"></span></div>
+            <div class="lane"><code>get_best_route</code><span class="lane__bar" style="--w:36%"></span></div>
+            <div class="lane lane--wait"><span>The driver waits for the slowest call, not the sum.</span></div>
+          </div>
+          <div class="par__reply"><span class="pcap pcap--accent">Kora</span> “Calling Alex K. now, and I've texted that you're a few minutes away.”</div>
+          <figcaption id="par-cap" class="fine">Tool calls run at once with <code>asyncio.gather</code>. Illustrative timing.</figcaption>
+        </figure>
+
+        <div class="moods reveal" aria-label="The co-rider's moods">
+          <p class="pcap">The co-rider shows what it's doing</p>
+          <ul class="moods__row" data-moods></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Interactive demo: guided shift -->
+    <section class="section section--tint" id="demo" aria-labelledby="demo-h">
+      <div class="wrap demo">
+        <div class="demo__head">
+          <p class="kicker">Interactive demo</p>
+          <h2 id="demo-h" class="h2">Ride a shift <em>with Kora.</em></h2>
+          <p class="lede lede--sm">Press play, or pick a moment. The phone acts it out; the log shows what the app receives from the relay.</p>
+        </div>
+        <div class="story" role="group" aria-label="Shift moments">
+          <ol class="story__list" data-story></ol>
+          <div class="story__ctl">
+            <button class="btn btn--violet btn--sm" type="button" data-play><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-player-play"/></svg><span>Play the shift</span></button>
+            <button class="btn btn--glass btn--sm" type="button" data-reset="demo"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-rotate"/></svg><span>Reset</span></button>
+          </div>
+        </div>
+        <div class="demo__phone">
+          <div class="phone-stage" data-phone-stage>
+            <div class="phone" data-phone="demo" role="group" aria-label="Interactive Kora app preview, guided shift"></div>
+          </div>
+        </div>
+        <div class="trace" aria-labelledby="trace-h">
+          <p id="trace-h" class="pcap">What the app receives</p>
+          <div class="trace__log" data-trace role="log" aria-live="off" tabindex="0" aria-label="Event log"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Core capabilities -->
+    <section class="section" id="capabilities" aria-labelledby="cap-h">
+      <div class="wrap">
+        <p class="kicker">Core capabilities</p>
+        <h2 id="cap-h" class="h2">Everything a shift asks for, <em>out loud.</em></h2>
+        <ul class="caps">
+          <li class="cap reveal" style="--d:0">
+            <div class="cap__viz cap__viz--wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg>Voice</h3>
+            <p>Say “Kora” or tap once. It answers out loud.</p>
+          </li>
+          <li class="cap reveal" style="--d:1">
+            <div class="cap__viz cap__viz--offer" aria-hidden="true"><span>New offer</span><b>1.2 km</b><span class="chip-ok">Accept</span></div>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-package"/></svg>Order management</h3>
+            <p>Accept, decline or pass an offer by voice or tap.</p>
+          </li>
+          <li class="cap reveal" style="--d:2">
+            <svg class="cap__viz cap__viz--route" viewBox="0 0 120 56" aria-hidden="true"><path d="M8 44 L40 44 L40 24 L84 24 L84 10 L112 10" /><circle cx="8" cy="44" r="4"/><circle cx="112" cy="10" r="6"/></svg>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-route"/></svg>Route assistance</h3>
+            <p>Next stop, ETA and reroutes, drawn on the in-app map.</p>
+          </li>
+          <li class="cap reveal" style="--d:3">
+            <div class="cap__viz cap__viz--call" aria-hidden="true"><span class="bubble">Arriving in a few minutes</span><span class="bubble bubble--sent">Sent</span></div>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-phone-call"/></svg>Customer communication</h3>
+            <p>Call and text the customer without touching the screen.</p>
+          </li>
+          <li class="cap reveal" style="--d:4">
+            <div class="cap__viz cap__viz--switch" aria-hidden="true"><span class="sw"></span><small>Always out loud</small></div>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-sparkles"/></svg>Auto-accept</h3>
+            <p>Set your own limits. Kora takes matching orders and says so.</p>
+          </li>
+          <li class="cap reveal" style="--d:5">
+            <div class="cap__viz cap__viz--meter" aria-hidden="true"><b>8 / 15</b><span class="meter"><i style="width:53%"></i></span></div>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-target"/></svg>Shift targets</h3>
+            <p>A daily goal with a calm progress bar. No pressure.</p>
+          </li>
+          <li class="cap reveal" style="--d:6">
+            <ul class="cap__viz cap__viz--list" aria-hidden="true"><li class="on">Stop 9</li><li>Stop 10</li><li>Stop 11</li></ul>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-list-check"/></svg>Order queue</h3>
+            <p>The whole run as a checklist: active, next, done.</p>
+          </li>
+          <li class="cap reveal" style="--d:7">
+            <svg class="cap__viz cap__viz--ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" class="trk"/><circle cx="32" cy="32" r="24" class="val" pathLength="100"/></svg>
+            <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-chart-bar"/></svg>Shift summary</h3>
+            <p>End your shift by voice and get the report.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 6. Real screens (placeholders until the assets land; see landing/README.md) -->
+    <section class="section section--tint" id="screens" aria-labelledby="screens-h">
+      <div class="wrap">
+        <p class="kicker">On a real phone</p>
+        <h2 id="screens-h" class="h2">The app, <em>not a mockup.</em></h2>
+
+        <figure class="media media--wide reveal" data-media="clip-demo-reel" data-w="1920" data-h="1080">
+          <div class="media__ph"><img src="assets/kora-mark.svg" width="44" height="44" alt=""><b>Demo reel</b><span>Placeholder · 1920 × 1080 · assets/media/clip-demo-reel.mp4</span></div>
+          <figcaption>A full shift, start to summary</figcaption>
+        </figure>
+
+        <div class="rail" tabindex="0" role="region" aria-label="Screen recordings and screenshots. Scroll sideways.">
+          <figure class="media media--phone" data-media="clip-next-delivery" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Clip · Next delivery</b><span>Placeholder · 1080 × 2400 · clip-next-delivery.mp4</span></div>
+            <figcaption>Ask for the next stop</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="clip-auto-accept" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Clip · Auto-accept</b><span>Placeholder · 1080 × 2400 · clip-auto-accept.mp4</span></div>
+            <figcaption>Auto-accept, out loud</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="clip-call-customer" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Clip · Call the customer</b><span>Placeholder · 1080 × 2400 · clip-call-customer.mp4</span></div>
+            <figcaption>Call and text hands-free</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="screen-voice" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Screenshot · Voice</b><span>Placeholder · 1080 × 2400 · screen-voice.png</span></div>
+            <figcaption>Voice</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="screen-map" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Screenshot · Map</b><span>Placeholder · 1080 × 2400 · screen-map.png</span></div>
+            <figcaption>Map and route</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="screen-order-offer" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Screenshot · Order offer</b><span>Placeholder · 1080 × 2400 · screen-order-offer.png</span></div>
+            <figcaption>Order offer</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="screen-summary" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Screenshot · Summary</b><span>Placeholder · 1080 × 2400 · screen-summary.png</span></div>
+            <figcaption>Target and queue</figcaption>
+          </figure>
+          <figure class="media media--phone" data-media="screen-settings" data-w="1080" data-h="2400">
+            <div class="media__ph"><img src="assets/kora-mark.svg" width="36" height="36" alt=""><b>Screenshot · Settings</b><span>Placeholder · 1080 × 2400 · screen-settings.png</span></div>
+            <figcaption>Auto-accept rules</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Architecture / technology -->
+    <section class="section" id="tech" aria-labelledby="tech-h">
+      <div class="wrap">
+        <p class="kicker">Under the hood</p>
+        <h2 id="tech-h" class="h2">One socket in. <em>Twenty tools</em> out.</h2>
+
+        <ol class="flow reveal" aria-label="Real-time voice path">
+          <li class="node">
+            <svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-device-mobile"/></svg>
+            <h3>Flutter app</h3><p>Voice, map, cards</p>
+          </li>
+          <li class="node">
+            <svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-server"/></svg>
+            <h3>FastAPI relay</h3><p>WebSocket · asyncio</p>
+          </li>
+          <li class="node node--hi">
+            <svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg>
+            <h3>AssemblyAI Voice Agent</h3><p>Speech in, LLM, tools, speech out</p>
+          </li>
+          <li class="node node--hi">
+            <svg class="i i--lg" aria-hidden="true"><use href="assets/icons.svg#i-arrows-split"/></svg>
+            <h3>20 parallel tools</h3><p>asyncio.gather</p>
+          </li>
+        </ol>
+
+        <ul class="stack reveal" aria-label="Services the tools call">
+          <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-route"/></svg>OSRM routing</li>
+          <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-map-2"/></svg>OpenFreeMap tiles</li>
+          <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-database"/></svg>Supabase</li>
+          <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-phone-call"/></svg>Voice and SMS provider</li>
+          <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-building-warehouse"/></svg>Logistics adapter</li>
+        </ul>
+
+        <div class="after reveal">
+          <span class="after__tag"><svg class="i i--sm" aria-hidden="true"><use href="assets/icons.svg#i-clock"/></svg>After the shift, never in the live path</span>
+          <span>Shift ends</span><i aria-hidden="true">→</i><span>LeMUR report</span><i aria-hidden="true">→</i><span>n8n</span><i aria-hidden="true">→</i><span>Operator email</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Android CTA -->
+    <section class="section" id="android" aria-labelledby="android-h">
+      <div class="wrap">
+        <div class="cta reveal">
+          <div class="cta__glow" aria-hidden="true"></div>
+          <div class="cta__copy">
+            <p class="kicker kicker--ink">Android</p>
+            <h2 id="android-h" class="h2 h2--ink">Take Kora for a ride.</h2>
+            <p class="lede lede--ink">Android is the supported platform today. Install the build, say “Kora”, and ask for your next stop.</p>
+            <div class="hero__ctas">
+              <a class="btn btn--ink" href="#android" data-android-cta data-android-main>
+                <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-download"/></svg>
+                <span data-android-label>Android build: coming soon</span>
+              </a>
+              <a class="btn btn--ghost-ink" href="https://github.com/MI-TECHDLIN/kora" rel="noopener">
+                <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-github"/></svg>
+                <span>Build it from source</span>
+              </a>
+            </div>
+            <p class="fine fine--ink" data-android-note>The download link goes live with the first release.</p>
+          </div>
+          <div class="cta__orb"><canvas class="orb" data-orb data-mood="celebrating" width="240" height="240" aria-hidden="true"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. Project links -->
+    <section class="section section--tight" id="links" aria-labelledby="links-h">
+      <div class="wrap">
+        <p class="kicker">Project</p>
+        <h2 id="links-h" class="h2 h2--sm">Read the code and the contracts.</h2>
+        <ul class="links">
+          <li><a href="https://github.com/MI-TECHDLIN/kora" rel="noopener"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-github"/></svg><b>Repository</b><span>Flutter app and FastAPI backend, one monorepo</span></a></li>
+          <li><a href="https://github.com/MI-TECHDLIN/kora/blob/main/README.md" rel="noopener"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-clipboard-list"/></svg><b>README</b><span>What Kora is and how a shift runs</span></a></li>
+          <li><a href="https://github.com/MI-TECHDLIN/kora/blob/main/docs/VoiceOps_Agent_Tools_Reference.md" rel="noopener"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-arrows-split"/></svg><b>Agent tools</b><span>All 20 tools and their shapes</span></a></li>
+          <li><a href="https://github.com/MI-TECHDLIN/kora/blob/main/docs/contracts/interface.md" rel="noopener"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-api"/></svg><b>Interface contract</b><span>The WebSocket events shown in the demo log</span></a></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 10. Final CTA -->
+    <section class="final" aria-labelledby="final-h">
+      <div class="wrap final__in">
+        <div class="final__orb"><canvas class="orb" data-orb data-mood="idle" width="180" height="180" aria-hidden="true"></canvas></div>
+        <h2 id="final-h" class="editorial editorial--sm">Talk to your operations.<br><span>Let your operations talk back.</span></h2>
+        <div class="hero__ctas hero__ctas--center">
+          <a class="btn btn--paper" href="#android" data-android-cta>
+            <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-brand-android"/></svg>
+            <span data-android-label>Try Kora on Android</span>
+          </a>
+          <a class="btn btn--glass" href="#top">
+            <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg>
+            <span>Talk to the preview</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot__in">
+      <a class="brand" href="#top" aria-label="Kora, back to top"><img src="assets/kora-mark.svg" width="28" height="28" alt=""><span>Kora</span></a>
+      <p>Built for the AssemblyAI Voice Agent Hackathon on lablab.ai, September 2026.</p>
+      <a href="https://github.com/MI-TECHDLIN/kora" rel="noopener">GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>

@@ -27,9 +27,9 @@ import 'fake_voice.dart';
 import 'map_route_test.dart' show noRoadMapRoute, sampleMapRoute;
 import 'test_fonts.dart';
 
-/// Near the sample route's stops on Lagos Island.
-const _nearStops = LatLng(6.4600, 3.3900);
-const _furtherOn = LatLng(6.4620, 3.3920);
+/// Near the sample route's stops in downtown Austin.
+const _nearStops = LatLng(30.2672, -97.7431);
+const _furtherOn = LatLng(30.2682, -97.7421);
 
 void main() {
   setUpAll(disableGoogleFontsFetching);
@@ -56,7 +56,7 @@ void main() {
     api = FakeKoraApi(
       profile: const DriverProfile(
         id: 'driver-1',
-        name: 'Ada Obi',
+        name: 'Elena Ramirez',
         vehicleType: 'Motorbike',
       ),
     );
@@ -152,7 +152,7 @@ void main() {
     expect(mapController.routeLine, isNull);
     expect(find.byType(PositionMarker), findsNothing);
     // Vehicle from GET /v1/driver/profile (faked).
-    expect(find.text('Ada Obi'), findsOneWidget);
+    expect(find.text('Elena Ramirez'), findsOneWidget);
     expect(find.text('Motorbike'), findsOneWidget);
     expect(api.profileCalls, 1);
 
@@ -209,11 +209,11 @@ void main() {
       expect(mapController.routeLine, isNotNull);
       expect(find.byType(StopPin), findsNWidgets(2));
       expect(find.text('NEXT STOP · 4'), findsOneWidget);
-      expect(find.text('Amara Johnson'), findsOneWidget);
-      expect(find.text('14 Broad Street, Lagos Island'), findsOneWidget);
+      expect(find.text('Jordan Lee'), findsOneWidget);
+      expect(find.text('812 Lavaca St, Austin, TX 78701'), findsOneWidget);
       expect(find.text('11 mins'), findsOneWidget);
       expect(find.text('3.2 km'), findsOneWidget);
-      expect(find.text('via Victoria Bridge'), findsOneWidget);
+      expect(find.text('via Congress Avenue'), findsOneWidget);
       expect(find.text('Motorbike'), findsOneWidget);
 
       final route = MapRoute.fromJson(sampleMapRoute());
@@ -233,16 +233,16 @@ void main() {
       expect(mapController.cameraPosition!.target, framed);
 
       // Tapping another pin shows that stop.
-      await tester.tap(find.bySemanticsLabel('Stop 5, Tunde Bakare'));
+      await tester.tap(find.bySemanticsLabel('Stop 5, Marcus Brooks'));
       await settle(tester);
       expect(find.text('STOP · 5'), findsOneWidget);
-      expect(find.text('Tunde Bakare'), findsOneWidget);
+      expect(find.text('Marcus Brooks'), findsOneWidget);
 
       // Folding the card leaves the headline.
-      await tester.tap(find.text('Tunde Bakare'));
+      await tester.tap(find.text('Marcus Brooks'));
       await settle(tester);
       expect(find.text('Distance'), findsNothing);
-      expect(find.text('Tunde Bakare'), findsOneWidget);
+      expect(find.text('Marcus Brooks'), findsOneWidget);
     },
   );
 
@@ -297,7 +297,7 @@ void main() {
     await settle(tester);
     showRoute(sampleMapRoute());
     await settle(tester);
-    expect(find.text('Amara Johnson'), findsOneWidget);
+    expect(find.text('Jordan Lee'), findsOneWidget);
     expect(find.text('Distance'), findsNothing);
     for (final point in [
       ...MapRoute.fromJson(sampleMapRoute()).coordinates,
@@ -307,7 +307,7 @@ void main() {
     }
 
     // The driver can still open the details.
-    await tester.tap(find.text('Amara Johnson'));
+    await tester.tap(find.text('Jordan Lee'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     expect(find.text('Distance'), findsOneWidget);
@@ -323,7 +323,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(mapController.routeLine, isNull);
     expect(find.byType(StopPin), findsOneWidget);
-    expect(find.text('Amara Johnson'), findsOneWidget);
+    expect(find.text('Jordan Lee'), findsOneWidget);
     expect(find.byKey(const Key('no-road-route')), findsOneWidget);
     expect(find.text('11 mins'), findsNothing);
     expect(find.text('Distance'), findsNothing);
@@ -436,7 +436,7 @@ void main() {
     await settle(tester);
     final card = find.byKey(const Key('vehicle-card'));
     expect(
-      find.descendant(of: card, matching: find.text('Ada Obi')),
+      find.descendant(of: card, matching: find.text('Elena Ramirez')),
       findsOneWidget,
     );
     expect(

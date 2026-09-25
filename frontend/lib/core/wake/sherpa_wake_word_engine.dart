@@ -30,12 +30,53 @@ class SherpaKeywordTuning {
   final double threshold;
 }
 
+/// Capture and decoder settings kept together so sensitivity changes remain
+/// deliberate and reviewable.
+abstract final class SherpaWakeWordDefaults {
+  static const sampleRate = 16000;
+  static const streamBufferSize = sampleRate * 2 ~/ 10; // 100 ms PCM16 mono
+  static const keywordsScore = 1.0;
+  static const keywordsThreshold = 0.25;
+  static const numTrailingBlanks = 1;
+  static const maxActivePaths = 4;
+}
+
+/// Android's voice-recognition source avoids the device-selected processing
+/// used by the default source. Sherpa receives the same raw mono PCM shape as its
+/// reference microphone example; its feature extractor handles level
+/// normalization.
+const wakeWordRecordConfig = RecordConfig(
+  encoder: AudioEncoder.pcm16bits,
+  sampleRate: SherpaWakeWordDefaults.sampleRate,
+  numChannels: 1,
+  autoGain: false,
+  echoCancel: false,
+  noiseSuppress: false,
+  streamBufferSize: SherpaWakeWordDefaults.streamBufferSize,
+  audioInterruption: AudioInterruptionMode.none,
+  androidConfig: AndroidRecordConfig(
+    audioSource: AndroidAudioSource.voiceRecognition,
+  ),
+);
+
+@visibleForTesting
+String buildSherpaKeywordBuffer(List<WakeWordKeyword> keywords) =>
+    '${keywords.map((keyword) {
+      final fallback = SherpaKeywordTuning.fromSensitivity(keyword.sensitivity);
+      final score = keyword.score ?? fallback.score;
+      final threshold = keyword.threshold ?? fallback.threshold;
+      return '${keyword.tokens} '
+          ':${score.toStringAsFixed(2)} '
+          '#${threshold.toStringAsFixed(2)} '
+          '@${keyword.id}';
+    }).join('\n')}\n';
+
 /// Foreground-only sherpa-onnx wake-word engine.
 ///
 /// Audio capture stays on the root isolate because `record` is a Flutter
 /// plugin. PCM conversion and every sherpa FFI call run in a worker isolate.
 class SherpaWakeWordEngine implements WakeWordEngine {
-  static const sampleRate = 16000;
+  static const sampleRate = SherpaWakeWordDefaults.sampleRate;
   static const _modelDirectory =
       'sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20';
   static const _assetRoot = 'assets/wake/model';
@@ -66,17 +107,7 @@ class SherpaWakeWordEngine implements WakeWordEngine {
     _config = config;
 
     final paths = await _copyModelAssets();
-    final keywordLines = config.keywords
-        .map((keyword) {
-          final tuning = SherpaKeywordTuning.fromSensitivity(
-            keyword.sensitivity,
-          );
-          return '${keyword.tokens} '
-              ':${tuning.score.toStringAsFixed(2)} '
-              '#${tuning.threshold.toStringAsFixed(2)} '
-              '@${keyword.id}';
-        })
-        .join('\n');
+    final keywordBuffer = buildSherpaKeywordBuffer(config.keywords);
 
     final events = ReceivePort();
     _workerEvents = events;
@@ -89,7 +120,7 @@ class SherpaWakeWordEngine implements WakeWordEngine {
       'decoder': paths[_decoder]!,
       'joiner': paths[_joiner]!,
       'tokens': paths[_tokens]!,
-      'keywords': '$keywordLines\n',
+      'keywords': keywordBuffer,
     }, debugName: 'kora-sherpa-kws');
 
     try {
@@ -110,15 +141,7 @@ class SherpaWakeWordEngine implements WakeWordEngine {
     _detectionPending = false;
     _workerCommands!.send(const {'type': 'reset'});
     try {
-      final audio = await _mic.startStream(
-        const RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: sampleRate,
-          numChannels: 1,
-          noiseSuppress: true,
-          audioInterruption: AudioInterruptionMode.none,
-        ),
-      );
+      final audio = await _mic.startStream(wakeWordRecordConfig);
       _running = true;
       _audioSubscription = audio.listen(
         _sendAudio,
@@ -273,8 +296,10 @@ Future<void> _runSherpaWorker(
         ),
         keywordsBuf: keywords,
         keywordsBufSize: utf8.encode(keywords).length,
-        keywordsScore: 1.0,
-        keywordsThreshold: 0.25,
+        maxActivePaths: SherpaWakeWordDefaults.maxActivePaths,
+        numTrailingBlanks: SherpaWakeWordDefaults.numTrailingBlanks,
+        keywordsScore: SherpaWakeWordDefaults.keywordsScore,
+        keywordsThreshold: SherpaWakeWordDefaults.keywordsThreshold,
       ),
     );
     stream = spotter.createStream();
@@ -296,7 +321,7 @@ Future<void> _runSherpaWorker(
       final bytes = (command['data']! as TransferableTypedData)
           .materialize()
           .asUint8List();
-      final converted = _pcm16leToFloat32(bytes, trailingByte);
+      final converted = convertWakePcm16leToFloat32(bytes, trailingByte);
       trailingByte = converted.trailingByte;
       if (converted.samples.isEmpty) continue;
       stream.acceptWaveform(
@@ -325,7 +350,8 @@ Future<void> _runSherpaWorker(
   }
 }
 
-({Float32List samples, int? trailingByte}) _pcm16leToFloat32(
+@visibleForTesting
+({Float32List samples, int? trailingByte}) convertWakePcm16leToFloat32(
   Uint8List chunk,
   int? priorTrailingByte,
 ) {

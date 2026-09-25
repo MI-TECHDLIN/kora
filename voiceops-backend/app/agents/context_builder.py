@@ -17,13 +17,13 @@ DEMO_CONTEXT = {
     "is_demo": True,
     "current_delivery": {
         "id": "demo-delivery-001",
-        "recipient_name": "Amara Johnson",
-        "address": "14 Broad Street, Lagos Island",
-        "customer_phone": "+2348012345678",
+        "recipient_name": "Jordan Lee",
+        "address": "812 Lavaca St, Austin, TX 78701",
+        "customer_phone": "+15125550100",
         "notes": "Gate code is 4521. Call on arrival.",
         "time_window": "10:00 AM - 12:00 PM",
-        "latitude": 6.4541,
-        "longitude": 3.3947,
+        "latitude": 30.2713,
+        "longitude": -97.7455,
     },
 }
 
