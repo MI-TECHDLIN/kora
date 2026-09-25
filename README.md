@@ -35,7 +35,7 @@ Kora closes that gap. The driver says what they need; the app coordinates the st
 
 ![Speak, let Kora coordinate the work, and keep moving](docs/brand/readme/how-it-works.svg)
 
-1. **Speak.** While the app is open, say “Kora” (also “Hey Kora” or “Okay Kora”) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for a short window.
+1. **Speak.** While the app is open, say “Kora” (also “Hey Kora”, “Okay Kora”, “Hi Kora”, or the “Cora” spellings) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for a short window.
 2. **Kora acts.** One request can check delivery information, work out a route and contact a customer at the same time.
 3. **Keep moving.** The route appears in Kora's live map, progress stays visible, and the driver hears one useful answer.
 
@@ -48,7 +48,7 @@ Kora closes that gap. The driver says what they need; the app coordinates the st
 
 ## What you can do with Kora today
 
-- Wake the foreground app with “Kora” (also “Hey Kora” or “Okay Kora”), then continue without repeating it for a short follow-up window; the microphone button remains available as a fallback.
+- Wake the foreground app with “Kora” (also “Hey/Okay/Hi Kora” and “Cora”; Settings can raise wake sensitivity for a distant phone or add plain “hi/hey/hello”), then continue without repeating it for a short follow-up window; the microphone button remains available as a fallback.
 - Hear a warm first greeting and concise spoken replies from the co-rider.
 - Ask for the next stop, see the route on an in-app live map, and receive proactive estimated-arrival and reroute updates.
 - Choose car, motorbike, bicycle or walking mode so arrival times reflect how the driver is travelling.

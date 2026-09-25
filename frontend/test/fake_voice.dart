@@ -8,6 +8,7 @@ import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/audio/voice_playback.dart';
 import 'package:voiceops/core/audio/voice_recorder.dart';
 import 'package:voiceops/core/realtime/voice_socket.dart';
+import 'package:voiceops/core/wake/wake_tuning.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/heading_source.dart';
 import 'package:voiceops/features/map/widgets/openfreemap_layer.dart';
@@ -451,9 +452,29 @@ class FakeNotificationPreferencesStore implements NotificationPreferencesStore {
 }
 
 class FakeWakeWordPreferencesStore implements WakeWordPreferencesStore {
-  FakeWakeWordPreferencesStore({this.enabled = true});
+  FakeWakeWordPreferencesStore({
+    this.enabled = true,
+    this.sensitivity = WakeSensitivity.normal,
+    this.greetings = false,
+  });
 
   bool enabled;
+  WakeSensitivity sensitivity;
+  bool greetings;
+
+  @override
+  Future<WakeSensitivity> loadSensitivity() async => sensitivity;
+
+  @override
+  Future<void> saveSensitivity(WakeSensitivity sensitivity) async =>
+      this.sensitivity = sensitivity;
+
+  @override
+  Future<bool> loadGreetings() async => greetings;
+
+  @override
+  Future<void> saveGreetings({required bool enabled}) async =>
+      greetings = enabled;
 
   @override
   Future<bool> load() async => enabled;

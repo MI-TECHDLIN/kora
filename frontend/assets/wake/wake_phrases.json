@@ -3,15 +3,23 @@
     "Sherpa-onnx detects enabled phrases from this manifest using English phone tokens from the bundled zh-en KWS model.",
     "To add or change a phrase, edit id/phrase/enabled here, then run: python3 tool/generate_wake_keywords.py",
     "Sensitivity is 0.0 to 1.0. The app maps it to sherpa keyword score 1.0 to 3.0 and threshold 0.35 to 0.15; score/threshold may override that mapping per phrase when a measured trade-off needs to stay explicit.",
+    "The Settings 'Wake sensitivity' choice (Normal/High) shifts every phrase's score/threshold and the wake input gain; those numbers live in lib/core/wake/wake_tuning.dart, not here.",
+    "\"requires\": \"wake_on_greetings\" keeps a phrase out of the detector unless the driver turned on Settings > Wake on greetings.",
     "Use a lowercase snake_case id without spaces. Token generation fails if a word is absent from the model's English phone lexicon.",
-    "Multi-word phrases are safer in road and cab noise. Bare Kora is enabled at high sensitivity so the product name works as a wake phrase; monitor device false accepts."
+    "Kora and Cora have identical phone tokens in the bundled lexicon, so the Cora phrases are the same detector as the Kora phrases; the engine sends one line per distinct token sequence.",
+    "Multi-word phrases are safer in road and cab noise. Bare Kora is enabled so the product name works as a wake phrase; monitor device false accepts."
   ],
   "sensitivity_default": 0.5,
   "phrases": [
-    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": true, "score": 1.0, "threshold": 0.30, "note": "Primary keyword with conservative tuning; synthetic Cora samples remain indistinguishable, so phone false-accept testing is required." },
-    { "id": "hey_kora", "phrase": "Hey Kora", "tier": 1, "enabled": true, "note": "Recommended lower-false-accept phrase; 6/6 synthetic spike hits with the phone-token model." },
-    { "id": "okay_kora", "phrase": "Okay Kora", "tier": 1, "enabled": true, "note": "Recommended alternate phrase; 6/6 synthetic spike hits with the phone-token model." },
-    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": true, "sensitivity": 1.0, "note": "Enabled at high sensitivity for direct invocation; monitor false accepts for Cora and corner during device testing." },
+    { "id": "kora", "phrase": "Kora", "tier": 1, "enabled": true, "score": 1.0, "threshold": 0.30, "note": "Primary keyword with conservative tuning. Synthetic Cora samples are indistinguishable from Kora, so Cora is accepted too; phone false-accept testing is required." },
+    { "id": "hey_kora", "phrase": "Hey Kora", "tier": 1, "enabled": true, "note": "Recommended lower-false-accept phrase." },
+    { "id": "okay_kora", "phrase": "Okay Kora", "tier": 1, "enabled": true, "note": "Recommended alternate phrase." },
+
+    { "id": "cora", "phrase": "Cora", "tier": 1, "enabled": true, "score": 1.0, "threshold": 0.30, "note": "Same phones as Kora in this model, so it shares Kora's detector and tuning." },
+    { "id": "hey_cora", "phrase": "Hey Cora", "tier": 1, "enabled": true, "note": "Same phones as Hey Kora." },
+    { "id": "hi_cora", "phrase": "Hi Cora", "tier": 2, "enabled": true, "note": "Same phones as Hi Kora." },
+    { "id": "okay_cora", "phrase": "Okay Cora", "tier": 1, "enabled": true, "note": "Same phones as Okay Kora." },
+    { "id": "hello_cora", "phrase": "Hello Cora", "tier": 2, "enabled": true, "note": "Same phones as Hello Kora." },
 
     { "id": "hi_kora", "phrase": "Hi Kora", "tier": 2, "enabled": true, "note": "Greeting." },
     { "id": "hello_kora", "phrase": "Hello Kora", "tier": 2, "enabled": true, "note": "Greeting." },
@@ -20,6 +28,10 @@
     { "id": "good_evening_kora", "phrase": "Good evening Kora", "tier": 2, "enabled": true, "note": "Greeting." },
     { "id": "yo_kora", "phrase": "Yo Kora", "tier": 2, "enabled": false, "note": "Casual greeting; enable after device testing." },
     { "id": "wake_up_kora", "phrase": "Wake up Kora", "tier": 2, "enabled": true, "note": "Literal wake-up phrase." },
+
+    { "id": "greeting_hi", "phrase": "Hi", "tier": 5, "enabled": true, "requires": "wake_on_greetings", "note": "Bare greeting. Only listened for when Settings > Wake on greetings is on; it also fires on ordinary conversation." },
+    { "id": "greeting_hey", "phrase": "Hey", "tier": 5, "enabled": true, "requires": "wake_on_greetings", "note": "Bare greeting. See greeting_hi." },
+    { "id": "greeting_hello", "phrase": "Hello", "tier": 5, "enabled": true, "requires": "wake_on_greetings", "note": "Bare greeting. See greeting_hi." },
 
     { "id": "kora_are_you_there", "phrase": "Kora are you there", "tier": 3, "enabled": false, "note": "Rider checking Kora is listening." },
     { "id": "kora_im_back", "phrase": "Kora I'm back", "tier": 3, "enabled": false, "note": "Rider returning from a break." },

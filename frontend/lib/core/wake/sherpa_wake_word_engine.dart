@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
+import 'wake_input_gain.dart';
+import 'wake_tuning.dart';
 import 'wake_word_service.dart';
 
 @immutable
@@ -30,53 +32,58 @@ class SherpaKeywordTuning {
   final double threshold;
 }
 
-/// Capture and decoder settings kept together so sensitivity changes remain
-/// deliberate and reviewable.
-abstract final class SherpaWakeWordDefaults {
-  static const sampleRate = 16000;
-  static const streamBufferSize = sampleRate * 2 ~/ 10; // 100 ms PCM16 mono
-  static const keywordsScore = 1.0;
-  static const keywordsThreshold = 0.25;
-  static const numTrailingBlanks = 1;
-  static const maxActivePaths = 4;
-}
-
-/// Android's voice-recognition source avoids the device-selected processing
-/// used by the default source. Sherpa receives the same raw mono PCM shape as its
-/// reference microphone example; its feature extractor handles level
-/// normalization.
+/// Sherpa receives raw mono PCM16 from the wake stream's own recorder, so the
+/// AssemblyAI capture is never touched by the wake gain (see [WakeInputGain]).
+/// Capture options and the audio source are documented in [WakeCaptureConfig].
 const wakeWordRecordConfig = RecordConfig(
   encoder: AudioEncoder.pcm16bits,
-  sampleRate: SherpaWakeWordDefaults.sampleRate,
+  sampleRate: WakeCaptureConfig.sampleRate,
   numChannels: 1,
   autoGain: false,
   echoCancel: false,
   noiseSuppress: false,
-  streamBufferSize: SherpaWakeWordDefaults.streamBufferSize,
+  streamBufferSize: WakeCaptureConfig.streamBufferSize,
   audioInterruption: AudioInterruptionMode.none,
   androidConfig: AndroidRecordConfig(
-    audioSource: AndroidAudioSource.voiceRecognition,
+    audioSource: WakeCaptureConfig.androidAudioSource,
   ),
 );
 
+/// Builds the sherpa keyword buffer, one line per distinct token sequence.
+///
+/// Phrases that tokenise identically ("Kora" and "Cora" share phones in the
+/// bundled lexicon) would otherwise overwrite each other with an arbitrary
+/// winner, so the first phrase listed for a token sequence is the one sent.
 @visibleForTesting
-String buildSherpaKeywordBuffer(List<WakeWordKeyword> keywords) =>
-    '${keywords.map((keyword) {
-      final fallback = SherpaKeywordTuning.fromSensitivity(keyword.sensitivity);
-      final score = keyword.score ?? fallback.score;
-      final threshold = keyword.threshold ?? fallback.threshold;
-      return '${keyword.tokens} '
-          ':${score.toStringAsFixed(2)} '
-          '#${threshold.toStringAsFixed(2)} '
-          '@${keyword.id}';
-    }).join('\n')}\n';
+String buildSherpaKeywordBuffer(
+  List<WakeWordKeyword> keywords, {
+  WakeTuning tuning = WakeTuning.normal,
+}) {
+  final seen = <String>{};
+  final lines = <String>[];
+  for (final keyword in keywords) {
+    if (!seen.add(keyword.tokens)) continue;
+    final fallback = SherpaKeywordTuning.fromSensitivity(keyword.sensitivity);
+    final score = tuning.adjustScore(keyword.score ?? fallback.score);
+    final threshold = tuning.adjustThreshold(
+      keyword.threshold ?? fallback.threshold,
+    );
+    lines.add(
+      '${keyword.tokens} '
+      ':${score.toStringAsFixed(2)} '
+      '#${threshold.toStringAsFixed(2)} '
+      '@${keyword.id}',
+    );
+  }
+  return '${lines.join('\n')}\n';
+}
 
 /// Foreground-only sherpa-onnx wake-word engine.
 ///
 /// Audio capture stays on the root isolate because `record` is a Flutter
 /// plugin. PCM conversion and every sherpa FFI call run in a worker isolate.
 class SherpaWakeWordEngine implements WakeWordEngine {
-  static const sampleRate = SherpaWakeWordDefaults.sampleRate;
+  static const sampleRate = WakeCaptureConfig.sampleRate;
   static const _modelDirectory =
       'sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20';
   static const _assetRoot = 'assets/wake/model';
@@ -107,7 +114,10 @@ class SherpaWakeWordEngine implements WakeWordEngine {
     _config = config;
 
     final paths = await _copyModelAssets();
-    final keywordBuffer = buildSherpaKeywordBuffer(config.keywords);
+    final keywordBuffer = buildSherpaKeywordBuffer(
+      config.keywords,
+      tuning: config.tuning,
+    );
 
     final events = ReceivePort();
     _workerEvents = events;
@@ -121,6 +131,7 @@ class SherpaWakeWordEngine implements WakeWordEngine {
       'joiner': paths[_joiner]!,
       'tokens': paths[_tokens]!,
       'keywords': keywordBuffer,
+      'gain': config.tuning.gain,
     }, debugName: 'kora-sherpa-kws');
 
     try {
@@ -277,6 +288,7 @@ Future<void> _runSherpaWorker(
   sherpa.KeywordSpotter? spotter;
   sherpa.OnlineStream? stream;
   int? trailingByte;
+  final gain = WakeInputGain(setup['gain']! as WakeGainTuning);
   try {
     sherpa.initBindings();
     final keywords = setup['keywords']! as String;
@@ -296,10 +308,10 @@ Future<void> _runSherpaWorker(
         ),
         keywordsBuf: keywords,
         keywordsBufSize: utf8.encode(keywords).length,
-        maxActivePaths: SherpaWakeWordDefaults.maxActivePaths,
-        numTrailingBlanks: SherpaWakeWordDefaults.numTrailingBlanks,
-        keywordsScore: SherpaWakeWordDefaults.keywordsScore,
-        keywordsThreshold: SherpaWakeWordDefaults.keywordsThreshold,
+        maxActivePaths: WakeCaptureConfig.maxActivePaths,
+        numTrailingBlanks: WakeCaptureConfig.numTrailingBlanks,
+        keywordsScore: WakeCaptureConfig.keywordsScore,
+        keywordsThreshold: WakeCaptureConfig.keywordsThreshold,
       ),
     );
     stream = spotter.createStream();
@@ -311,6 +323,7 @@ Future<void> _runSherpaWorker(
       if (type == 'dispose') break;
       if (type == 'reset') {
         spotter.reset(stream);
+        gain.reset();
         trailingByte = null;
         continue;
       }
@@ -323,9 +336,10 @@ Future<void> _runSherpaWorker(
           .asUint8List();
       final converted = convertWakePcm16leToFloat32(bytes, trailingByte);
       trailingByte = converted.trailingByte;
-      if (converted.samples.isEmpty) continue;
+      final samples = gain.process(converted.samples);
+      if (samples.isEmpty) continue;
       stream.acceptWaveform(
-        samples: converted.samples,
+        samples: samples,
         sampleRate: SherpaWakeWordEngine.sampleRate,
       );
       while (spotter.isReady(stream)) {
@@ -335,6 +349,7 @@ Future<void> _runSherpaWorker(
         // Reset immediately so a hit never leaks decoder state into the next
         // listening session, even while the root isolate releases the mic.
         spotter.reset(stream);
+        gain.reset();
         trailingByte = null;
         replyPort.send({'type': 'detected', 'id': result.keyword});
         break;

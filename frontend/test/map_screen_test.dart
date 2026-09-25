@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 import 'package:voiceops/core/api/voiceops_api.dart';
 import 'package:voiceops/core/theme/tokens.dart';
+import 'package:voiceops/core/wake/wake_tuning.dart';
 import 'package:voiceops/features/map/data/location_source.dart';
 import 'package:voiceops/features/map/data/map_route.dart';
 import 'package:voiceops/features/map/data/mercator.dart';
@@ -594,6 +595,52 @@ void main() {
     container.invalidate(wakeWordEnabledProvider);
     await settle(tester);
     expect(container.read(wakeWordEnabledProvider), isFalse);
+  });
+
+  testWidgets('wake sensitivity defaults to Normal and High persists', (
+    tester,
+  ) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+
+    expect(container.read(wakeSensitivityProvider), WakeSensitivity.normal);
+    final high = find.descendant(
+      of: find.byKey(const Key('wake-sensitivity-selector')),
+      matching: find.text('High'),
+    );
+    await tester.ensureVisible(high);
+    await tester.tap(high);
+    await settle(tester);
+
+    expect(container.read(wakeSensitivityProvider), WakeSensitivity.high);
+    expect(wakeWordPreferencesStore.sensitivity, WakeSensitivity.high);
+    container.invalidate(wakeSensitivityProvider);
+    await settle(tester);
+    expect(container.read(wakeSensitivityProvider), WakeSensitivity.high);
+  });
+
+  testWidgets('wake on greetings is off by default, warns, and persists', (
+    tester,
+  ) async {
+    await pump(tester, const SettingsScreen());
+    await settle(tester);
+
+    expect(container.read(wakeOnGreetingsProvider), isFalse);
+    expect(find.textContaining('Warning: these words'), findsOneWidget);
+    final greetings = find.descendant(
+      of: find.byKey(const Key('wake-greetings-toggle')),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(greetings);
+    expect(tester.widget<Switch>(greetings).value, isFalse);
+    await tester.tap(greetings);
+    await settle(tester);
+
+    expect(container.read(wakeOnGreetingsProvider), isTrue);
+    expect(wakeWordPreferencesStore.greetings, isTrue);
+    container.invalidate(wakeOnGreetingsProvider);
+    await settle(tester);
+    expect(container.read(wakeOnGreetingsProvider), isTrue);
   });
 
   testWidgets('map dependencies warm before the Map tab is built', (
