@@ -126,7 +126,7 @@ async def make_call(
     Initiate an outbound phone call to the customer via Twilio Voice API.
     
     Args:
-        to_phone: Destination phone number (e.g., "+2348123456789")
+        to_phone: Destination phone number (e.g., "+15125550102")
         message: Message to speak when call connects (TTS)
         delivery_id: Unique identifier for the delivery
         recipient_name: Name of recipient
@@ -192,7 +192,7 @@ async def send_sms(
     Send an SMS notification to the customer via Twilio Messages API.
     
     Args:
-        to_phone: Destination phone number (e.g., "+2348123456789")
+        to_phone: Destination phone number (e.g., "+15125550102")
         message: SMS body text
         customer_name: Name of recipient for logging
         

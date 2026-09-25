@@ -25,9 +25,9 @@ async def run_tool_test(tool_name: str, parameters: dict):
         "shift_id": "test-shift-456",
         "current_delivery": {
             "id": "mock-delivery-789",
-            "recipient_name": "Amara Johnson",
-            "address": "14 Broad Street, Lagos Island",
-            "customer_phone": "+2348012345678"
+            "recipient_name": "Jordan Lee",
+            "address": "812 Lavaca St, Austin, TX 78701",
+            "customer_phone": "+15125550100"
         },
         "session_id": "test-session-000"
     }
@@ -106,7 +106,7 @@ async def main():
     # Test 12: alert_dispatcher
     await run_tool_test("alert_dispatcher", {
         "delivery_id": "mock-delivery-789",
-        "message": "Customer is being aggressive. Need support at 14 Broad Street.",
+        "message": "Customer is being aggressive. Need support at 812 Lavaca St.",
         "priority": "urgent"
     })
     

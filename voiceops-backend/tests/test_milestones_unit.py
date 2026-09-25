@@ -39,9 +39,9 @@ def test_delivery_state_machine_terminal_state():
 
 
 def test_haversine_distance_calculation():
-    # Lagos Victoria Island to Lagos Broad Street (~3.5km)
-    lat1, lng1 = 6.4286, 3.4108
-    lat2, lng2 = 6.4541, 3.3947
+    # South Congress to north downtown Austin (~3.5 km)
+    lat1, lng1 = 30.2490, -97.7497
+    lat2, lng2 = 30.2800, -97.7428
 
     dist = haversine_distance(lat1, lng1, lat2, lng2)
     assert 3000 < dist < 4500  # meters
@@ -51,8 +51,8 @@ def test_haversine_distance_calculation():
 
 
 def test_compute_eta():
-    lat1, lng1 = 6.4286, 3.4108
-    lat2, lng2 = 6.4541, 3.3947
+    lat1, lng1 = 30.2490, -97.7497
+    lat2, lng2 = 30.2800, -97.7428
 
     eta = LocationIntelligenceService.compute_eta(lat1, lng1, lat2, lng2, speed_kmh=30.0)
     assert isinstance(eta, int)
@@ -61,7 +61,7 @@ def test_compute_eta():
 
 def test_eta_service_minutes():
     from app.services.eta_service import eta_service
-    mins = eta_service.compute_eta_minutes((6.4286, 3.4108), (6.4541, 3.3947), current_speed_kmh=40.0)
+    mins = eta_service.compute_eta_minutes((30.2490, -97.7497), (30.2800, -97.7428), current_speed_kmh=40.0)
     assert isinstance(mins, int)
     assert mins >= 1
 
@@ -93,13 +93,13 @@ def test_exception_workflow():
 
     context = {
         "driver_id": "test-driver-123",
-        "driver_name": "Emeka Driver",
+        "driver_name": "Morgan Driver",
         "shift_id": "test-shift-123",
         "current_delivery": {
             "id": "del-mock-999",
-            "recipient_name": "Tunde",
-            "address": "12 Broad St",
-            "customer_phone": "+2348012345678",
+            "recipient_name": "Marcus",
+            "address": "812 Lavaca St",
+            "customer_phone": "+15125550100",
         }
     }
 
@@ -118,10 +118,10 @@ def test_routing_service_calculation():
     import asyncio
     from app.services.routing_service import routing_service
 
-    # Calculate route between two Lagos coordinates
+    # Calculate a route between two downtown Austin coordinates.
     route = asyncio.run(routing_service.calculate_route(
-        origin=(6.4286, 3.4108),
-        destination=(6.4541, 3.3947),
+        origin=(30.2490, -97.7497),
+        destination=(30.2800, -97.7428),
     ))
 
     assert route.get("success") is True
@@ -222,11 +222,11 @@ def test_optimization_service_greedy():
     import asyncio
     from app.services.optimization_service import optimization_service
 
-    origin = (6.4286, 3.4108)  # Victoria Island
+    origin = (30.2672, -97.7431)  # Downtown Austin
     deliveries = [
-        {"id": "far", "dropoff_latitude": 6.6000, "dropoff_longitude": 3.3500, "address": "Ikeja"},
-        {"id": "near", "dropoff_latitude": 6.4350, "dropoff_longitude": 3.4150, "address": "VI Extension"},
-        {"id": "mid", "dropoff_latitude": 6.4541, "dropoff_longitude": 3.3947, "address": "Marina"},
+        {"id": "far", "dropoff_latitude": 30.2490, "dropoff_longitude": -97.7497, "address": "S Congress Ave"},
+        {"id": "near", "dropoff_latitude": 30.2673, "dropoff_longitude": -97.7419, "address": "Brazos St"},
+        {"id": "mid", "dropoff_latitude": 30.2713, "dropoff_longitude": -97.7455, "address": "Lavaca St"},
     ]
 
     optimized = asyncio.run(optimization_service.optimize_route(
@@ -265,6 +265,4 @@ def test_tool_orchestrator_trace_id():
     assert "trace_id" in result
     assert len(result["trace_id"]) > 0
     assert result["tool_name"] == "get_next_delivery"
-
-
 

@@ -40,7 +40,7 @@ void main() {
     api = FakeKoraApi(
       profile: DriverProfile(
         id: 'driver-1',
-        name: 'Ada Obi',
+        name: 'Elena Ramirez',
         vehicleType: 'Motorbike',
         phone: _phone,
         createdAt: DateTime(2026, 9, 3, 12),
@@ -118,7 +118,7 @@ void main() {
     await tester.tap(button);
     await settle(tester);
     expect(find.byType(ProfileScreen), findsOneWidget);
-    expect(find.text('Ada Obi'), findsWidgets);
+    expect(find.text('Elena Ramirez'), findsWidgets);
 
     await tester.tap(find.byKey(const Key('profile-back')));
     await settle(tester);
@@ -265,7 +265,7 @@ void main() {
     expect(field('profile-name'), findsOneWidget);
     expect(
       tester.widget<TextFormField>(field('profile-name')).controller!.text,
-      'Ada Obi',
+      'Elena Ramirez',
     );
     expect(
       tester.widget<Text>(find.byKey(const Key('profile-since'))).data,
@@ -357,14 +357,14 @@ void main() {
     await tapKey(tester, 'profile-save');
     expect(api.nameUpdates, isEmpty);
 
-    await enter(tester, 'profile-name', '  Ada Obi-Okafor ');
+    await enter(tester, 'profile-name', '  Elena Ramirez-Santos ');
     await tapKey(tester, 'profile-save');
-    expect(api.nameUpdates, ['Ada Obi-Okafor']);
+    expect(api.nameUpdates, ['Elena Ramirez-Santos']);
     expect(find.text('Name saved.'), findsOneWidget);
 
     // The profile reloads everywhere with the saved name.
     expect(api.profileCalls, 2);
-    expect(find.text('Ada Obi-Okafor'), findsWidgets);
+    expect(find.text('Elena Ramirez-Santos'), findsWidgets);
   });
 
   testWidgets('a blank name is refused and a failed save says why', (
@@ -382,9 +382,9 @@ void main() {
     );
 
     api.updateFailure = const ApiException('Kora had a problem. Try again.');
-    await enter(tester, 'profile-name', 'Ada O.');
+    await enter(tester, 'profile-name', 'Elena R.');
     await tapKey(tester, 'profile-save');
-    expect(api.nameUpdates, ['Ada O.']);
+    expect(api.nameUpdates, ['Elena R.']);
     expect(
       find.descendant(
         of: find.byKey(const Key('profile-save-result')),
@@ -461,7 +461,7 @@ void main() {
         return http.Response(
           jsonEncode({
             'id': 'driver-1',
-            'name': 'Ada O.',
+            'name': 'Elena R.',
             'phone': _phone,
             'vehicle_type': 'Motorbike',
             'created_at': '2026-09-03T12:00:00+00:00',
@@ -469,15 +469,15 @@ void main() {
           200,
         );
       });
-      final profile = await api.updateDriverName('Ada O.');
+      final profile = await api.updateDriverName('Elena R.');
       expect(sent.method, 'PUT');
       expect(
         sent.url.toString(),
         'https://api.voiceops.test/v1/driver/profile',
       );
       expect(sent.headers['Authorization'], 'Bearer test-access-token');
-      expect(jsonDecode(sent.body), {'name': 'Ada O.'});
-      expect(profile.name, 'Ada O.');
+      expect(jsonDecode(sent.body), {'name': 'Elena R.'});
+      expect(profile.name, 'Elena R.');
       expect(profile.phone, _phone);
       expect(profile.createdAt, DateTime.utc(2026, 9, 3, 12));
     });

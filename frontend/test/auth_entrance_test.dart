@@ -21,16 +21,16 @@ void main() {
       screen: const SignUpScreen(),
       title: SignUpScreen.title,
       fields: {
-        'Full name': 'Ada Obi',
-        'Email': 'ada@voiceops.test',
+        'Full name': 'Elena Ramirez',
+        'Email': 'elena@voiceops.test',
         'Password': 'correct-horse',
-        'Phone number': '+2348012345678',
+        'Phone number': '+15125550100',
       },
     ),
     (
       screen: const SignInScreen(),
       title: SignInScreen.title,
-      fields: {'Email': 'ada@voiceops.test', 'Password': 'correct-horse'},
+      fields: {'Email': 'elena@voiceops.test', 'Password': 'correct-horse'},
     ),
   ]) {
     final fields = [
@@ -101,9 +101,9 @@ void main() {
       await tester.tap(submit);
       await tester.pump();
       if (form.screen is SignUpScreen) {
-        expect(auth.lastSignUp?.email, 'ada@voiceops.test');
+        expect(auth.lastSignUp?.email, 'elena@voiceops.test');
       } else {
-        expect(auth.lastSignIn?.email, 'ada@voiceops.test');
+        expect(auth.lastSignIn?.email, 'elena@voiceops.test');
       }
       expect(find.text('Please try again.'), findsOneWidget);
       // Busy/error/terms rebuilds must not replay the entrance.

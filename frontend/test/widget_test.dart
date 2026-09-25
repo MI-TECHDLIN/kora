@@ -140,7 +140,7 @@ void main() {
     expect(mapController?.routeLine, isNotNull);
     expect(find.byType(StopPin), findsNWidgets(2));
     expect(find.byType(PositionMarker), findsOneWidget);
-    expect(find.text('Amara Johnson'), findsOneWidget);
+    expect(find.text('Jordan Lee'), findsOneWidget);
     expect(find.text('11 mins'), findsOneWidget);
 
     // "Show my vehicle": show_screen opens Settings with the profile's

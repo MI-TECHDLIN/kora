@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 DEMO_NEXT_DELIVERY = {
     "id": "mock-delivery-123",
-    "recipient_name": "Amara Johnson",
-    "address": "14 Broad Street, Lagos Island",
-    "phone": "+2348012345678",
+    "recipient_name": "Jordan Lee",
+    "address": "812 Lavaca St, Austin, TX 78701",
+    "phone": "+15125550100",
     "status": "pending",
     "notes": "Ring bell twice. 3rd floor.",
     "time_window": "2:00 PM - 4:00 PM",
-    "latitude": 6.4541,
-    "longitude": 3.3947,
+    "latitude": 30.2713,
+    "longitude": -97.7455,
     "sequence_order": 4,
 }
 

@@ -327,7 +327,7 @@ void main() {
         ..emit({
           'event': 'transcript',
           'role': 'agent',
-          'text': 'Amara on Broad Street.',
+          'text': 'Jordan on Lavaca St.',
         })
         ..emit({'event': 'summary_chunk', 'text': 'Today you ', 'final': false})
         ..emit({
@@ -339,7 +339,7 @@ void main() {
           'event': 'call_started',
           'call_id': 'c-1',
           'delivery_id': 'd-4',
-          'customer_name': 'Amara J.',
+          'customer_name': 'Jordan L.',
           'sequence': 4,
         })
         // Unknown and malformed frames are skipped, never fatal.
@@ -359,16 +359,16 @@ void main() {
       );
       expect(
         container.read(mapRouteProvider)!.target!.recipientName,
-        'Amara Johnson',
+        'Jordan Lee',
       );
       expect(container.read(transcriptProvider).map((l) => (l.role, l.text)), [
         (SpeakerRole.driver, "What's my next stop?"),
-        (SpeakerRole.agent, 'Amara on Broad Street.'),
+        (SpeakerRole.agent, 'Jordan on Lavaca St.'),
       ]);
       final summary = container.read(summaryStreamProvider)!;
       expect(summary.text, 'Today you did 7 stops.');
       expect(summary.isComplete, isTrue);
-      expect(container.read(activeCallProvider)!.customerName, 'Amara J.');
+      expect(container.read(activeCallProvider)!.customerName, 'Jordan L.');
 
       // The call overlay's end button sends end_call; call_ended closes it.
       expect(session().endCall('c-1'), isTrue);

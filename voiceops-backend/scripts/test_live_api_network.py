@@ -84,7 +84,7 @@ def test_live_network():
                 "call_id": "call_exc_004"
             }
         ],
-        "context": {"latitude": 6.4541, "longitude": 3.3947}
+        "context": {"latitude": 30.2713, "longitude": -97.7455}
     }
 
     t0 = time.perf_counter()
@@ -119,11 +119,11 @@ def test_live_network():
             },
             {
                 "name": "get_best_route",
-                "arguments": {"origin": "Marina, Lagos", "destination": "14 Broad Street, Lagos Island"},
+                "arguments": {"origin": "Downtown Austin, TX", "destination": "812 Lavaca St, Austin, TX 78701"},
                 "call_id": "io_call_3"
             }
         ],
-        "context": {"latitude": 6.4541, "longitude": 3.3947}
+        "context": {"latitude": 30.2713, "longitude": -97.7455}
     }
     resp_bench = client.post("/v1/tools/benchmark", json=io_payload)
     print(f"• HTTP Status:               {resp_bench.status_code} OK")
