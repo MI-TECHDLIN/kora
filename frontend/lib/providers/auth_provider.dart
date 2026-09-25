@@ -20,7 +20,10 @@ enum DriverProfileStatus { syncing, ready, failed }
 /// attempt (status back to `syncing`) so a persistent banner can read
 /// "Retrying…" instead of blinking away mid-attempt.
 class DriverProfileState {
-  const DriverProfileState({this.status = DriverProfileStatus.syncing, this.message});
+  const DriverProfileState({
+    this.status = DriverProfileStatus.syncing,
+    this.message,
+  });
 
   final DriverProfileStatus status;
   final String? message;
@@ -52,15 +55,35 @@ class DriverProfileSync extends StateNotifier<DriverProfileState> {
   DriverProfileSync(this._api, this._auth) : super(const DriverProfileState()) {
     _subscription = _auth.changes
         .where((event) => event == AuthChangeEvent.signedIn)
-        .listen((_) => _sync());
-    if (_auth.hasValidSession) _sync();
+        .listen((_) => unawaited(retry()));
+    if (_auth.hasValidSession) unawaited(retry());
   }
 
   final KoraApi _api;
   final AuthRepository _auth;
   late final StreamSubscription<AuthChangeEvent> _subscription;
+  Completer<DriverProfileState> _settled = Completer<DriverProfileState>();
+  Future<void>? _syncing;
 
-  Future<void> retry() => _sync();
+  /// Completes when the current ensure-profile attempt either succeeds or
+  /// fails. Profile reads await this so they cannot overtake driver-row
+  /// creation during session restore or a fresh sign-in.
+  Future<DriverProfileState> get settled => _settled.future;
+
+  Future<void> retry() {
+    if (_syncing case final active?) return active;
+    if (_settled.isCompleted) {
+      _settled = Completer<DriverProfileState>();
+    }
+    final operation = _sync();
+    _syncing = operation;
+    unawaited(
+      operation.whenComplete(() {
+        if (identical(_syncing, operation)) _syncing = null;
+      }),
+    );
+    return operation;
+  }
 
   Future<void> _sync() async {
     if (mounted) {
@@ -71,11 +94,20 @@ class DriverProfileSync extends StateNotifier<DriverProfileState> {
     }
     try {
       await _api.ensureDriverProfile();
-      if (mounted) state = const DriverProfileState(status: DriverProfileStatus.ready);
+      if (mounted) {
+        const ready = DriverProfileState(status: DriverProfileStatus.ready);
+        state = ready;
+        _settled.complete(ready);
+      }
     } on ApiException catch (e) {
       debugPrint('Driver profile not confirmed: ${e.message}');
       if (mounted) {
-        state = DriverProfileState(status: DriverProfileStatus.failed, message: e.message);
+        final failed = DriverProfileState(
+          status: DriverProfileStatus.failed,
+          message: e.message,
+        );
+        state = failed;
+        _settled.complete(failed);
       }
     }
   }

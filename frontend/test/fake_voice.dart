@@ -170,12 +170,17 @@ class FakeKoraApi implements KoraApi {
 
   /// Thrown by the next [ensureDriverProfile] while set.
   ApiException? ensureProfileFailure;
+  Completer<void>? ensureProfileGate;
+  bool profileRequiresEnsure = false;
+  bool _profileEnsured = false;
   int ensureProfileCalls = 0;
 
   @override
   Future<DriverProfile> ensureDriverProfile() async {
     ensureProfileCalls++;
+    await ensureProfileGate?.future;
     if (ensureProfileFailure case final f?) throw f;
+    _profileEnsured = true;
     return profile ??= const DriverProfile(id: 'driver-1');
   }
 
@@ -188,6 +193,9 @@ class FakeKoraApi implements KoraApi {
   @override
   Future<DriverProfile> fetchDriverProfile() async {
     profileCalls++;
+    if (profileRequiresEnsure && !_profileEnsured) {
+      throw const ApiException('Driver profile not found.', statusCode: 404);
+    }
     if (profileFailure case final f?) throw f;
     return profile ?? const DriverProfile(id: 'driver-1');
   }

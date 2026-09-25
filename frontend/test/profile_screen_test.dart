@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -126,6 +127,61 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'a restored session waits for ensure-profile before the first profile load',
+    (tester) async {
+      final ensureGate = Completer<void>();
+      api
+        ..ensureProfileGate = ensureGate
+        ..profileRequiresEnsure = true;
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer(
+        overrides: [
+          ...signedInOverrides(),
+          ...offlineOverrides(api: api),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(onboardingProvider.notifier).complete();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const KoraApp()),
+      );
+      await settle(tester);
+
+      // Map warm-up watches the same profile provider before the Profile
+      // screen is opened. It must not race GET /profile ahead of the
+      // restored session's POST /ensure-profile.
+      expect(api.ensureProfileCalls, 1);
+      expect(api.profileCalls, 0);
+
+      // Summary does not render profile details itself, but it lives under
+      // the same global map warm-up. Visiting it while ensure-profile is in
+      // flight must not let that shared profile read jump the gate either.
+      await tester.tap(find.bySemanticsLabel('Summary'));
+      await settle(tester);
+      expect(find.text('Your shift summary'), findsOneWidget);
+      expect(api.profileCalls, 0);
+      await tester.tap(find.bySemanticsLabel('Voice'));
+      await settle(tester);
+
+      await tester.tap(find.byKey(const Key('profile-button')));
+      await settle(tester);
+      expect(find.byKey(const Key('profile-loading')), findsOneWidget);
+      expect(find.byKey(const Key('profile-error')), findsNothing);
+      expect(api.profileCalls, 0);
+
+      ensureGate.complete();
+      await settle(tester);
+      expect(api.profileCalls, 1);
+      expect(find.byKey(const Key('profile-error')), findsNothing);
+      expect(field('profile-name'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'sign out confirms, clears the active session and shift, then shows welcome',
@@ -263,6 +319,30 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pump();
     await tester.pump();
+    expect(find.byKey(const Key('profile-error')), findsNothing);
+    expect(field('profile-name'), findsOneWidget);
+  });
+
+  testWidgets('retry also re-runs a failed ensure-profile request', (
+    tester,
+  ) async {
+    api.ensureProfileFailure = const ApiException(
+      "Couldn't set up your driver profile.",
+    );
+    await pumpProfile(tester);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('profile-error')), findsOneWidget);
+    expect(find.text("Couldn't set up your driver profile."), findsOneWidget);
+    expect(api.ensureProfileCalls, 1);
+    expect(api.profileCalls, 0);
+
+    api.ensureProfileFailure = null;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump();
+    expect(api.ensureProfileCalls, 2);
+    expect(api.profileCalls, 1);
     expect(find.byKey(const Key('profile-error')), findsNothing);
     expect(field('profile-name'), findsOneWidget);
   });
