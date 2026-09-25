@@ -59,6 +59,13 @@ async def receive_location_ping(
             accuracy=ping.accuracy,
         )
 
+        # Orders waiting on this driver's position can be offered now (best effort)
+        try:
+            from app.dispatch.order_dispatch import get_order_dispatcher
+            get_order_dispatcher().location_ping(driver_id)
+        except Exception as e:
+            logger.warning(f"[Locations] Dispatch ping hook failed: {e}")
+
         # 2. Update driver's live coordinates
         await update_driver_location(
             driver_id=driver_id,

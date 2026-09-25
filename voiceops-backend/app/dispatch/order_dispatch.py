@@ -14,9 +14,12 @@ online waits unassigned and is offered on the next connect. An offer whose drive
 moves on at once.
 
 "Nearest" is straight-line (haversine) distance from each online driver's latest GPS ping on
-an active shift. One with no ping yet is placed at the demo area centre, so the demo driver
-can take orders before the app posts location. A driver holding one offer gets no second
-offer until it resolves.
+an active shift. A driver is only offered an order once their own position is known and recent
+(`order_dispatch_ping_max_age_minutes`): one with no fresh ping is skipped, never placed at
+someone else's position or a default city centre, and is offered the waiting orders as soon as
+their first ping arrives (`location_ping`). The one exception is the explicit `DEMO_AREA_LAT` /
+`DEMO_AREA_LNG` override, which stands in for a missing position. A driver holding one offer
+gets no second offer until it resolves.
 
 Offer state lives in this process (one uvicorn worker). The `deliveries` row carries the
 durable part, and open orders are reloaded as `unassigned` on startup.
@@ -41,7 +44,7 @@ from app.db.queries import (
     insert_incoming_order,
     set_open_order_status,
 )
-from app.integrations.logistics import DEMO_AREA_CENTER, IncomingOrder, LogisticsAdapter, get_logistics_adapter
+from app.integrations.logistics import IncomingOrder, LogisticsAdapter, get_logistics_adapter
 from app.services.order_queue_service import notify_queue_changed
 from app.utils.geo import haversine_km
 
@@ -110,7 +113,7 @@ class Candidate:
     shift_id: str
     driver_name: Optional[str]
     distance_km: float  # straight line from the driver to the drop-off
-    origin: Tuple[float, float] = (0.0, 0.0)  # the driver's own lat/lng used for distance_km
+    origin: Tuple[float, float] = (0.0, 0.0)  # the driver's own (or the demo override's) lat/lng behind distance_km
 
 
 @dataclass
@@ -134,7 +137,7 @@ class OrderDispatcher:
         max_open_orders: Optional[int] = None,
         ping_max_age_minutes: Optional[float] = None,
         feed_enabled: Optional[bool] = None,
-        fallback_origin: Tuple[float, float] = DEMO_AREA_CENTER,
+        fallback_origin: Optional[Tuple[float, float]] = None,
     ):
         self.adapter = adapter
         self.hub: SessionHub = hub or _VoiceHub()
@@ -143,46 +146,41 @@ class OrderDispatcher:
         self.ping_max_age_minutes = (settings.order_dispatch_ping_max_age_minutes
                                      if ping_max_age_minutes is None else ping_max_age_minutes)
         self.feed_enabled = settings.order_feed_enabled if feed_enabled is None else feed_enabled
-        if fallback_origin == DEMO_AREA_CENTER and settings.demo_area_lat is not None and settings.demo_area_lng is not None:
+        if fallback_origin is None and settings.demo_area_lat is not None and settings.demo_area_lng is not None:
             fallback_origin = (float(settings.demo_area_lat), float(settings.demo_area_lng))
-        self.fallback_origin = fallback_origin
+        # Where a driver with no fresh ping stands. Only the explicit demo override sets it;
+        # otherwise such a driver is not offered anything until their position is known.
+        self.fallback_origin: Optional[Tuple[float, float]] = fallback_origin
+        self._last_ping: Dict[str, float] = {}  # driver_id → monotonic time of the last ping seen
         self._orders: Dict[str, OpenOrder] = {}
         self._lock = asyncio.Lock()
         self._background: Set[asyncio.Task] = set()
 
     async def get_target_location(self) -> Optional[Tuple[float, float]]:
-        """Location around which to generate mock orders: online drivers' location or recent pings."""
-        online_shifts = self.hub.live_shifts()
-        if online_shifts:
-            positions = await _try_db(get_active_driver_positions) or []
-            valid_positions = [
-                (float(p["latitude"]), float(p["longitude"]))
-                for p in positions
-                if p.get("shift_id") in online_shifts and p.get("latitude") is not None and p.get("longitude") is not None
-            ]
-            if valid_positions:
-                rng = getattr(self.adapter, "_rng", None)
-                return rng.choice(valid_positions) if rng else valid_positions[0]
-
-        if settings.demo_area_lat is not None and settings.demo_area_lng is not None:
-            return float(settings.demo_area_lat), float(settings.demo_area_lng)
-
-        try:
-            from app.db.queries import get_supabase
-            resp = (
-                get_supabase()
-                .table("location_pings")
-                .select("latitude, longitude")
-                .order("pinged_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            if resp.data and resp.data[0].get("latitude") is not None and resp.data[0].get("longitude") is not None:
-                return float(resp.data[0]["latitude"]), float(resp.data[0]["longitude"])
-        except Exception:
-            pass
-
-        return None
+        """
+        Where the feed should place its next mock order: the demo override if one is set, else
+        the own, fresh GPS ping of one online driver (a free one first, so the order finds a
+        taker). None while no online driver's position is known and recent: the feed holds
+        rather than borrow another driver's (or a stale) position.
+        """
+        if self.fallback_origin is not None:
+            return self.fallback_origin
+        live = self.hub.live_shifts()
+        if not live:
+            return None
+        positions = await _try_db(get_active_driver_positions) or []
+        busy = {o.offered_to.driver_id for o in self._orders.values() if o.offered_to}
+        located = [
+            (str(p["driver_id"]), (float(p["latitude"]), float(p["longitude"])))
+            for p in positions
+            if p.get("shift_id") in live and p.get("latitude") is not None
+            and p.get("longitude") is not None and self._fresh(p.get("pinged_at"))
+        ]
+        pool = [at for driver_id, at in located if driver_id not in busy] or [at for _, at in located]
+        if not pool:
+            return None
+        rng = getattr(self.adapter, "_rng", None)
+        return rng.choice(pool) if rng else pool[0]
 
     # ------------------------------------------------------------------ lifecycle
 
@@ -295,7 +293,8 @@ class OrderDispatcher:
             return []
         positions = await _try_db(get_active_driver_positions)
         if positions is None:
-            # Database unreachable: the drivers on an open socket are still reachable
+            # Database unreachable: the drivers on an open socket are still reachable, but with
+            # no position they can only be placed by the demo override (else they are skipped)
             positions = [{"driver_id": d, "shift_id": s, "driver_name": None, "latitude": None,
                           "longitude": None, "pinged_at": None} for s, d in live.items()]
         busy = {o.offered_to.driver_id for o in self._orders.values() if o.offered_to}
@@ -307,8 +306,10 @@ class OrderDispatcher:
                 continue
             if p.get("latitude") is not None and p.get("longitude") is not None and self._fresh(p.get("pinged_at")):
                 origin = (float(p["latitude"]), float(p["longitude"]))
-            else:
+            elif self.fallback_origin is not None:
                 origin = self.fallback_origin
+            else:
+                continue  # position unknown or stale: nothing that depends on it can be offered
             candidate = Candidate(driver_id, p["shift_id"], p.get("driver_name"),
                                   round(haversine_km(*origin, order.latitude, order.longitude), 2), origin)
             current = best.get(driver_id)
@@ -342,21 +343,9 @@ class OrderDispatcher:
             try:
                 from app.services.eta_service import eta_service
                 
-                # Get driver's current location
-                driver_origin = self.fallback_origin  # Default fallback
-                
-                # Try to get actual driver location from database
-                try:
-                    positions = await _try_db(get_active_driver_positions)
-                    if positions:
-                        for p in positions:
-                            if str(p["driver_id"]) == candidate.driver_id:
-                                if p.get("latitude") is not None and p.get("longitude") is not None:
-                                    driver_origin = (float(p["latitude"]), float(p["longitude"]))
-                                    break
-                except Exception as e:
-                    logger.warning(f"[Dispatch] Could not fetch driver location for traffic ETA: {e}")
-                
+                # The offered driver's own position, as ranked (never another driver's)
+                driver_origin = candidate.origin
+
                 # Calculate traffic-aware ETA for the candidate's own vehicle
                 from app.services.vehicle_modes import get_driver_vehicle_mode
                 mode = await get_driver_vehicle_mode(candidate.driver_id)
@@ -581,6 +570,28 @@ class OrderDispatcher:
                     await self.hub.present_offer(shift_id, await self.offer_payload(open_order))
         await self.redispatch()
 
+    def location_ping(self, driver_id: str) -> None:
+        """
+        A GPS ping was stored for this driver. The first one, or the first after their last one
+        went stale, is what makes them eligible for the orders that were waiting on a position,
+        so offer those now instead of at the next order or connect.
+        """
+        now = time.monotonic()
+        previous, self._last_ping[driver_id] = self._last_ping.get(driver_id), now
+        went_stale = (previous is None or (self.ping_max_age_minutes is not None
+                                           and now - previous > self.ping_max_age_minutes * 60))
+        if went_stale and any(o.offered_to is None for o in self._orders.values()):
+            self._spawn(self.redispatch())
+
+    async def driver_position(self, driver_id: str) -> Optional[Tuple[float, float]]:
+        """This driver's own fresh position, else the demo override, else None. Never anyone else's."""
+        positions = await _try_db(get_active_driver_positions) or []
+        for p in positions:
+            if (str(p["driver_id"]) == str(driver_id) and p.get("latitude") is not None
+                    and p.get("longitude") is not None and self._fresh(p.get("pinged_at"))):
+                return float(p["latitude"]), float(p["longitude"])
+        return self.fallback_origin
+
     def driver_left(self, driver_id: str) -> None:
         """A driver's last voice socket closed: their offer goes to the next online driver now."""
         if driver_id not in set(self.hub.live_shifts().values()):
@@ -727,12 +738,25 @@ class OrderDispatcher:
 
     def next_order_for(self, driver_id: str, latitude: Optional[float] = None,
                        longitude: Optional[float] = None) -> Optional[Dict[str, Any]]:
-        """The order offered to this driver, else the nearest unassigned one; None if the queue is empty."""
-        origin = (latitude, longitude) if latitude is not None and longitude is not None else self.fallback_origin
+        """
+        The order offered to this driver, else the nearest unassigned one; None if the queue is empty.
+        Distances are from the driver's position (`latitude`/`longitude`, else the position the
+        offer was ranked from, else the demo override); with none of those `distance_km` is None.
+        """
         offered = next((o for o in self._orders.values()
                         if o.offered_to and o.offered_to.driver_id == driver_id), None)
-        waiting = sorted((o for o in self._orders.values() if o.offered_to is None),
-                         key=lambda o: haversine_km(*origin, o.order.latitude, o.order.longitude))
+        origin = (latitude, longitude) if latitude is not None and longitude is not None else None
+        if origin is None and offered is not None:
+            origin = offered.offered_to.origin
+        if origin is None:
+            origin = self.fallback_origin
+
+        def km(o: OpenOrder) -> Optional[float]:
+            return round(haversine_km(*origin, o.order.latitude, o.order.longitude), 2) if origin else None
+
+        waiting = [o for o in self._orders.values() if o.offered_to is None]
+        if origin:
+            waiting.sort(key=lambda o: km(o))
         open_order = offered or (waiting[0] if waiting else None)
         if open_order is None:
             return None
@@ -746,7 +770,7 @@ class OrderDispatcher:
             "address": order.address,
             "notes": order.notes,
             "time_window": order.time_window,
-            "distance_km": round(haversine_km(*origin, order.latitude, order.longitude), 2),
+            "distance_km": km(open_order),
             "expires_in_s": (max(0, round(open_order.expires_at - time.time()))
                              if offered is not None and open_order.expires_at else None),
         }

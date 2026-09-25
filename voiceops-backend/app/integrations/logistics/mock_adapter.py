@@ -7,6 +7,11 @@ Its order feed behaves like a real platform's webhook: every random interval in
 re-drawn each time, never a fixed timer) it builds an Order Intake API payload for a
 plausible drop-off in downtown Austin, the demo's home area, validates it with the same
 model `POST /v1/logistics/orders` uses, and hands the order to the dispatcher.
+
+Each order is placed near the position `get_location()` reports, which the dispatcher
+draws from an online driver's own fresh GPS ping (or the explicit DEMO_AREA_LAT/LNG override).
+While no such position exists the feed holds and re-checks every `location_retry_seconds`, so
+the first ping is what releases the next order. It never falls back to another driver's ping.
 """
 import asyncio
 import logging
@@ -179,6 +184,7 @@ class MockAdapter(LogisticsAdapter):
         max_interval: float,
         rng: Optional[random.Random] = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        location_retry_seconds: Optional[float] = None,
     ):
         if not 0 < min_interval <= max_interval:
             raise ValueError("MockAdapter needs 0 < min_interval <= max_interval")
@@ -186,6 +192,8 @@ class MockAdapter(LogisticsAdapter):
         self.max_interval = max_interval
         self._rng = rng or random.Random()
         self._sleep = sleep
+        self.location_retry_seconds = (settings.order_feed_location_retry_seconds
+                                       if location_retry_seconds is None else location_retry_seconds)
         self._feed: Optional[asyncio.Task] = None
         # What the platform was told, newest last (the demo and tests read it)
         self.writebacks: Deque[dict] = deque(maxlen=50)
@@ -296,27 +304,25 @@ class MockAdapter(LogisticsAdapter):
         event = self.build_order_event(center=center if not is_austin else None, drop_coord=drop_coord, address=geo_address)
         return IncomingOrder.from_event(OrderCreatedEvent.model_validate(event))
 
-    async def _fetch_live_driver_location(self) -> Optional[Tuple[float, float]]:
-        """Find the latest GPS ping from active drivers or recent location pings in DB, or config."""
-        if settings.demo_area_lat is not None and settings.demo_area_lng is not None:
-            return float(settings.demo_area_lat), float(settings.demo_area_lng)
-
+    async def _locate(
+        self,
+        get_location: Optional[Callable[[], Awaitable[Optional[Tuple[float, float]]]]],
+    ) -> Tuple[bool, Optional[Tuple[float, float]]]:
+        """
+        (ready, centre) for the next order. With a `get_location` source, ready means it named a
+        position; a source with nothing to say (no driver located yet) means hold. Without one
+        there is no driver context: the explicit demo area if set, else the curated Austin drop-offs.
+        """
+        if get_location is None:
+            if settings.demo_area_lat is not None and settings.demo_area_lng is not None:
+                return True, (float(settings.demo_area_lat), float(settings.demo_area_lng))
+            return True, None
         try:
-            from app.db.queries import get_supabase
-            sb = get_supabase()
-            resp = (
-                sb.table("location_pings")
-                .select("latitude, longitude")
-                .order("pinged_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            if resp.data and resp.data[0].get("latitude") is not None and resp.data[0].get("longitude") is not None:
-                return float(resp.data[0]["latitude"]), float(resp.data[0]["longitude"])
+            center = await get_location()
         except Exception as e:
-            logger.debug(f"[MockAdapter] Could not query latest location ping: {e}")
-
-        return None
+            logger.debug(f"[MockAdapter] get_location failed: {e}")
+            center = None
+        return center is not None, center
 
     async def run_feed(
         self,
@@ -324,27 +330,25 @@ class MockAdapter(LogisticsAdapter):
         should_generate: Callable[[], bool],
         get_location: Optional[Callable[[], Awaitable[Optional[Tuple[float, float]]]]] = None,
     ) -> None:
-        """Wait a fresh random interval, then emit one order (unless nobody could take it). Forever."""
+        """
+        Wait a fresh random interval, then emit one order (unless nobody could take it). Forever.
+        If nobody's position is known yet the order is held, not placed elsewhere, and retried
+        every `location_retry_seconds` until one is (or nobody is left to take it).
+        """
         while True:
             await self._sleep(self.next_interval())
-            if not should_generate():
-                continue
-
-            center = None
-            if get_location is not None:
+            while should_generate():
+                ready, center = await self._locate(get_location)
+                if not ready:
+                    logger.info("[MockAdapter] Holding the next order: no online driver's location is known yet")
+                    await self._sleep(self.location_retry_seconds)
+                    continue
+                order = await self.next_order_async(center=center)
                 try:
-                    center = await get_location()
-                except Exception as e:
-                    logger.debug(f"[MockAdapter] get_location failed: {e}")
-
-            if center is None:
-                center = await self._fetch_live_driver_location()
-
-            order = await self.next_order_async(center=center)
-            try:
-                await on_order(order)
-            except Exception:
-                logger.exception(f"[MockAdapter] Dispatching {order.external_id} failed")
+                    await on_order(order)
+                except Exception:
+                    logger.exception(f"[MockAdapter] Dispatching {order.external_id} failed")
+                break
 
     async def start_order_feed(
         self,
