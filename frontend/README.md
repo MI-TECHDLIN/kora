@@ -23,6 +23,12 @@ Copy-Item config/supabase.prod.json.example config/supabase.prod.json
 flutter run --dart-define-from-file=config/supabase.prod.json
 ```
 
+`VOICEOPS_API_URL` in that file overrides the app's built-in production
+backend, so keep it at the Render URL for anything that isn't a local test:
+a value left pointing at a LAN address or an old service makes voice fail
+without ever reaching Render (Settings > About shows the backend a build
+uses).
+
 For a physical Android phone on the same Wi-Fi network, set
 `VOICEOPS_API_URL` to the computer's LAN address and start FastAPI with:
 

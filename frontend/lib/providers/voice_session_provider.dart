@@ -85,8 +85,19 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   /// own. Before that, a failed connect waits for the next mic press.
   bool _sessionWanted = false;
 
-  /// The server rejected the token (`auth_failed`); don't reconnect.
+  /// The server rejected the token (`auth_failed`) or has no voice provider
+  /// (`voice_not_configured`); don't reconnect.
   bool _rejected = false;
+
+  /// What the backend last said went wrong on this connection. A failed
+  /// session ends on it instead of the generic "can't reach" line.
+  String? _serverIssue;
+
+  /// A socket that stays open this long counts as a healthy connection and
+  /// restarts the reconnect backoff. One the backend closes straight after
+  /// its `error` event does not, or a broken backend would be redialled
+  /// forever.
+  Timer? _stableTimer;
 
   /// The backend accepted a `change_voice` and is closing the socket on
   /// purpose: reconnect at once (`_connect` reads the saved voice), without
@@ -113,6 +124,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   Timer? _mapFocusTimer;
 
   static const _backoff = [1, 2, 4, 8, 16];
+  static const _stableAfter = Duration(seconds: 10);
   static const _answerTimeout = Duration(seconds: 20);
   static const _routeGrace = Duration(milliseconds: 300);
   static const _speechRms = 500;
@@ -284,6 +296,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _sessionWanted = false;
     _switchingVoice = false;
     _reconnectTimer?.cancel();
+    _stableTimer?.cancel();
     _answerWatchdog?.cancel();
     _followUpTimer?.cancel();
     await _stopMic();
@@ -395,7 +408,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     try {
       shiftId = await _ref.read(shiftProvider.notifier).ensureStarted();
     } on ApiException catch (e) {
-      _fail(e.message);
+      // Name the host: a build pointed at the wrong backend otherwise fails
+      // with a message that reads like a server problem.
+      _fail('${e.message} (${backendLabel(base)})');
       return false;
     }
     if (!mounted) return false;
@@ -405,6 +420,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     if (!mounted) return false;
 
     _rejected = false;
+    _serverIssue = null;
     final socket = _ref.read(voiceSocketConnectorProvider)(
       voiceSocketUri(
         base,
@@ -428,7 +444,8 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     }
     if (!mounted || _socket != socket) return false;
     _sessionWanted = true;
-    _reconnectAttempt = 0;
+    _stableTimer?.cancel();
+    _stableTimer = Timer(_stableAfter, () => _reconnectAttempt = 0);
     state = const VoiceSessionState(connection: VoiceConnection.connected);
     // Events sent while the socket was down are gone; take a fresh snapshot.
     unawaited(_ref.read(orderQueueProvider.notifier).refresh());
@@ -446,6 +463,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
     _socket = null;
     unawaited(_frames?.cancel());
     _frames = null;
+    _stableTimer?.cancel();
     _answerWatchdog?.cancel();
     await _stopMic();
     if (!mounted) return;
@@ -478,7 +496,13 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       });
     } else {
       _sessionWanted = false;
-      _fail("Can't reach your co-rider. Tap the mic to try again.");
+      _reconnectAttempt = 0; // the next mic tap starts a fresh set of attempts
+      _fail(
+        _serverIssue ??
+            "Can't reach your co-rider at "
+                '${backendLabel(_ref.read(backendUriProvider))}. '
+                'Tap the mic to try again.',
+      );
     }
   }
 
@@ -648,12 +672,9 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   void _onError(ErrorEvent error) {
     if (error.isFatal) _rejected = true;
+    _serverIssue = error.displayMessage;
     _ref.read(orderOfferProvider.notifier).responseFailed();
-    _setIssue(
-      error.message.isNotEmpty
-          ? error.message
-          : 'Your co-rider hit a problem. Try again.',
-    );
+    _setIssue(error.displayMessage);
     if (_pttState == PushToTalkState.processing) {
       _answerWatchdog?.cancel();
       if (_micOpen) {
@@ -697,6 +718,7 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
   void dispose() {
     _authSubscription.cancel();
     _reconnectTimer?.cancel();
+    _stableTimer?.cancel();
     _answerWatchdog?.cancel();
     _followUpTimer?.cancel();
     _mapFocusTimer?.cancel();

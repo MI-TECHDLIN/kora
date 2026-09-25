@@ -304,15 +304,33 @@ class ProactiveAlertEvent extends VoiceEvent {
 }
 
 /// `code` ∈ `auth_failed | session_expired | upstream_unavailable |
-/// upstream_timeout | invalid_message | internal`; [message] is safe to show.
+/// upstream_timeout | invalid_message | internal | voice_not_configured`;
+/// [message] is safe to show.
 class ErrorEvent extends VoiceEvent {
   const ErrorEvent({required this.code, required this.message});
   final String code;
   final String message;
 
-  /// The token was rejected, so reconnecting won't help. `session_expired`
-  /// is not fatal: the next connect sends Supabase's refreshed token.
-  bool get isFatal => code == 'auth_failed';
+  /// Reconnecting won't help: the token was rejected (`auth_failed`), or the
+  /// server has no voice provider set up (`voice_not_configured`).
+  /// `session_expired` is not fatal: the next connect sends Supabase's
+  /// refreshed token.
+  bool get isFatal => code == 'auth_failed' || code == 'voice_not_configured';
+
+  /// [message], or a sentence for [code] when the backend sent none.
+  String get displayMessage {
+    if (message.isNotEmpty) return message;
+    return switch (code) {
+      'auth_failed' => 'Sign in again to talk to your co-rider.',
+      'session_expired' => 'Your session expired. Sign in again.',
+      'voice_not_configured' =>
+        "Kora's voice service isn't set up on the server yet.",
+      'upstream_unavailable' =>
+        'The voice service is unreachable. Try again in a moment.',
+      'upstream_timeout' => 'The voice service is slow to answer. Try again.',
+      _ => 'Your co-rider hit a problem. Try again.',
+    };
+  }
 }
 
 /// The backend took a `change_voice` request and is about to close the

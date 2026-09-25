@@ -3,6 +3,26 @@
 Real things that have already gone wrong once on this project. Check here
 before spending time re-debugging something already solved.
 
+## Login works but the mic never reaches the backend: a baked-in `VOICEOPS_API_URL`
+
+**Symptom:** Supabase sign-in and the wake word work, but tapping the mic gives "Can't reach
+your co-rider" / "Kora had a problem", and the Render logs show no `/v1/shift/start` or
+`/ws/voice` request from the phone at all.
+
+**Cause:** `--dart-define=VOICEOPS_API_URL` (including the key in `frontend/config/supabase.prod.json`,
+which `tool/build_android_release.ps1` passes to every release build) overrides the app's built-in
+`BackendConfig.productionUrl`. The old template held a LAN placeholder, and a build made before the
+Render service moved keeps the retired URL. Login talks to Supabase directly, so it hides the problem.
+
+**Check:** Settings > ABOUT shows the backend host the build uses (with a warning when it is plain
+http or a LAN address), and the voice error names the host. **Fix:** rebuild with the production URL
+(the template now has it) or drop the key to use the app default. The release script refuses a local
+or retired URL unless `-AllowLocalBackend`.
+
+**Diagnose the server side:** `GET /health/ready` reports, as booleans and fixed reason tokens,
+whether each setting the voice path needs is present and whether the AssemblyAI session and the
+database work. Voice failures also log `[VoiceWS] Session failed: code=… reason=…` (no values).
+
 ## `ASSEMBLYAI_AGENT_ID` breaks voice if set to anything
 
 **Status: this exact incident already happened once and was fixed on 2026-09-16/17** by removing

@@ -1,7 +1,10 @@
 import asyncio
+import logging
 from fastapi import Header, HTTPException, status
 from typing import Optional
 from app.db.client import get_supabase_client
+
+logger = logging.getLogger(__name__)
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -25,10 +28,21 @@ async def authenticate_bearer(authorization: Optional[str]) -> dict:
     token = authorization[7:]  # Remove "Bearer " prefix
 
     try:
-        # Validate JWT with Supabase (sync client, so keep it off the event loop)
         supabase = get_supabase_client()
+    except Exception as e:
+        # SUPABASE_URL / SUPABASE_SERVICE_KEY missing or unusable: the server's fault, not the
+        # driver's, so it must not read as an expired token (the app would say "sign in again").
+        logger.error("[Auth] Supabase client unavailable (%s); check SUPABASE_URL and SUPABASE_SERVICE_KEY", type(e).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server sign-in check is not configured",
+        )
+
+    try:
+        # Validate JWT with Supabase (sync client, so keep it off the event loop)
         user = await asyncio.to_thread(supabase.auth.get_user, token)
-    except Exception:
+    except Exception as e:
+        logger.warning("[Auth] Token rejected: %s status=%s", type(e).__name__, getattr(e, "status", None))
         raise _unauthorized("Invalid or expired token")
 
     if not user or not user.user:

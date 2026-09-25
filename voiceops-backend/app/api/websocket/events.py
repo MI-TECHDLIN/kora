@@ -14,7 +14,7 @@ TASK_STEP_STATUSES = frozenset({"pending", "active", "done"})
 TRANSCRIPT_ROLES = frozenset({"driver", "agent"})
 ERROR_CODES = frozenset({
     "auth_failed", "session_expired", "upstream_unavailable", "upstream_timeout",
-    "invalid_message", "internal",
+    "invalid_message", "internal", "voice_not_configured",
 })
 OFFER_OUTCOMES = frozenset({"accepted", "declined", "expired", "withdrawn"})
 
