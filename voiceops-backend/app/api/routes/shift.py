@@ -143,6 +143,13 @@ async def start_shift(
             message="Shift started successfully"
         )
     except Exception as e:
+        # Value-free reason for the Render log (the exception class, not its text)
+        logger.error("[start_shift] failed: %s", type(e).__name__)
+        if isinstance(e, ValueError) and "Supabase" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Failed to start shift: the database is not configured"
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start shift: {str(e)}"

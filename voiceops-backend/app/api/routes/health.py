@@ -1,8 +1,11 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import asyncio
 from datetime import datetime
 import time
+
+from app.services.voice_readiness import readiness_report
 
 
 router = APIRouter()
@@ -37,3 +40,16 @@ async def ping():
     Simple ping endpoint for quick health checks.
     """
     return {"ping": "pong", "timestamp": datetime.utcnow().isoformat()}
+
+
+@router.get("/ready")
+async def ready():
+    """
+    Whether the voice path can start, as booleans and fixed reason tokens only (no values).
+
+    Reports which settings the voice path needs are present, and probes the database and the
+    AssemblyAI Voice Agent session (bounded, cached for 30s). 200 when everything is ready, 503
+    otherwise. Render's own health check should keep using `/health`.
+    """
+    report = await readiness_report()
+    return JSONResponse(report, status_code=200 if report["ready"] else 503)

@@ -16,6 +16,8 @@ import pytest
 import websockets
 from fastapi.testclient import TestClient
 from jose import jwt as jose_jwt
+from websockets.datastructures import Headers
+from websockets.http11 import Response
 
 from app.main import app
 from app.agents import tool_registry
@@ -487,11 +489,74 @@ def test_upstream_unavailable(monkeypatch):
         assert next_frame(ws) == {"close": voice.CLOSE_INTERNAL_ERROR}
 
 
-def test_voice_service_not_configured(monkeypatch):
+def test_voice_service_not_configured(monkeypatch, caplog):
     monkeypatch.setattr(voice.settings, "assemblyai_api_key", None)
     with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
         frame = next_frame(ws)
+        assert frame["event"] == "error" and frame["code"] == "voice_not_configured"
+        assert next_frame(ws) == {"close": voice.CLOSE_INTERNAL_ERROR}
+    assert "reason=assemblyai_api_key_missing" in caplog.text
+
+
+@pytest.mark.parametrize("error, code, reason", [
+    (websockets.exceptions.InvalidStatus(Response(401, "Unauthorized", Headers(), b"")),
+     "voice_not_configured", "assemblyai_key_rejected"),
+    (websockets.exceptions.InvalidStatus(Response(503, "Unavailable", Headers(), b"")),
+     "upstream_unavailable", "assemblyai_http_503"),
+    (asyncio.TimeoutError(), "upstream_timeout", "assemblyai_connect_timeout"),
+    (OSError("Name or service not known"), "upstream_unavailable", "assemblyai_unreachable_OSError"),
+])
+def test_upstream_connect_failures_get_a_specific_code_and_a_value_free_log(
+    monkeypatch, caplog, error, code, reason
+):
+    monkeypatch.setattr(voice.settings, "assemblyai_api_key", "aai-secret-key-do-not-leak")
+
+    async def connect(url, **kwargs):
+        raise error
+
+    monkeypatch.setattr("app.services.voice_readiness.websockets.connect", connect)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        frame = next_frame(ws)
+        assert frame["event"] == "error" and frame["code"] == code
+        assert "aai-secret-key-do-not-leak" not in json.dumps(frame)
+        assert next_frame(ws) == {"close": voice.CLOSE_INTERNAL_ERROR}
+    assert f"code={code} reason={reason}" in caplog.text
+    assert "aai-secret-key-do-not-leak" not in caplog.text
+    assert "Name or service not known" not in caplog.text
+
+
+def test_upstream_session_error_is_logged_by_code_only(monkeypatch, caplog):
+    fake = FakeUpstream()
+
+    async def open_upstream():
+        fake.push({"type": "session.error", "code": "invalid_agent", "message": "agent abc-secret not found"})
+        return fake
+
+    monkeypatch.setattr(voice, "_open_upstream", open_upstream)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        frame = next_frame(ws)
         assert frame["event"] == "error" and frame["code"] == "upstream_unavailable"
+    assert "reason=session_rejected_invalid_agent" in caplog.text
+    assert "abc-secret" not in caplog.text
+
+
+def test_server_without_supabase_config_is_not_reported_as_an_expired_token(monkeypatch, caplog):
+    def unconfigured():
+        raise ValueError("Supabase URL and service key must be set in environment variables")
+
+    monkeypatch.setattr("app.dependencies.get_supabase_client", unconfigured)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        frame = next_frame(ws)
+        assert frame["event"] == "error" and frame["code"] == "voice_not_configured"
+        assert next_frame(ws) == {"close": voice.CLOSE_INTERNAL_ERROR}
+    assert "reason=server_auth_not_configured" in caplog.text
+
+
+def test_rejected_token_is_logged_with_a_reason(upstream, caplog):
+    with client.websocket_connect(WS_PATH, headers={"Authorization": "Bearer bad-token"}) as ws:
+        next_frame(ws)
+    assert "code=auth_failed reason=bearer_rejected" in caplog.text
+    assert "bad-token" not in caplog.text
 
 
 def test_upstream_error_mid_session_closes_with_error(upstream):

@@ -216,9 +216,8 @@ class HttpKoraApi implements KoraApi {
   static const _timeout = Duration(seconds: 15);
 
   @override
-  Future<DriverProfile> ensureDriverProfile() async => DriverProfile.fromJson(
-    await _send('POST', 'v1/driver/ensure-profile'),
-  );
+  Future<DriverProfile> ensureDriverProfile() async =>
+      DriverProfile.fromJson(await _send('POST', 'v1/driver/ensure-profile'));
 
   @override
   Future<DriverProfile> fetchDriverProfile() async =>
@@ -371,6 +370,9 @@ class HttpKoraApi implements KoraApi {
     if (response.statusCode == 401) {
       throw const ApiException('Sign in again to continue.', statusCode: 401);
     }
+    if (const {502, 503, 504}.contains(response.statusCode)) {
+      throw ApiException(_unavailableMessage, statusCode: response.statusCode);
+    }
     if (response.statusCode != 200) {
       throw ApiException(_serverMessage, statusCode: response.statusCode);
     }
@@ -388,5 +390,7 @@ class HttpKoraApi implements KoraApi {
       "Can't reach Kora right now. Check your connection and try again.";
   static const _timeoutMessage =
       'Kora is taking longer than usual. Try again in a moment.';
+  static const _unavailableMessage =
+      "Kora's server isn't ready. Try again in a moment.";
   static const _serverMessage = 'Kora had a problem. Try again.';
 }

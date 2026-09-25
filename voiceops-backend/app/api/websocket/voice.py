@@ -55,6 +55,7 @@ from app.db.queries import (
     update_voice_session,
 )
 from app.integrations.twilio_client import get_call_status, hang_up_call
+from app.services.voice_readiness import NOT_CONFIGURED_MESSAGE, classify_upstream_failure, connect_upstream
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,11 @@ def _claim_shift_greeting(driver_id: str, shift_id: str) -> bool:
 
 
 class UpstreamError(Exception):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, reason: Optional[str] = None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.reason = reason  # value-free token for the log, never sent to the app
 
 
 async def _db(query, *args):
@@ -118,14 +120,8 @@ async def _try_db(query, *args):
 
 
 async def _open_upstream():
-    """Open the AssemblyAI Voice Agent WebSocket."""
-    if not settings.assemblyai_api_key:
-        raise UpstreamError("upstream_unavailable", "The voice service is not configured.")
-    return await websockets.connect(
-        settings.assemblyai_voice_agent_url,
-        additional_headers={"Authorization": f"Bearer {settings.assemblyai_api_key}"},
-        open_timeout=UPSTREAM_READY_TIMEOUT,
-    )
+    """Open the AssemblyAI Voice Agent WebSocket (failures are classified in `_start_upstream`)."""
+    return await connect_upstream()
 
 
 def _token_expiry(authorization: str) -> Optional[float]:
@@ -139,6 +135,12 @@ def _token_expiry(authorization: str) -> Optional[float]:
 
 def _upstream_error_code(data: dict) -> str:
     return "upstream_timeout" if data.get("code") == "agent_timeout" else "upstream_unavailable"
+
+
+def _upstream_reason(prefix: str, data: dict) -> str:
+    """Log token for an upstream error event: its `code` (AssemblyAI's vocabulary), never its text."""
+    code = data.get("code")
+    return f"{prefix}_{code}" if isinstance(code, str) and 0 < len(code) <= 40 else prefix
 
 
 def _is_mock_call(call_id: str) -> bool:
@@ -291,8 +293,9 @@ class VoiceSession:
             except Exception:
                 self.client_gone = True
 
-    async def fail(self, code: str, message: str) -> None:
+    async def fail(self, code: str, message: str, reason: Optional[str] = None) -> None:
         """Tell the app why the session is ending; the socket closes during cleanup."""
+        logger.warning("[VoiceWS] Session failed: code=%s reason=%s shift=%s", code, reason or code, self.shift_id)
         await self.emit(events.error(code, message))
         self.close_code = (CLOSE_POLICY_VIOLATION if code in ("auth_failed", "session_expired")
                            else CLOSE_INTERNAL_ERROR)
@@ -390,7 +393,7 @@ class VoiceSession:
         try:
             await self.upstream.send(json.dumps(message))
         except websockets.exceptions.ConnectionClosed:
-            raise UpstreamError("upstream_unavailable", "Lost connection to the voice service.")
+            raise UpstreamError("upstream_unavailable", "Lost connection to the voice service.", "upstream_send_after_close")
 
     async def recv_upstream(self) -> Optional[dict]:
         """Next JSON event from AssemblyAI, or None once the upstream socket is closed."""
@@ -421,10 +424,10 @@ class VoiceSession:
             self._spawn(self._driver_online())
             await self._pump()
         except UpstreamError as e:
-            await self.fail(e.code, e.message)
-        except Exception:
+            await self.fail(e.code, e.message, e.reason)
+        except Exception as e:
             logger.exception("[VoiceWS] Session crashed")
-            await self.fail("internal", "Something went wrong. Try again.")
+            await self.fail("internal", "Something went wrong. Try again.", f"crash_{type(e).__name__}")
         finally:
             await self._close()
 
@@ -482,11 +485,9 @@ class VoiceSession:
             self.upstream = await _open_upstream()
         except UpstreamError:
             raise
-        except asyncio.TimeoutError:
-            raise UpstreamError("upstream_timeout", "The voice service did not respond.")
         except Exception as e:
-            logger.warning(f"[VoiceWS] Upstream connect failed: {e!r}")
-            raise UpstreamError("upstream_unavailable", "The voice service is unavailable.")
+            code, reason, message = classify_upstream_failure(e)
+            raise UpstreamError(code, message, reason)
 
         current = self.context.get("current_delivery") or {}
         next_stop = ""
@@ -510,17 +511,19 @@ class VoiceSession:
             while True:
                 data = await asyncio.wait_for(self.recv_upstream(), UPSTREAM_READY_TIMEOUT)
                 if data is None:
-                    raise UpstreamError("upstream_unavailable", "The voice service closed the connection.")
+                    raise UpstreamError("upstream_unavailable", "The voice service closed the connection.", "upstream_closed_during_setup")
                 msg_type = data.get("type")
                 if msg_type in ("session.ready", "session.updated"):
                     if include_greeting:
                         self._expect_reply_until = time.monotonic() + REPLY_GRACE
                     return
                 if msg_type in ("session.error", "error"):
-                    logger.warning(f"[VoiceWS] Upstream rejected session: {data.get('code')}")
-                    raise UpstreamError(_upstream_error_code(data), "The voice service rejected the session.")
+                    raise UpstreamError(
+                        _upstream_error_code(data), "The voice service rejected the session.",
+                        _upstream_reason("session_rejected", data),
+                    )
         except asyncio.TimeoutError:
-            raise UpstreamError("upstream_timeout", "The voice service did not respond.")
+            raise UpstreamError("upstream_timeout", "The voice service did not respond.", "upstream_setup_timeout")
 
     async def _pump(self) -> None:
         """Relay both directions until either side ends (or the token expires)."""
@@ -593,7 +596,7 @@ class VoiceSession:
 
     async def _expiry_watch(self) -> None:
         await asyncio.sleep(max(0.0, self.token_exp - time.time()))
-        await self.fail("session_expired", "Your session expired. Sign in again.")
+        await self.fail("session_expired", "Your session expired. Sign in again.", "token_expired_mid_session")
 
     # ------------------------------------------------------------------ app → upstream
 
@@ -707,7 +710,7 @@ class VoiceSession:
         while True:
             data = await self.recv_upstream()
             if data is None:
-                await self.fail("upstream_unavailable", "Lost connection to the voice service.")
+                await self.fail("upstream_unavailable", "Lost connection to the voice service.", "upstream_closed")
                 return
 
             msg_type = data.get("type")
@@ -753,11 +756,14 @@ class VoiceSession:
                 await self._finish_reply(interrupted=data.get("status") == "interrupted")
                 self._announce_wake.set()
             elif msg_type == "session.ended":
-                await self.fail("upstream_unavailable", "The voice session ended.")
+                await self.fail("upstream_unavailable", "The voice session ended.", "upstream_session_ended")
                 return
             elif msg_type in ("session.error", "error"):
                 logger.warning(f"[VoiceWS] Upstream error: {data.get('code')}")
-                await self.fail(_upstream_error_code(data), "The voice service hit an error.")
+                await self.fail(
+                    _upstream_error_code(data), "The voice service hit an error.",
+                    _upstream_reason("upstream_session_error", data),
+                )
                 return
 
     def _start_tool(self, data: dict) -> None:
@@ -1020,7 +1026,8 @@ async def voice_socket(websocket: WebSocket, shift_id: str):
     """
     await websocket.accept()
 
-    async def reject(code: str, message: str) -> None:
+    async def reject(code: str, message: str, reason: str) -> None:
+        logger.warning("[VoiceWS] Socket rejected: code=%s reason=%s shift=%s", code, reason, shift_id)
         await websocket.send_text(json.dumps(events.error(code, message)))
         await websocket.close(code=CLOSE_POLICY_VIOLATION if code == "auth_failed" else CLOSE_INTERNAL_ERROR)
 
@@ -1028,18 +1035,20 @@ async def voice_socket(websocket: WebSocket, shift_id: str):
     try:
         user = await authenticate_bearer(authorization)
     except HTTPException as e:
-        await reject("auth_failed", f"{e.detail}. Sign in again.")
+        if e.status_code == 503:
+            await reject("voice_not_configured", NOT_CONFIGURED_MESSAGE, "server_auth_not_configured")
+        else:
+            await reject("auth_failed", f"{e.detail}. Sign in again.", "bearer_rejected")
         return
 
     # A driver may only open their own shift
     try:
         shift = await _db(get_shift_by_id, shift_id)
     except Exception as e:
-        logger.warning(f"[VoiceWS] Shift lookup failed: {e!r}")
-        await reject("internal", "Could not load your shift. Try again.")
+        await reject("internal", "Could not load your shift. Try again.", f"shift_lookup_{type(e).__name__}")
         return
     if not shift or str(shift.get("driver_id")) != str(user["id"]):
-        await reject("auth_failed", "This shift is not available to you.")
+        await reject("auth_failed", "This shift is not available to you.", "shift_not_owned")
         return
 
     voice_param = websocket.query_params.get("voice")

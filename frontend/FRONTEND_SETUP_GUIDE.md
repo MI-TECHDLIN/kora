@@ -37,7 +37,10 @@ Copy-Item config/supabase.prod.json.example config/supabase.prod.json
 ```
 
 ### Edit config/supabase.prod.json
-Update with your actual Supabase anon key and backend URL:
+Update with your actual Supabase anon key. Keep `VOICEOPS_API_URL` at the
+production Render URL unless you are testing against a local FastAPI on your
+Wi-Fi network (the value below is only that local-testing case; a release
+build pointed at it can't reach Render):
 
 ```json
 {
