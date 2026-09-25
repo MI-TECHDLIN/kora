@@ -184,6 +184,18 @@ flutter analyze
 flutter test
 ```
 
+### Secret scanning
+
+Pull requests into `staging` and `main` are scanned by [gitleaks](https://github.com/gitleaks/gitleaks) (`.github/workflows/secret-scan.yml`, config in `.gitleaks.toml`). Only the commits a PR adds are judged, so old history does not fail the check. To catch a key before it is even committed, opt into the local hook:
+
+```bash
+brew install gitleaks        # or the release binary: https://github.com/gitleaks/gitleaks/releases
+pip install pre-commit
+pre-commit install           # from the repo root
+```
+
+Check the current tree by hand with `gitleaks dir . --config .gitleaks.toml --redact`. If a real key is ever committed, rotate it first; a passing scan is not a substitute.
+
 ### Two rules that protect the live experience
 
 1. When a request needs several tools, Kora runs them concurrently and brings the results back into one answer. Do not turn that work into a chain of slow, one-by-one waits.
@@ -203,7 +215,7 @@ AssemblyAI speech, reasoning, tool calls and audio replies travel over one live 
 
 1. Fetch `staging` and create a scoped feature branch from its current tip: `features/frontend/...`, `features/backend/...` or `features/ai/...`.
 2. Keep a change inside its layer and preserve the frozen interface contract.
-3. Run the relevant checks above and verify that no `.env`, credential or token is staged.
+3. Run the relevant checks above and verify that no `.env`, credential or token is staged (the [secret-scanning hook](#secret-scanning) helps).
 4. Open a pull request into `staging`. Releases are promoted by pull request from `staging` to `dev`, then from `dev` to `main`; do not push directly to `dev` or `main`.
 
 Read [`AGENTS.md`](AGENTS.md) and the matching file in [`.firstmate/rules/`](.firstmate/rules/) before changing code.
