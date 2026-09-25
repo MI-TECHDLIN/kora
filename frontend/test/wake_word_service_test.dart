@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:voiceops/core/wake/sherpa_wake_word_engine.dart';
 import 'package:voiceops/core/wake/wake_word_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   WakeWordService service({
     required FakeWakeWordEngine engine,
     required FakeWakeWordAssets assets,
@@ -79,6 +82,78 @@ void main() {
       0.65,
       0.4,
     ]);
+  });
+
+  test('maps explicit per-phrase tuning into sherpa keyword config', () async {
+    final engine = FakeWakeWordEngine();
+    final wake = service(
+      engine: engine,
+      assets: FakeWakeWordAssets(
+        manifest: manifest([
+          phrase('kora', sensitivity: 1, score: 1, threshold: 0.30),
+          phrase('hey_kora', sensitivity: 0.5),
+        ]),
+        keywords: keywordTokens(['kora', 'hey_kora']),
+      ),
+    );
+
+    await wake.sync(enabled: true, sessionActive: false, foreground: true);
+
+    expect(
+      buildSherpaKeywordBuffer(engine.config!.keywords),
+      'R EH1 D IY0 :1.00 #0.30 @kora\n'
+      'R EH1 D IY0 :2.00 #0.25 @hey_kora\n',
+    );
+  });
+
+  test('bundled manifest enables bare Kora conservatively', () async {
+    final engine = FakeWakeWordEngine();
+    final wake = WakeWordService(
+      engine: engine,
+      assets: const BundleWakeWordAssetSource(),
+      platform: WakeWordPlatform.android,
+      hasMicrophonePermission: () async => true,
+      onWakeWord: () async {},
+      log: (_) {},
+    );
+
+    await wake.sync(enabled: true, sessionActive: false, foreground: true);
+
+    final kora = engine.config!.keywords.singleWhere(
+      (keyword) => keyword.id == 'kora',
+    );
+    expect(kora.score, 1);
+    expect(kora.threshold, 0.30);
+  });
+
+  test('wake capture matches the sherpa reference audio shape', () {
+    expect(wakeWordRecordConfig.encoder.name, 'pcm16bits');
+    expect(wakeWordRecordConfig.sampleRate, 16000);
+    expect(wakeWordRecordConfig.numChannels, 1);
+    expect(wakeWordRecordConfig.streamBufferSize, 3200);
+    expect(wakeWordRecordConfig.autoGain, isFalse);
+    expect(wakeWordRecordConfig.echoCancel, isFalse);
+    expect(wakeWordRecordConfig.noiseSuppress, isFalse);
+    expect(
+      wakeWordRecordConfig.androidConfig.audioSource.name,
+      'voiceRecognition',
+    );
+  });
+
+  test('PCM16 conversion preserves full scale and split samples', () {
+    final first = convertWakePcm16leToFloat32(
+      Uint8List.fromList([0x00, 0x80, 0x00, 0x00, 0xff]),
+      null,
+    );
+    expect(first.samples, [-1.0, 0.0]);
+    expect(first.trailingByte, 0xff);
+
+    final second = convertWakePcm16leToFloat32(
+      Uint8List.fromList([0x7f]),
+      first.trailingByte,
+    );
+    expect(second.samples.single, closeTo(32767 / 32768, 0.000001));
+    expect(second.trailingByte, isNull);
   });
 
   test('an empty manifest disables wake-word detection', () async {
@@ -229,11 +304,15 @@ Map<String, Object?> phrase(
   String id, {
   bool enabled = true,
   double? sensitivity,
+  double? score,
+  double? threshold,
 }) => {
   'id': id,
   'phrase': id.replaceAll('_', ' '),
   'enabled': enabled,
   'sensitivity': ?sensitivity,
+  'score': ?score,
+  'threshold': ?threshold,
 };
 
 String manifest(

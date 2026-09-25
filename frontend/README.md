@@ -43,10 +43,30 @@ encoder and joiner, fp32 decoder (the release has no int8 decoder), and English
 phone tokens. No service account or access key is required.
 
 The phrase list and sensitivities are in `assets/wake/wake_phrases.json`.
-`Hey Kora` and `Okay Kora` are the primary phrases. Bare `Kora` is disabled by
-default because the synthetic spike missed the isolated word and falsely fired
-on “Cora” and “corner”. The Settings toggle, foreground lifecycle, and mic
-button fallback are unchanged.
+Bare `Kora` is the primary phrase, with conservative explicit score/threshold
+overrides; `Hey Kora` and `Okay Kora` remain the safer alternatives. Bare
+greetings such as “hi”, “hello”, “hey”, and “what's up” are deliberately not
+always-on wake phrases. After activation, the AssemblyAI session keeps the mic
+visibly hot for the single configurable `voiceFollowUpWindow` (12 seconds), so
+greetings and follow-ups work naturally without repeating `Kora`. When that
+idle window expires, the app releases the session mic and returns to
+keyword-only listening. The once-per-shift agent greeting is unchanged.
+
+Wake capture is 16 kHz, mono PCM16 in 100 ms chunks. On Android it uses the
+voice-recognition source without an additional gain, echo-cancel, or
+noise-suppression effect, then converts little-endian samples to Float32 by
+dividing by 32768 before sherpa. This matches sherpa's reference input shape;
+its feature extractor already normalizes sample levels.
+
+The 2026-09-25 offline check used four Edge TTS voices, PCM16-quantized at
+-30/-20/-10 dBFS. Across 36 wake samples (`Kora`, `Hey Kora`, `Okay Kora`),
+hits moved from 23/36 to 32/36. Across 72 non-wake samples, accepts moved from
+0/72 to 8/72; all eight were “Cora”, which has the same phone tokens as
+`Kora`. “Kara”, “corner”, “corona”, “hello driver”, and “what's up” stayed at
+0/60. At 0 dB synthetic road-noise SNR, wake hits moved from 4/12 to 6/12;
+nine noise-only clips produced no accepts before or after. This synthetic check
+cannot validate Android microphone processing, real vehicle noise, accents, or
+real false accepts; physical-phone testing is still required.
 
 To add or change a phrase:
 
