@@ -72,6 +72,17 @@ void main() {
     expect(api.preferenceWrites.last, ('auto_accept_orders', 'false'));
   });
 
+  test('a failed disable keeps showing the backend effective value', () async {
+    api.preferences['auto_accept_orders'] = 'true';
+    final notifier = await controller();
+
+    api.preferencesFailure = const ApiException('offline');
+    await notifier.setEnabled(false);
+
+    expect(api.preferences['auto_accept_orders'], 'true');
+    expect(container.read(autoAcceptPreferencesProvider).enabled, isTrue);
+  });
+
   test('setMaxDistanceKm writes and clears max_order_distance_km', () async {
     final notifier = await controller();
 
