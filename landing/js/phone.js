@@ -152,6 +152,10 @@ function template() {
             <span class="choice">${ic("bike", "i--sm")}Bicycle</span>
             <span class="choice">${ic("route", "i--sm")}Walking</span>
           </div>
+          <div class="pcap pcap--gap">CO-RIDER VOICE</div>
+          <div class="pcard glass pcard--row">
+            <div class="grow"><div class="p-label" data-bind="voiceLabel">Anna</div><div class="p-muted">Chosen in the voice picker below</div></div>
+          </div>
           <div class="pcap pcap--gap">AUTO-ACCEPT ORDERS</div>
           <div class="pcard glass" data-el="autoCard"></div>
           <div class="pcap pcap--gap">HANDS-FREE VOICE</div>
@@ -199,6 +203,9 @@ export class Phone {
     this.listeners = new Set();
     this.runToken = 0;
     this.busy = false;
+    // Chosen on the landing page's voice picker; survives reset() (a new
+    // shift keeps the driver's voice choice), unlike the rest of `this.s`.
+    this.voiceLabel = "Anna";
     this.orbMain = new Orb(this.el.orbMain, { material: "chrome" });
     this.orbBubble = new Orb(this.el.orbBubble, { material: "chrome", motes: false });
     this.reset(false);
@@ -311,8 +318,16 @@ export class Phone {
     this.s.mood = mood;
     this.orbMain.setMood(mood);
     this.orbBubble.setMood(mood);
-    this.binds.stateLabel.textContent = MOOD_LABELS[mood] || "Ready when you are";
+    this.binds.stateLabel.textContent =
+      mood === "speaking" ? `${this.voiceLabel} speaking...` : MOOD_LABELS[mood] || "Ready when you are";
     this.emit({ event: "agent_state", state: mood });
+  }
+
+  /** Called by the landing page's voice picker; the phone never picks its own voice. */
+  setVoice(label) {
+    this.voiceLabel = label;
+    this.renderVoice();
+    if (this.s.mood === "speaking") this.binds.stateLabel.textContent = `${label} speaking...`;
   }
 
   setPtt(state) {
@@ -551,10 +566,15 @@ export class Phone {
     this.renderConvo();
     this.renderRouteCard();
     this.renderSettings();
+    this.renderVoice();
     this.renderTop();
     this.renderTask();
     this.renderCaption();
     this.binds.stateLabel.textContent = MOOD_LABELS[this.s.mood] || "Ready when you are";
+  }
+
+  renderVoice() {
+    if (this.binds.voiceLabel) this.binds.voiceLabel.textContent = this.voiceLabel;
   }
 
   renderNextStop() {
