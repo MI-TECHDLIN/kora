@@ -4,6 +4,7 @@ import { CONFIG } from "./config.js";
 import { Orb, MOODS, MOOD_LABELS } from "./orb.js";
 import { Phone, ic } from "./phone.js";
 import { PROMPTS, ask, attach } from "./flows.js";
+import { initVoicePicker } from "./voice_picker.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -167,6 +168,18 @@ function initPhones() {
   const hero = build(heroRoot);
   phones.hero = hero;
 
+  /* Voice picker: the chosen character carries into every phone's Settings
+     screen and the label used while its orb is speaking. */
+  const voicePickerRoot = $("[data-voice-picker]");
+  let currentVoiceLabel = hero.voiceLabel;
+  if (voicePickerRoot) {
+    initVoicePicker(voicePickerRoot).onSelect((voice) => {
+      currentVoiceLabel = voice.label;
+      hero.setVoice(voice.label);
+      phones.demo?.setVoice(voice.label);
+    });
+  }
+
   /* Hero controls */
   const heroTry = $('[data-try="hero"]');
   const chips = $("[data-prompts]", heroTry);
@@ -218,6 +231,7 @@ function initPhones() {
   if (demoRoot) {
     const start = () => {
       const demo = build(demoRoot);
+      demo.setVoice(currentVoiceLabel);
       phones.demo = demo;
       initStory(demo);
     };

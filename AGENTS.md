@@ -255,6 +255,11 @@ summaries, driver welcome SMS.
   Sofia Pro until a licence is secured)
 - Icons: **Tabler Icons** via `tabler_icons_plus` — no emoji icons
 - `landing/` mirrors these tokens in `landing/css/tokens.css`. When `tokens.dart` changes, update that file too (details in `landing/README.md`)
+- `landing/` also mirrors the 11 voice characters (silhouette, colour, feature) from
+  `frontend/tool/rive/build_voice_characters.js`'s `CAST` table as plain SVG
+  (`landing/js/voice_characters.js`, `voices.js`) for its own "Choose Kora's voice"
+  section — a change to that table (or to the voice allowlist/preview clips) should be
+  mirrored there too (details in `landing/README.md`, "Voices")
 
 Push-to-talk button: large circular, minimum 80×80px.
 States: `idle → recording → processing → speaking`.

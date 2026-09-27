@@ -60,6 +60,9 @@ landing/
 │   ├── phone.js            the phone: screens, overlays, state, event emitter
 │   ├── flows.js            scripted flows + the keyword intent matcher
 │   ├── orb.js              canvas port of the co-rider orb
+│   ├── voices.js           the 11 voices' data: label, accent group, silhouette/colour/feature, preview asset
+│   ├── voice_characters.js SVG renderer for the voice characters (ported from the app's Rive generator)
+│   ├── voice_picker.js     the "Choose Kora's voice" picker: selection, audio, live region
 │   └── js-flag.js          adds .js to <html> before first paint
 ├── assets/
 │   ├── fonts/              Plus Jakarta Sans (variable, latin) + its OFL licence
@@ -67,7 +70,8 @@ landing/
 │   ├── icons.svg           Tabler icon sprite (MIT), the same set the app uses
 │   ├── kora-mark.svg       copy of docs/brand/kora-mark.svg
 │   ├── og-image.jpg        social image (1200 x 630), a real masked app frame composed in
-│   └── media/              screenshots and clips (manifest.json)
+│   ├── media/              screenshots and clips (manifest.json)
+│   └── audio/voices/       voice preview clips, copied from frontend/assets/audio/voice_previews/
 ├── tools/og-image.html     source of og-image.jpg
 └── docs/screenshots/       verification screenshots for the PR
 ```
@@ -124,12 +128,44 @@ Input to the phone:
 
 To add a flow: write an `async` function in `flows.js` using the phone helpers (`step`, `setMood`, `setTab`, `showRoute`, `speak`, …), add a keyword rule to `RULES`, and, if it should be a chip, an entry in `PROMPTS`.
 
+## Voices
+
+The "Choose Kora's voice" section (`#voices`) mirrors the app's post-sign-up voice step
+(`frontend/lib/features/voice_onboarding/`, character art per
+`docs/kora-voice-characters-rive-spec.md`): the eleven voices grouped by accent, each drawn as
+its own character, the selected one ringed, and a single preview bar below it
+("*Name* - Tap to hear a short preview") instead of a play button per card.
+
+- `js/voices.js` is the data: label, accent group, and the exact silhouette/colour/feature
+  parameters copied from `frontend/tool/rive/build_voice_characters.js`'s `CAST` table (the
+  generator for `assets/rive/voice_characters.riv`), so the web picker draws the same eleven
+  characters rather than a different mascot set. The list is the intersection of the app's
+  `CoRiderVoice` enum, the backend's `VOICES` allowlist
+  (`voiceops-backend/app/agents/agent_config.py`) and the bundled preview clips - all three
+  agree on the same 11 today; if they ever diverge, narrow this list to the intersection and
+  say so in the PR.
+- `js/voice_characters.js` renders a character as an SVG string: the same superellipse body
+  formula and Catmull-Rom smoothing as the generator, ported to plain JS/SVG. Selection and
+  speaking are CSS classes (`.is-selected`, `.is-speaking`) driving the same ring/lift/talk
+  states the spec describes for the `.riv` version; `prefers-reduced-motion` turns them off.
+- `js/voice_picker.js` mounts the grid and the preview bar, plays `assets/audio/voices/<id>.mp3`
+  on tap (never on selection or on load - `Audio.preload = "none"`, no file fetched until a
+  driver asks), stops the previous clip before starting another, and disables a voice's button
+  if its clip fails to load. An `aria-live` region announces "Playing *Name*."
+- Selecting a voice calls `Phone.setVoice(label)` on both phones (`js/phone.js`): it updates the
+  "CO-RIDER VOICE" row on the Settings screen and the label shown while the orb's mood is
+  `speaking` (`"<Name> speaking..."` instead of the generic "Speaking..."). The phone never
+  picks its own voice.
+- The preview clips themselves are `frontend/assets/audio/voice_previews/*.mp3`, copied
+  verbatim (already 96 kbps mono, 3-6s, ~55-72 KB each - no re-encode needed); see that
+  folder's README for how they were generated and what they say.
+
 ## Accessibility and performance
 
-- Keyboard: skip link, visible focus rings, every control is a real button or link; the phone's tabs, push-to-talk button and offer buttons are focusable, and inactive phone screens are `inert`. Kora's replies are also announced through a polite live region.
-- `prefers-reduced-motion`: scroll reveals, drifting glows, orb motion, route drawing and typing are removed or shortened; flows still play.
+- Keyboard: skip link, visible focus rings, every control is a real button or link; the phone's tabs, push-to-talk button and offer buttons are focusable, and inactive phone screens are `inert`. Kora's replies are also announced through a polite live region. The voice picker is the same pattern: real buttons, `aria-pressed` on the selected character and the preview button, and a live region announcing "Playing *Name*."
+- `prefers-reduced-motion`: scroll reveals, drifting glows, orb motion, route drawing, typing and the voice characters' breathing/blinking/talking are removed or shortened; flows still play.
 - Contrast: text uses the app's tokens; page CTAs are white paper with dark ink; Lighthouse's contrast audit passes.
-- Weight: no framework and no build. About 24 KB of script and 40 KB of HTML, CSS and script together (gzipped), plus one 27 KB font. Media is lazy-loaded; the demo phone builds only when it nears the viewport; orbs animate only while visible.
+- Weight: no framework and no build. About 24 KB of script and 40 KB of HTML, CSS and script together (gzipped), plus one 27 KB font. Media is lazy-loaded; the demo phone builds only when it nears the viewport; orbs animate only while visible. Voice preview audio (~700 KB across all 11 clips) is never fetched until a driver taps a voice's preview button - nothing is preloaded.
 - A local Lighthouse run (mobile) scored 100 for Accessibility, Best Practices and SEO.
 
 ## Not in scope here
