@@ -20,17 +20,28 @@ class ShiftNotifier extends StateNotifier<String?> {
   final KoraApi _api;
   Future<String>? _starting;
 
+  /// Set once the backend tells us [state]'s shift ended (the `shift_ended`
+  /// socket event on a successful `end_shift`, or the same code on a
+  /// reconnect the backend rejects because it already ended). Kept apart
+  /// from nulling [state] outright: Summary still reads the ended shift's id
+  /// to fetch its report. The next [ensureStarted] starts a genuinely new
+  /// one instead of reusing it forever.
+  bool _ended = false;
+
   /// The active shift id, starting a shift if there is none. Concurrent
   /// callers share one request; a failure lets the next call try again.
   /// Starting a fresh shift resets [summaryStreamProvider], so the previous
   /// shift's summary text never bleeds into the new one.
   Future<String> ensureStarted() async {
-    if (state case final id?) return id;
+    if (!_ended) {
+      if (state case final id?) return id;
+    }
     final starting = _starting ??= _api.startShift();
     try {
       final id = await starting;
       if (mounted) {
         state = id;
+        _ended = false;
         _ref.read(summaryStreamProvider.notifier).reset();
         // A queue provider created just now already fetches for this shift.
         final queueExisted = _ref.exists(orderQueueProvider);
@@ -46,9 +57,17 @@ class ShiftNotifier extends StateNotifier<String?> {
     }
   }
 
+  /// The backend says [state]'s shift is no longer active. Does not null
+  /// [state] (Summary's report lookup still needs the ended id); the next
+  /// [ensureStarted] call starts a fresh one regardless.
+  void markEnded() {
+    _ended = true;
+  }
+
   /// Forget the shift (e.g. on sign-out), and its order queue with it.
   void clear() {
     state = null;
+    _ended = false;
     if (_ref.exists(orderQueueProvider)) {
       _ref.read(orderQueueProvider.notifier).reset();
     }

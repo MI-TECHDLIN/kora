@@ -144,6 +144,46 @@ skipped both files entirely despite them being the only real regression coverage
 dispatcher and the voice relay. Confirm any new backend test file is actually in that allow-list;
 its absence produces no error, just silent non-collection.
 
+## A cached `shift_id` outlives the shift it names — orders silently stop after one shift ends
+
+Found 2026-09-27 while diagnosing "new orders stopped coming up, no offer card appears" on a
+build otherwise reporting `/health/ready` green. Fixed in the PR that added `shift_ended`
+(`app/api/websocket/events.py`, `voice.py`) and `ShiftNotifier.markEnded()`
+(`frontend/lib/providers/shift_provider.dart`).
+
+**Symptom:** everything works for the first shift of an app run — voice connects, pings post,
+orders appear — then, after the driver ends that shift (voice "end my shift"), or after the
+backend's dangling-shift recovery closes one on the driver's next `/start`, no order is ever
+offered again on that same running app, forever, with no error shown anywhere.
+
+**Cause:** `ShiftNotifier.ensureStarted()` (`frontend/lib/providers/shift_provider.dart`) caches
+the shift id it gets back from `POST /v1/shift/start` and never re-checks it — only sign-out
+(`clear()`) resets the cache. Once the shift ends, that cached id is dead, but the WS route and
+`POST /v1/locations/ping` only ever checked *ownership*, not *activeness*, so a reconnect on the
+dead id was silently accepted. `get_active_driver_positions()` (added for #117, the "offered near
+someone else's location" fix) only counts a ping if its shift is `status = 'active'` — by design
+— so every ping the app kept posting was stored but permanently invisible to dispatch.
+
+**Check:** `GET /health/dispatch` (added in the same PR) — a driver known to be online whose
+`hold_counts.no_located_driver` or `stale_ping` keeps climbing has pings tied to a shift that
+isn't active. Render logs: `[VoiceWS] Socket rejected: code=shift_ended` is the trigger caught
+live.
+
+**If you touch shift lifecycle again:** any new "the shift ended" signal must reach
+`ShiftNotifier` (via `markEnded()`, not `clear()` — Summary still needs the ended id to fetch its
+report) or this class of bug reappears. Don't assume a cached id on the frontend is still active
+just because it's non-null.
+
+**Related, found but not fixed (out of scope for that PR — flag before touching
+`app/db/queries.py`'s location-ping path):** `save_location_ping` is defined twice in
+`app/db/queries.py` (~line 219 and ~line 346); Python silently keeps the second definition, which
+skips the `is_valid_uuid` guards and try/except the first one has. Harmless while the app always
+sends a real, owned shift's UUID (as it does after the fix above), but a landmine if anything
+ever calls it with an empty or non-UUID `shift_id` again — the DB insert throws, uncaught, and
+`POST /v1/locations/ping` 500s instead of degrading gracefully. The test double in
+`tests/test_order_dispatch.py`/`test_voice_ws.py` doesn't enforce column types, so a real-Postgres
+failure here won't show up in `pytest`.
+
 ## GitHub push access is often environment-specific
 
 In at least one prior Codespace, the git credential helper only authorized

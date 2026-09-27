@@ -47,5 +47,36 @@ void main() {
       expect(api.shiftCalls, 1);
       expect(container.read(summaryStreamProvider)?.text, 'Mid-shift check-in.');
     });
+
+    test(
+      'markEnded forces the next ensureStarted to start a fresh shift '
+      '(the "orders stopped" bug: a reconnect must not reuse a dead shift_id)',
+      () async {
+        await container.read(shiftProvider.notifier).ensureStarted();
+        expect(api.shiftCalls, 1);
+
+        // The backend told us this shift ended (`shift_ended`, on the
+        // socket or as a reconnect rejection). The id is kept for now —
+        // Summary still needs it to fetch that shift's report.
+        container.read(shiftProvider.notifier).markEnded();
+        expect(container.read(shiftProvider), isNotNull);
+
+        // A later reconnect (or the driver talking to Kora again) must get
+        // a genuinely new, active shift, not the cached dead one.
+        await container.read(shiftProvider.notifier).ensureStarted();
+        expect(api.shiftCalls, 2);
+      },
+    );
+
+    test('markEnded is a one-shot: the shift it starts is not immediately re-started', () async {
+      await container.read(shiftProvider.notifier).ensureStarted();
+      container.read(shiftProvider.notifier).markEnded();
+      await container.read(shiftProvider.notifier).ensureStarted();
+      expect(api.shiftCalls, 2);
+
+      // The freshly-started shift is active again: a third call must reuse it.
+      await container.read(shiftProvider.notifier).ensureStarted();
+      expect(api.shiftCalls, 2);
+    });
   });
 }

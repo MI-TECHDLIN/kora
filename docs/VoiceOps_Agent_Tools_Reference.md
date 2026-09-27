@@ -749,7 +749,10 @@ pipeline) as a background task and returns without waiting for it. The summary r
 later through the relay's summary stream. `shift_duration_min` is `0` when the shift's start time
 cannot be read. With no `shift_id` or `driver_id` in the context the result is
 `{"success": false, "error": "No active shift to end."}`. Any exception comes back as
-`{"success": false, "error": "<text>"}`.
+`{"success": false, "error": "<text>"}`. On success the relay also emits `shift_ended` to the
+app (`docs/contracts/interface.md` §1), so it stops caching this shift_id as active — otherwise
+a later reconnect on the same app run would keep reusing a dead shift and never see another
+order offer, since `get_active_driver_positions()` only counts pings on *active* shifts.
 
 ---
 

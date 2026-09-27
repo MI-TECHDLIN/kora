@@ -950,6 +950,9 @@ class VoiceSession:
         elif name == "end_conversation":
             await self.emit(events.conversation_end())
 
+        elif name == "end_shift":
+            await self.emit(events.shift_ended(result.get("shift_id") or self.shift_id))
+
         elif name == "accept_order":
             # The accepted order is now a stop on this shift: the navigation tools can route to it
             stop = stop_from_delivery(result)
@@ -1049,6 +1052,12 @@ async def voice_socket(websocket: WebSocket, shift_id: str):
         return
     if not shift or str(shift.get("driver_id")) != str(user["id"]):
         await reject("auth_failed", "This shift is not available to you.", "shift_not_owned")
+        return
+    if str(shift.get("status")) != "active":
+        # Owned but no longer active: a stale cached shift_id from before it ended (voice
+        # `end_shift`, or a dangling shift the backend closed on the driver's last `/start`).
+        # Non-fatal: the app clears the cached id and starts a fresh, active shift.
+        await reject("shift_ended", "That shift already ended. Starting a new one.", "shift_not_active")
         return
 
     voice_param = websocket.query_params.get("voice")
