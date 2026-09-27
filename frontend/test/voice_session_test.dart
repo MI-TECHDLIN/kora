@@ -18,6 +18,7 @@ import 'package:voiceops/providers/navigation_provider.dart';
 import 'package:voiceops/providers/notification_preferences_provider.dart';
 import 'package:voiceops/providers/order_queue_provider.dart';
 import 'package:voiceops/providers/push_to_talk_provider.dart';
+import 'package:voiceops/providers/shift_provider.dart';
 import 'package:voiceops/providers/summary_stream_provider.dart';
 import 'package:voiceops/providers/task_progress_provider.dart';
 import 'package:voiceops/providers/transcript_provider.dart';
@@ -770,6 +771,58 @@ void main() {
       expect(api.shiftCalls, 1);
     });
   });
+
+  test(
+    'a shift_ended event marks the cached shift stale without clearing it '
+    '(the "orders stopped" bug: Summary still needs the ended id for its report)',
+    () {
+      onFakeTime((async, flush) {
+        session().onPushToTalk();
+        flush();
+        expect(api.shiftCalls, 1);
+        final socket = connector.last;
+        socket.emit({'event': 'shift_ended', 'shift_id': 'shift-1'});
+        flush();
+        expect(container.read(shiftProvider), 'shift-1');
+
+        // A later reconnect (drop + backoff) must get a fresh shift, not
+        // keep reusing this now-dead one forever.
+        connector.serverUp = false;
+        socket.drop();
+        flush();
+        connector.serverUp = true;
+        async.elapse(const Duration(seconds: 1));
+        expect(voice().connection, VoiceConnection.connected);
+        expect(api.shiftCalls, 2);
+      });
+    },
+  );
+
+  test(
+    'shift_ended from the server is not fatal and starts a fresh shift on reconnect',
+    () {
+      onFakeTime((async, flush) {
+        session().onPushToTalk();
+        flush();
+        expect(api.shiftCalls, 1);
+        final socket = connector.last;
+        connector.serverUp = false;
+        socket.emit({
+          'event': 'error',
+          'code': 'shift_ended',
+          'message': 'That shift already ended. Starting a new one.',
+        });
+        socket.drop();
+        flush();
+        expect(voice().connection, VoiceConnection.reconnecting);
+
+        connector.serverUp = true;
+        async.elapse(const Duration(seconds: 1));
+        expect(voice().connection, VoiceConnection.connected);
+        expect(api.shiftCalls, 2);
+      });
+    },
+  );
 
   test('gives up after the backoff runs out, until the next press', () {
     onFakeTime((async, flush) {

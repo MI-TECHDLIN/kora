@@ -1,5 +1,8 @@
 # VoiceOps: Frontend ↔ Backend Interface Contract
 
+**Version:** 2.1 (draft), 2026-09-27. 2.1 adds the `shift_ended` server event and the
+`shift_ended` value in `error.code` (§1), and `GET /health/dispatch` (§2). Additive only.
+See "Changes in 2.1".
 **Version:** 2.0 (draft), 2026-09-25. 2.0 adds the `voice_not_configured` error code (§1) and
 `GET /health/ready` (§2). Additive only. See "Changes in 2.0".
 **Version:** 1.9 (draft), 2026-09-25. 1.9 documents the existing `conversation_end` server event
@@ -50,8 +53,10 @@ with event builders in `app/api/websocket/events.py` and tests in
 `voiceops-backend/tests/test_voice_ws.py`. The token goes in the `Authorization` header, not
 the `?token=` query the backend README used to describe, so REST and WS share one auth scheme
 (`contracts.md` § Auth). The socket must be for a shift that belongs to the authenticated
-driver. Any other shift gets `auth_failed`. The REST prototype `POST /v1/voice-agent` (§2)
-still exists as a test harness and emits none of these events.
+driver. Any other shift gets `auth_failed`. An owned shift that is no longer active (already
+ended) gets `shift_ended` instead — not fatal, since the app just started/reconnected with a
+stale cached id and should clear it and start a fresh one. The REST prototype
+`POST /v1/voice-agent` (§2) still exists as a test harness and emits none of these events.
 
 The former unauthenticated `WS /ws/driver/{driver_id}` endpoint was removed because no app client
 used it and its path/payload identities were trusted. Proactive alerts remain on this authenticated
@@ -91,6 +96,7 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
 | `order_offer_closed` | `{"event": "order_offer_closed", "order_id": "…", "outcome": "accepted"}` | the card closes |
 | `queue_updated` | the queue snapshot below plus `"event": "queue_updated"` | Home, Order Queue, and Summary refresh from one synchronized snapshot |
 | `conversation_end` | `{"event": "conversation_end"}` | the driver's mic closes and push-to-talk goes to `idle`; sent when the `end_conversation` tool runs |
+| `shift_ended` | `{"event": "shift_ended", "shift_id": "…"}` | sent when the `end_shift` tool runs; the app marks its cached shift stale (`ShiftNotifier.markEnded`) so the next reconnect starts a new one, without clearing the id Summary still needs for the report |
 | `error` | `{"event": "error", "code": "upstream_unavailable", "message": "…"}` | degraded-state banner (`frontend.md` § WebSocket Handling) |
 | `voice_change_accepted` | `{"event": "voice_change_accepted", "voice": "michael", "message": "Voice will change to michael. Reconnecting..."}` | Voice change accepted, client should reconnect with new voice parameter |
 | `voice_unchanged` | `{"event": "voice_unchanged", "voice": "anna", "message": "Voice is already set to anna"}` | Voice already set to requested value, no reconnection needed |
@@ -108,7 +114,8 @@ driver can try again. If the offer closed meanwhile (for example `withdrawn`), i
   label and identifies the step within the current task. The client shows "All complete" once
   every known step is `done`.
 - `error.code` ∈ `auth_failed | session_expired | upstream_unavailable | upstream_timeout |
-  invalid_message | internal | voice_not_configured`. `message` is short, human-readable, and safe to display.
+  invalid_message | internal | voice_not_configured | shift_ended`. `message` is short,
+  human-readable, and safe to display.
 - `order_offer_closed.outcome` ∈ `accepted | declined | expired | withdrawn` (`OFFER_OUTCOMES`
   in `events.py`). `withdrawn` means the order is gone before this driver could take it: the
   database says it was already assigned.
@@ -319,6 +326,7 @@ Base URL: the Railway deployment. JSON in and out. Every endpoint except `/`, `/
 | GET | `/` | none | `{"message": "VoiceOps API", "version": "1.0.0", "status": "running"}` |
 | GET | `/health` | none | `{"status": "ok"}` |
 | GET | `/health/ready` | none | Whether the voice path can start: `{"ready": bool, "checked_at", "config": {"required": {"ASSEMBLYAI_API_KEY": bool, "SUPABASE_URL": bool, "SUPABASE_SERVICE_KEY": bool}, "optional": {…bool}}, "checks": {"database": {"ok": bool, "reason"?}, "assemblyai_session": {"ok": bool, "reason"?}}}`. Booleans and fixed reason tokens only, never a setting's value. 200 when `ready`, 503 otherwise. The AssemblyAI check opens one short session and ends it; results are cached for 30 s. Not used by the app |
+| GET | `/health/dispatch` | none | Why the mock order feed did or didn't offer anything recently: `{"feed_enabled": bool, "online_drivers": int, "open_orders": int, "hold_counts": {"no_driver_online"\|"no_located_driver"\|"stale_ping"\|"open_order_cap": int}, "last_hold_reason": string\|null, "last_hold_at": epoch\|null, "last_located_at": epoch\|null}`. Counts and fixed reason tokens only, never a coordinate, id, or other personal data (`app/dispatch/order_dispatch.py`'s `OrderDispatcher.diagnostics()`). Not used by the app; for operators diagnosing a silent hold |
 | POST | `/v1/auth/otp/send` | `{"phone": "+1…"}` | `{"message": "OTP sent successfully"}` · 400 on failure |
 | POST | `/v1/auth/otp/verify` | `{"phone": "+1…", "token": "123456"}` | `{"access_token", "refresh_token", "user"}` · 401 on failure |
 | POST | `/v1/voice-agent` | `{"audio": "<base64 PCM16>", "sample_rate": 24000, "session_id": null}` | `{"audio", "user_transcript", "agent_transcript", "audio_size", "session_id"}` |
@@ -645,6 +653,32 @@ and the app shows the specific message.
 **Frontend:** `voice_not_configured` is fatal like `auth_failed`: the app stops reconnecting and shows
 `message`. Any error `message` is shown instead of the generic line, and a socket that the backend
 closes right after an `error` no longer resets the reconnect backoff.
+
+---
+
+## Changes in 2.1
+
+Additive only. Existing shapes are untouched.
+
+| Addition | Where |
+|---|---|
+| `shift_ended` server event, `{"event": "shift_ended", "shift_id": "…"}` | §1 |
+| `shift_ended` value in `error.code`, sent instead of `auth_failed` when a WS connect names a shift the driver owns but that already ended | §1 |
+| `GET /health/dispatch` | §2 |
+
+**Why:** the app's cached shift id (`shiftProvider`) never expired on its own — only sign-out
+cleared it — so once a shift ended (voice `end_shift`, or a dangling shift the backend closed on
+the driver's next `/start`) any later reconnect on the same app run kept reusing that dead
+shift_id. The socket opened and pings were stored, but `get_active_driver_positions()` only
+joins pings through *active* shifts (the #117 fix), so that driver was never "located" again and
+no order was ever offered. `shift_ended` gives the app a deterministic signal to stop treating
+that id as active, both the moment `end_shift` succeeds and on a later reconnect that finds the
+shift already gone.
+
+**Frontend:** `shift_ended` is not fatal, unlike `auth_failed`: the app keeps reconnecting, but
+calls `ShiftNotifier.markEnded()` first so the next `ensureStarted()` starts a genuinely active
+shift instead of the cached dead one. The id itself is kept (not nulled) — Summary still fetches
+that shift's report by id.
 
 ---
 

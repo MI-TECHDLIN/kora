@@ -56,6 +56,17 @@ DB_TIMEOUT = 3.0
 NOBODY_FREE = "no driver is online and free"
 EVERYONE_PASSED = "every online driver passed"
 
+# Why the feed didn't generate or offer anything on a given tick — value-free tokens only
+# (never a coordinate, id, or address), surfaced by `OrderDispatcher.diagnostics()` and
+# `GET /health/dispatch` so a silent hold (docs/backend-handoff, PR #117) shows up without
+# reading logs line-by-line.
+HOLD_NO_DRIVER_ONLINE = "no_driver_online"
+HOLD_NO_LOCATED_DRIVER = "no_located_driver"
+HOLD_STALE_PING = "stale_ping"
+HOLD_OPEN_ORDER_CAP = "open_order_cap"
+HOLD_REASONS = (HOLD_NO_DRIVER_ONLINE, HOLD_NO_LOCATED_DRIVER, HOLD_STALE_PING, HOLD_OPEN_ORDER_CAP)
+HOLD_LOG_INTERVAL_SECONDS = 60.0  # rate-limit: log a given reason at most once per this window
+
 
 class DispatchUnavailable(Exception):
     """The order could not be stored (database unreachable)."""
@@ -155,6 +166,38 @@ class OrderDispatcher:
         self._orders: Dict[str, OpenOrder] = {}
         self._lock = asyncio.Lock()
         self._background: Set[asyncio.Task] = set()
+        self._hold_counts: Dict[str, int] = {r: 0 for r in HOLD_REASONS}
+        self._last_hold_reason: Optional[str] = None
+        self._last_hold_at: Optional[float] = None
+        self._last_located_at: Optional[float] = None
+        self._hold_logged_at: Dict[str, float] = {}
+
+    def _record_hold(self, reason: str) -> None:
+        """A feed tick (or `should_generate` check) found nothing to do. Counted every time,
+        logged at most once per `HOLD_LOG_INTERVAL_SECONDS` per reason so a held feed is
+        visible without spamming the log every retry."""
+        now = time.time()
+        self._hold_counts[reason] = self._hold_counts.get(reason, 0) + 1
+        self._last_hold_reason, self._last_hold_at = reason, now
+        if now - self._hold_logged_at.get(reason, 0.0) >= HOLD_LOG_INTERVAL_SECONDS:
+            self._hold_logged_at[reason] = now
+            logger.info(f"[Dispatch] Holding: {reason} (seen {self._hold_counts[reason]}x)")
+
+    def _record_located(self) -> None:
+        self._last_located_at = time.time()
+
+    def diagnostics(self) -> Dict[str, Any]:
+        """Counts and reasons only — no coordinates, ids, or other personal data. Backs
+        `GET /health/dispatch`."""
+        return {
+            "feed_enabled": self.feed_enabled,
+            "online_drivers": len(self.hub.live_shifts()),
+            "open_orders": len(self._orders),
+            "hold_counts": dict(self._hold_counts),
+            "last_hold_reason": self._last_hold_reason,
+            "last_hold_at": self._last_hold_at,
+            "last_located_at": self._last_located_at,
+        }
 
     async def get_target_location(self) -> Optional[Tuple[float, float]]:
         """
@@ -167,18 +210,23 @@ class OrderDispatcher:
             return self.fallback_origin
         live = self.hub.live_shifts()
         if not live:
+            self._record_hold(HOLD_NO_DRIVER_ONLINE)
             return None
         positions = await _try_db(get_active_driver_positions) or []
+        relevant = [p for p in positions if p.get("shift_id") in live]
         busy = {o.offered_to.driver_id for o in self._orders.values() if o.offered_to}
         located = [
             (str(p["driver_id"]), (float(p["latitude"]), float(p["longitude"])))
-            for p in positions
-            if p.get("shift_id") in live and p.get("latitude") is not None
+            for p in relevant
+            if p.get("latitude") is not None
             and p.get("longitude") is not None and self._fresh(p.get("pinged_at"))
         ]
         pool = [at for driver_id, at in located if driver_id not in busy] or [at for _, at in located]
         if not pool:
+            has_any_ping = any(p.get("latitude") is not None for p in relevant)
+            self._record_hold(HOLD_STALE_PING if has_any_ping else HOLD_NO_LOCATED_DRIVER)
             return None
+        self._record_located()
         rng = getattr(self.adapter, "_rng", None)
         return rng.choice(pool) if rng else pool[0]
 
@@ -222,8 +270,14 @@ class OrderDispatcher:
         play, so an app left open and unattended stops the feed.
         """
         online = set(self.hub.live_shifts().values())
+        if not online:
+            self._record_hold(HOLD_NO_DRIVER_ONLINE)
+            return False
         in_play = [o for o in self._orders.values() if not online <= o.declined_by]
-        return bool(online) and len(in_play) < self.max_open_orders
+        if len(in_play) >= self.max_open_orders:
+            self._record_hold(HOLD_OPEN_ORDER_CAP)
+            return False
+        return True
 
     def _spawn(self, coro) -> None:
         task = asyncio.create_task(coro)

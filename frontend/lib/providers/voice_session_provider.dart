@@ -588,6 +588,8 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
       case ConversationEndEvent():
         unawaited(endConversation());
         _setPtt(PushToTalkState.idle);
+      case ShiftEndedEvent():
+        _ref.read(shiftProvider.notifier).markEnded();
       case OrderOfferEvent():
         _ref.read(orderOfferProvider.notifier).show(event);
       case OrderOfferClosedEvent(:final orderId, :final outcome):
@@ -672,6 +674,13 @@ class VoiceSession extends StateNotifier<VoiceSessionState> {
 
   void _onError(ErrorEvent error) {
     if (error.isFatal) _rejected = true;
+    // The shift this socket asked for already ended (a stale cached id from
+    // before `end_shift`, or a dangling shift the backend closed). Not
+    // fatal: the next reconnect must start a genuinely new one instead of
+    // retrying the same dead id forever.
+    if (error.code == 'shift_ended') {
+      _ref.read(shiftProvider.notifier).markEnded();
+    }
     _serverIssue = error.displayMessage;
     _ref.read(orderOfferProvider.notifier).responseFailed();
     _setIssue(error.displayMessage);

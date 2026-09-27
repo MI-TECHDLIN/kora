@@ -48,6 +48,7 @@ sealed class VoiceEvent {
       ),
       'reply_done' => ReplyDoneEvent(interrupted: json['interrupted'] == true),
       'conversation_end' => const ConversationEndEvent(),
+      'shift_ended' => ShiftEndedEvent(field('shift_id')),
       'order_offer' => OrderOfferEvent(
         orderId: field('order_id'),
         area: field('area'),
@@ -154,6 +155,15 @@ class ReplyDoneEvent extends VoiceEvent {
 
 class ConversationEndEvent extends VoiceEvent {
   const ConversationEndEvent();
+}
+
+/// The `end_shift` tool just completed on this socket. [shiftId] matches the
+/// shift the app had cached, so it should stop treating it as active — see
+/// `ShiftNotifier.markEnded`.
+class ShiftEndedEvent extends VoiceEvent {
+  const ShiftEndedEvent(this.shiftId);
+
+  final String shiftId;
 }
 
 /// A time-boxed delivery offered to this driver. Privacy is deliberate:
@@ -304,8 +314,8 @@ class ProactiveAlertEvent extends VoiceEvent {
 }
 
 /// `code` ∈ `auth_failed | session_expired | upstream_unavailable |
-/// upstream_timeout | invalid_message | internal | voice_not_configured`;
-/// [message] is safe to show.
+/// upstream_timeout | invalid_message | internal | voice_not_configured |
+/// shift_ended`; [message] is safe to show.
 class ErrorEvent extends VoiceEvent {
   const ErrorEvent({required this.code, required this.message});
   final String code;
@@ -313,8 +323,8 @@ class ErrorEvent extends VoiceEvent {
 
   /// Reconnecting won't help: the token was rejected (`auth_failed`), or the
   /// server has no voice provider set up (`voice_not_configured`).
-  /// `session_expired` is not fatal: the next connect sends Supabase's
-  /// refreshed token.
+  /// `session_expired` and `shift_ended` are not fatal: the next connect
+  /// sends a refreshed token, or (for `shift_ended`) starts a fresh shift.
   bool get isFatal => code == 'auth_failed' || code == 'voice_not_configured';
 
   /// [message], or a sentence for [code] when the backend sent none.
@@ -328,6 +338,7 @@ class ErrorEvent extends VoiceEvent {
       'upstream_unavailable' =>
         'The voice service is unreachable. Try again in a moment.',
       'upstream_timeout' => 'The voice service is slow to answer. Try again.',
+      'shift_ended' => 'Starting a new shift…',
       _ => 'Your co-rider hit a problem. Try again.',
     };
   }

@@ -30,6 +30,7 @@ client = TestClient(app)
 DRIVER_ID = "10ed22c4-c1c0-4d37-8683-dbb8f510e4c6"
 SHIFT_ID = "093375a3-06ab-4584-8331-f5df775f150b"
 OTHER_SHIFT_ID = "7c1f3f7e-2d7b-4f7e-9a51-3d1d2f6b9e10"
+ENDED_SHIFT_ID = "3b8b6a2e-9f39-4a2f-9d4f-9a2b8e6f9a3b"  # owned by DRIVER_ID, already completed
 GOOD_TOKEN = "good-token"
 AUTH = {"Authorization": f"Bearer {GOOD_TOKEN}"}
 WS_PATH = f"/ws/voice/{SHIFT_ID}"
@@ -131,6 +132,8 @@ def backend(monkeypatch):
             return {"id": SHIFT_ID, "driver_id": DRIVER_ID, "status": "active"}
         if shift_id == OTHER_SHIFT_ID:
             return {"id": OTHER_SHIFT_ID, "driver_id": "someone-else", "status": "active"}
+        if shift_id == ENDED_SHIFT_ID:
+            return {"id": ENDED_SHIFT_ID, "driver_id": DRIVER_ID, "status": "completed"}
         return None
 
     async def get_driver_by_id(driver_id):
@@ -318,6 +321,24 @@ def test_someone_elses_shift_is_rejected(upstream):
         assert frame["event"] == "error" and frame["code"] == "auth_failed"
         assert next_frame(ws) == {"close": voice.CLOSE_POLICY_VIOLATION}
     assert upstream.sent == []
+
+
+def test_ended_shift_is_rejected_but_not_fatal(upstream):
+    """
+    The bug (docs/backend-handoff): once `end_shift` completes, nothing on the frontend
+    stopped it from reconnecting on the same, now-completed shift_id (a reconnect after a
+    dropped connection, or the driver talking to Kora again later without a cold app
+    restart). That socket used to open anyway — the driver appeared "live" with no active
+    shift, so `get_active_driver_positions()` never saw their pings and no order was ever
+    offered again. `shift_ended` is non-fatal (unlike `auth_failed`) so the app clears its
+    cached shift_id and starts a genuinely active one instead of giving up.
+    """
+    with client.websocket_connect(f"/ws/voice/{ENDED_SHIFT_ID}", headers=AUTH) as ws:
+        frame = next_frame(ws)
+        assert frame["event"] == "error" and frame["code"] == "shift_ended"
+        assert next_frame(ws) == {"close": voice.CLOSE_INTERNAL_ERROR}
+    assert upstream.sent == []
+    assert ENDED_SHIFT_ID not in voice.live_shifts()
 
 
 def test_shift_lookup_failure_is_internal(upstream, monkeypatch):
@@ -848,6 +869,29 @@ def test_tool_timeout_returns_an_error_result(upstream, monkeypatch):
         result = finish_turn(ws, upstream)
     assert result["success"] is False
     assert upstream.sent_of("tool.result")[0]["is_error"] is True
+
+
+def test_end_shift_tells_the_app_the_shift_ended(upstream, monkeypatch):
+    """
+    The trigger for the "orders stopped" bug (docs/backend-handoff): once `end_shift`
+    succeeds, the app must learn this shift is no longer active, or it keeps reusing the
+    dead shift_id for every later reconnect and never gets offered another order.
+    """
+    async def fake_end_shift(parameters, context):
+        return {
+            "success": True,
+            "shift_id": context.get("shift_id"),
+            "status": "completed",
+            "shift_duration_min": 42,
+            "message": "Shift ended. I'm putting together your summary now.",
+        }
+
+    monkeypatch.setitem(tool_registry.TOOL_EXECUTORS, "end_shift", fake_end_shift)
+    with client.websocket_connect(WS_PATH, headers=AUTH) as ws:
+        connect_and_greet(ws, upstream)
+        frames = tool_turn(ws, upstream, "end_shift", {})
+        finish_turn(ws, upstream)
+    assert events.shift_ended(SHIFT_ID) in frames
 
 
 def test_error_with_empty_text_is_still_an_error():
