@@ -1,7 +1,8 @@
 <!doctype html>
-<!-- Source of the placeholder social image (assets/og-image.jpg, 1200 x 630).
-     Serve landing/ locally, open /tools/og-image.html at a 1200 x 630 viewport and
-     screenshot it. Replace assets/og-image.jpg with final artwork when it exists. -->
+<!-- Source of assets/og-image.jpg (1200 x 630). Serve landing/ locally, open
+     /tools/og-image.html at a 1200 x 630 viewport and screenshot it. Uses a
+     real masked app frame (assets/media/screen-voice.jpg), composed on the
+     same canvas/glow/brand treatment as the hero. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -14,13 +15,23 @@
   .g1 { width: 900px; height: 900px; left: -320px; top: -420px; background: radial-gradient(closest-side, rgb(139 92 246 / .32), transparent); }
   .g2 { width: 800px; height: 800px; right: -260px; top: -60px; background: radial-gradient(closest-side, rgb(76 29 149 / .55), transparent); }
   .g3 { width: 500px; height: 500px; right: 180px; bottom: -260px; background: radial-gradient(closest-side, rgb(249 168 212 / .12), transparent); }
-  .brand { position: absolute; left: 72px; top: 60px; display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 34px; letter-spacing: -.02em; }
+  .brand { position: absolute; left: 72px; top: 56px; display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 34px; letter-spacing: -.02em; }
   .brand img { width: 48px; height: 48px; }
-  h1 { position: absolute; left: 72px; top: 190px; width: 640px; margin: 0; font-weight: 300; font-size: 68px; line-height: 1.08; letter-spacing: -.032em; }
+  h1 { position: absolute; left: 72px; top: 168px; width: 560px; margin: 0; font-weight: 300; font-size: 60px; line-height: 1.1; letter-spacing: -.032em; }
   h1 span { display: block; color: var(--kora-text-muted); }
   .pill { display: inline-block; padding: 0 .3em .06em; border-radius: 999px; background: var(--kora-holographic); color: var(--kora-ink); font-weight: 600; }
-  canvas { position: absolute; right: 90px; top: 130px; width: 380px; height: 380px; }
-  .tag { position: absolute; left: 72px; bottom: 56px; font-size: 22px; color: var(--kora-text-muted); }
+  .tag { position: absolute; left: 72px; bottom: 52px; font-size: 22px; color: var(--kora-text-muted); }
+  .phone {
+    position: absolute; right: 130px; top: 40px; width: 258px; height: 550px;
+    padding: 8px; border-radius: 40px; background: #0e0b18;
+    box-shadow: 0 0 0 1.5px rgb(255 255 255 / .14), 0 40px 90px rgb(0 0 0 / .55);
+  }
+  .phone .crop { position: relative; width: 100%; height: 100%; border-radius: 32px; overflow: hidden; background: #07060b; }
+  .phone img { position: absolute; left: 0; top: -46px; width: 100%; height: auto; }
+  .phone::after {
+    content: ""; position: absolute; inset: 0; border-radius: 40px; pointer-events: none;
+    box-shadow: inset 0 0 60px 10px rgb(139 92 246 / .18);
+  }
 </style>
 </head>
 <body>
@@ -28,13 +39,8 @@
   <i class="glow g1"></i><i class="glow g2"></i><i class="glow g3"></i>
   <div class="brand"><img src="../assets/kora-mark.svg" alt="">Kora</div>
   <h1>Talk to your operations. <span>Let your operations <b class="pill">talk back</b>.</span></h1>
-  <canvas id="orb" width="760" height="760"></canvas>
+  <div class="phone"><div class="crop"><img src="../assets/media/screen-voice.jpg" alt=""></div></div>
   <div class="tag">A voice-first co-rider for last-mile drivers</div>
 </div>
-<script type="module">
-  import { Orb } from "../js/orb.js";
-  const orb = new Orb(document.getElementById("orb"), { mood: "speaking" });
-  orb.settle();
-</script>
 </body>
 </html>

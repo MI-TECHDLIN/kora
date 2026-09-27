@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../core/api/voiceops_api.dart';
 import '../../../core/config/backend_config.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/wake/wake_tuning.dart';
 import '../../../core/widgets/driver_vehicle_row.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../providers/home_preferences_provider.dart';
@@ -27,6 +29,8 @@ class SettingsScreen extends ConsumerWidget {
     final homePreferences = ref.watch(homePreferencesProvider);
     final notificationPreferences = ref.watch(notificationPreferencesProvider);
     final wakeWordEnabled = ref.watch(wakeWordEnabledProvider);
+    final wakeSensitivity = ref.watch(wakeSensitivityProvider);
+    final wakeOnGreetings = ref.watch(wakeOnGreetingsProvider);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -202,14 +206,64 @@ class SettingsScreen extends ConsumerWidget {
                 horizontal: KoraSpacing.lg,
                 vertical: KoraSpacing.sm,
               ),
-              child: _SettingsToggle(
-                key: const Key('wake-word-toggle'),
-                title: '“Kora” wake word',
-                description: 'Say a trained Kora phrase while the app is open',
-                enabled: wakeWordEnabled,
-                onChanged: (enabled) => ref
-                    .read(wakeWordEnabledProvider.notifier)
-                    .setEnabled(enabled: enabled),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SettingsToggle(
+                    key: const Key('wake-word-toggle'),
+                    title: '“Kora” wake word',
+                    description:
+                        'Say “Kora”, “Hey Kora” or “Okay Kora” while the app is open',
+                    enabled: wakeWordEnabled,
+                    onChanged: (enabled) => ref
+                        .read(wakeWordEnabledProvider.notifier)
+                        .setEnabled(enabled: enabled),
+                  ),
+                  if (wakeWordEnabled) ...[
+                    const SizedBox(height: KoraSpacing.sm),
+                    Text('Wake sensitivity', style: KoraText.label),
+                    const SizedBox(height: KoraSpacing.xs),
+                    Text(
+                      'Choose High if your phone sits far from you in the '
+                      'vehicle. It also makes accidental wake-ups more likely.',
+                      style: KoraText.bodyMuted,
+                    ),
+                    const SizedBox(height: KoraSpacing.sm),
+                    Wrap(
+                      key: const Key('wake-sensitivity-selector'),
+                      spacing: KoraSpacing.sm,
+                      runSpacing: KoraSpacing.sm,
+                      children: [
+                        for (final sensitivity in WakeSensitivity.values)
+                          _Choice(
+                            label: sensitivity.label,
+                            icon: switch (sensitivity) {
+                              WakeSensitivity.normal =>
+                                TablerIcons.antennaBars3,
+                              WakeSensitivity.high => TablerIcons.antennaBars5,
+                            },
+                            selected: sensitivity == wakeSensitivity,
+                            onTap: () => ref
+                                .read(wakeSensitivityProvider.notifier)
+                                .setSensitivity(sensitivity),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: KoraSpacing.sm),
+                    _SettingsToggle(
+                      key: const Key('wake-greetings-toggle'),
+                      title: 'Wake on greetings',
+                      description:
+                          'Also wake on a plain “hi”, “hey” or “hello”. '
+                          'Warning: these words are common in conversation, '
+                          'so Kora may wake when you did not mean it.',
+                      enabled: wakeOnGreetings,
+                      onChanged: (enabled) => ref
+                          .read(wakeOnGreetingsProvider.notifier)
+                          .setEnabled(enabled: enabled),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: KoraSpacing.lg),

@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'wake_tuning.dart';
+
 enum WakeWordPlatform {
   android,
   ios;
@@ -44,9 +46,11 @@ class WakeWordEngineConfig {
     required this.keywords,
     required this.onDetected,
     required this.onError,
+    this.tuning = WakeTuning.normal,
   });
 
   final List<WakeWordKeyword> keywords;
+  final WakeTuning tuning;
   final ValueChanged<int> onDetected;
   final ValueChanged<Object> onError;
 }
@@ -104,6 +108,10 @@ Map<String, String> parseTokenizedWakeKeywords(String source) {
   return result;
 }
 
+/// Manifest `requires` value that gates a phrase on the "Wake on greetings"
+/// Settings option.
+const wakeOnGreetingsRequirement = 'wake_on_greetings';
+
 typedef WakeWordLog = void Function(String message);
 
 /// Coordinates manifest loading, microphone ownership and graceful fallback.
@@ -141,7 +149,8 @@ class WakeWordService {
   bool _enabled = true;
   bool _sessionActive = false;
   bool _foreground = true;
-  bool _configured = false;
+  WakeWordSettings _settings = const WakeWordSettings();
+  WakeWordSettings? _configuredFor;
   bool _disposed = false;
   bool _wakeInProgress = false;
   Future<void> _pending = Future<void>.value();
@@ -150,7 +159,9 @@ class WakeWordService {
     required bool enabled,
     required bool sessionActive,
     required bool foreground,
+    WakeWordSettings settings = const WakeWordSettings(),
   }) {
+    _settings = settings;
     _enabled = enabled;
     _sessionActive = sessionActive;
     _foreground = foreground;
@@ -190,9 +201,13 @@ class WakeWordService {
     }
     if (!_shouldListen) return;
 
-    if (!_configured) {
+    if (_configuredFor != _settings) {
+      final settings = _settings;
       try {
-        final keywords = await _loadKeywords();
+        // A settings change (sensitivity, greetings) rebuilds the keyword list
+        // and gain, which the engine only reads while configuring. Configure
+        // stops the engine first, so the microphone is released.
+        final keywords = await _loadKeywords(settings);
         if (keywords.isEmpty) {
           _log('Wake word unavailable: no enabled tokenized keywords exist.');
           _setStatus(WakeWordStatus.unavailable);
@@ -205,9 +220,10 @@ class WakeWordService {
             onDetected: _onDetected,
             onError: (error) =>
                 _log('Wake word engine reported an error: $error'),
+            tuning: settings.tuning,
           ),
         );
-        _configured = true;
+        _configuredFor = settings;
       } catch (error) {
         _log('Wake word engine could not be configured: $error');
         _setStatus(WakeWordStatus.unavailable);
@@ -225,7 +241,7 @@ class WakeWordService {
     }
   }
 
-  Future<List<WakeWordKeyword>> _loadKeywords() async {
+  Future<List<WakeWordKeyword>> _loadKeywords(WakeWordSettings settings) async {
     final manifest = jsonDecode(await _assets.loadManifest());
     if (manifest is! Map<String, dynamic>) {
       throw const FormatException('wake phrase manifest is not an object');
@@ -242,6 +258,12 @@ class WakeWordService {
     final loaded = <WakeWordKeyword>[];
     for (final value in phrases) {
       if (value is! Map || value['enabled'] != true) continue;
+      // Bare greetings ("hi", "hey", "hello") are only listened for when the
+      // driver opted in; they are common in ordinary conversation.
+      if (value['requires'] == wakeOnGreetingsRequirement &&
+          !settings.wakeOnGreetings) {
+        continue;
+      }
       final id = value['id'];
       final phrase = value['phrase'];
       if (id is! String || phrase is! String) continue;
