@@ -122,9 +122,9 @@ It also emits the same event names the real WebSocket sends (`agent_state`, `tas
 
 Input to the phone:
 
-- Six prompt chips (the four headline prompts first) and a free-text box. `js/flows.js` scores the text against keyword rules and plays the nearest flow, or answers with a hint listing what the preview can do.
+- Six prompt chips (the four headline prompts first). Each plays its corresponding preview flow.
 - The push-to-talk button plays the next headline prompt; tapping it while Kora is speaking interrupts her.
-- Optional real speech: where the browser has the Web Speech API a mic button appears beside the text box. It is never required and never starts by itself; if it is blocked or unsupported the chips work the same. Browser speech recognition may send audio to the browser vendor's servers, which the page says next to the button. The simulation itself makes no requests.
+- Optional real speech: where the browser has the Web Speech API a "Say it" mic button appears beside the prompt chips. `js/flows.js` scores the spoken text against keyword rules and plays the nearest flow, or answers with a hint listing what the preview can do. Speech recognition is never required and never starts by itself; if it is blocked or unsupported the chips work the same. Browser speech recognition may send audio to the browser vendor's servers, which the page says next to the button. The simulation itself makes no requests.
 
 To add a flow: write an `async` function in `flows.js` using the phone helpers (`step`, `setMood`, `setTab`, `showRoute`, `speak`, …), add a keyword rule to `RULES`, and, if it should be a chip, an entry in `PROMPTS`.
 
