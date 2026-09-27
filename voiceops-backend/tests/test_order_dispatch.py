@@ -400,6 +400,57 @@ def test_feed_holds_while_the_only_ping_is_stale(store, no_geocoding):
     assert store.rows("deliveries") == []
 
 
+def test_feed_holds_when_the_only_ping_is_tied_to_a_completed_shift(store, no_geocoding):
+    """
+    The "orders stopped" bug: a driver's socket claims to be live on a shift_id that is no
+    longer active (a stale cached id reused after `end_shift`, or a dangling shift the
+    backend already closed). Their ping is fresh, but `get_active_driver_positions()` only
+    joins pings through *active* shifts, so it must never count as a location — the feed
+    holds instead of placing an order near a shift nobody is actually running.
+    """
+    store.add_driver(LONDON, active=False)
+    dispatcher = fast_feed_dispatcher(online(LONDON))
+
+    async def scenario():
+        await dispatcher.start()
+        await asyncio.sleep(0.3)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert store.rows("deliveries") == []
+
+
+def test_diagnostics_reports_why_the_feed_is_holding(store, adapter):
+    """Value-free counts and reasons (`GET /health/dispatch`), not just a log line."""
+    dispatcher = dispatcher_with(adapter, FakeHub())
+    assert dispatcher.should_generate() is False
+    diag = dispatcher.diagnostics()
+    assert diag["hold_counts"]["no_driver_online"] == 1
+    assert diag["last_hold_reason"] == "no_driver_online"
+    assert diag["online_drivers"] == 0
+
+    store.add_driver(LONDON, active=False)  # online per the hub, but no active-shift ping
+    dispatcher.hub.live[LONDON["shift_id"]] = LONDON["driver_id"]
+    assert run(dispatcher.get_target_location()) is None
+    diag = dispatcher.diagnostics()
+    assert diag["hold_counts"]["no_located_driver"] == 1
+    assert diag["last_hold_reason"] == "no_located_driver"
+    assert diag["online_drivers"] == 1
+
+
+def test_health_dispatch_exposes_diagnostics_with_no_personal_data():
+    response = client.get("/health/dispatch")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "feed_enabled", "online_drivers", "open_orders", "hold_counts",
+        "last_hold_reason", "last_hold_at", "last_located_at",
+    }
+    assert isinstance(body["hold_counts"], dict)
+    for reason in body["hold_counts"]:
+        assert reason in order_dispatch.HOLD_REASONS
+
+
 def test_feed_places_each_order_near_a_located_online_driver_only(store, no_geocoding):
     """Two online drivers, only one located: every order lands near that one and goes to them."""
     store.add_driver(LONDON, ping=False)

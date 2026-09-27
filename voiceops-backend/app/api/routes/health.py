@@ -53,3 +53,16 @@ async def ready():
     """
     report = await readiness_report()
     return JSONResponse(report, status_code=200 if report["ready"] else 503)
+
+
+@router.get("/dispatch")
+async def dispatch_diagnostics():
+    """
+    Why the mock order feed did or didn't offer anything recently: counts and fixed reason
+    tokens only (`no_driver_online`, `no_located_driver`, `stale_ping`, `open_order_cap`) —
+    never a coordinate, id, or other personal data. See
+    `app/dispatch/order_dispatch.py`'s `OrderDispatcher.diagnostics()`.
+    """
+    from app.dispatch.order_dispatch import get_order_dispatcher
+
+    return get_order_dispatcher().diagnostics()

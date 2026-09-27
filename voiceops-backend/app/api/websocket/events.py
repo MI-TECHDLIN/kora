@@ -14,7 +14,7 @@ TASK_STEP_STATUSES = frozenset({"pending", "active", "done"})
 TRANSCRIPT_ROLES = frozenset({"driver", "agent"})
 ERROR_CODES = frozenset({
     "auth_failed", "session_expired", "upstream_unavailable", "upstream_timeout",
-    "invalid_message", "internal", "voice_not_configured",
+    "invalid_message", "internal", "voice_not_configured", "shift_ended",
 })
 OFFER_OUTCOMES = frozenset({"accepted", "declined", "expired", "withdrawn"})
 
@@ -124,6 +124,12 @@ def reply_done(interrupted: bool = False) -> Dict[str, Any]:
 
 def conversation_end() -> Dict[str, Any]:
     return {"event": "conversation_end"}
+
+
+def shift_ended(shift_id: str) -> Dict[str, Any]:
+    """The `end_shift` tool just completed. The app should stop treating `shift_id` as
+    active: a later reconnect must start a fresh shift, not reuse this one."""
+    return {"event": "shift_ended", "shift_id": shift_id}
 
 
 def order_offer(offer: Dict[str, Any]) -> Dict[str, Any]:
