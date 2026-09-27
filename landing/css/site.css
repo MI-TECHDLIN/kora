@@ -113,7 +113,8 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 /* Try-it controls */
 .try { margin-top: 8px; }
 .try__label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--kora-text-muted); margin-bottom: 10px; }
-.prompts { display: flex; flex-wrap: wrap; gap: 8px; }
+.prompt-row, .prompts { display: flex; flex-wrap: wrap; gap: 8px; }
+.prompt-row { align-items: center; }
 .chip { --a: var(--kora-primary-light); display: inline-flex; align-items: center; gap: 8px; min-height: var(--kora-touch-target); padding: 6px 18px 6px 8px; border-radius: var(--kora-radius-pill); border: 1px solid color-mix(in srgb, var(--a) 24%, transparent); background: color-mix(in srgb, var(--a) 10%, transparent); color: var(--kora-text); font: 600 13px/1.25 var(--kora-font); text-align: left; cursor: pointer; transition: transform var(--kora-fast), background var(--kora-base), border-color var(--kora-base); }
 .chip:hover { background: color-mix(in srgb, var(--a) 18%, transparent); transform: translateY(-1px); }
 .chip.is-on { border-color: var(--a); background: color-mix(in srgb, var(--a) 22%, transparent); }
@@ -127,14 +128,10 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 @keyframes nudge { 30% { transform: translateY(-4px); } 60% { transform: translateY(1px); } }
 @media (prefers-reduced-motion: reduce) { .nudge .chip { animation: none; } }
 
-.ask { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 4px 4px 4px 20px; border-radius: var(--kora-radius-pill); background: var(--kora-glass-fill); border: 1px solid var(--kora-glass-border); }
-.ask:focus-within { border-color: var(--kora-primary-light); }
-.ask input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: transparent; color: var(--kora-text); font: 400 15px var(--kora-font); }
-.ask input::placeholder { color: var(--kora-text-faint); }
-.ask button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; flex: none; color: var(--kora-text); background: var(--kora-glass-fill); }
-.ask .ask__go { background: var(--kora-violet-gradient); color: #fff; }
-.ask .ask__mic.is-live { background: var(--kora-primary-tint); color: var(--kora-primary-light); box-shadow: 0 0 0 3px var(--kora-primary-glow); }
-.ask button:focus-visible { outline: 2px solid var(--kora-primary-light); outline-offset: 2px; }
+.say-it { align-items: center; gap: 7px; min-height: var(--kora-touch-target); padding: 8px 14px; border-radius: var(--kora-radius-pill); border: 1px solid var(--kora-glass-border); cursor: pointer; color: var(--kora-text); background: var(--kora-glass-fill); font: 600 13px/1.25 var(--kora-font); }
+.say-it:not([hidden]) { display: inline-flex; }
+.say-it.is-live { background: var(--kora-primary-tint); color: var(--kora-primary-light); box-shadow: 0 0 0 3px var(--kora-primary-glow); }
+.say-it:focus-visible { outline: 2px solid var(--kora-primary-light); outline-offset: 2px; }
 
 /* --------------------------------------------------------------- Sections */
 .section { padding-block: clamp(64px, 8vw, 104px); }

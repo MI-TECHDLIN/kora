@@ -91,17 +91,13 @@
 
         <div class="hero__try try" data-try="hero">
           <p class="try__label">Try saying</p>
-          <div class="prompts" data-prompts role="group" aria-label="Example prompts"></div>
-          <form class="ask" data-ask autocomplete="off">
-            <label class="sr-only" for="ask-hero">Ask Kora</label>
-            <input id="ask-hero" name="q" type="text" placeholder="Or ask in your own words…" maxlength="120" enterkeyhint="send">
-            <button class="ask__mic" type="button" data-mic hidden aria-pressed="false" aria-label="Use my microphone" title="Use my microphone (your browser's speech recognition)">
+          <div class="prompt-row">
+            <div class="prompts" data-prompts role="group" aria-label="Example prompts"></div>
+            <button class="say-it" type="button" data-mic hidden aria-pressed="false" aria-label="Use my microphone" title="Use my microphone (your browser's speech recognition)">
               <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-microphone"/></svg>
+              <span>Say it</span>
             </button>
-            <button class="ask__go" type="submit" aria-label="Send">
-              <svg class="i" aria-hidden="true"><use href="assets/icons.svg#i-send"/></svg>
-            </button>
-          </form>
+          </div>
           <p class="fine" data-mic-note hidden></p>
           <noscript><p class="fine">The interactive preview needs JavaScript. Kora itself does not run in the browser.</p></noscript>
         </div>

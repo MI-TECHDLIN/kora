@@ -187,9 +187,6 @@ function initPhones() {
     (p) =>
       `<button type="button" class="chip chip--${p.accent}${p.secondary ? " chip--2" : ""}" data-id="${p.id}"><span class="chip__disc">${ic(p.icon, "i--sm")}</span><span>${p.text}</span></button>`,
   ).join("");
-  const input = $("input", heroTry);
-  const form = $("[data-ask]", heroTry);
-
   let promptIdx = 0;
   const nextPrompt = () => PROMPTS[promptIdx++ % 4].text;
   attach(hero, { nextPrompt });
@@ -207,13 +204,6 @@ function initPhones() {
     if (!b) return;
     play(PROMPTS.find((p) => p.id === b.dataset.id).text);
   });
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = "";
-    play(text);
-  });
   hero.on((evt) => {
     if (evt.event !== "preview_hint") return;
     chips.classList.remove("nudge");
@@ -224,7 +214,7 @@ function initPhones() {
     b.addEventListener("click", () => phones[b.dataset.reset]?.reset()),
   );
 
-  initMic(hero, form, input, play);
+  initMic(hero, heroTry, play);
 
   /* Demo phone: built when it nears the viewport. */
   const demoRoot = $('[data-phone="demo"]');
@@ -253,10 +243,10 @@ function initPhones() {
 /* ------------------------------------------------------------- microphone */
 
 /** Optional real speech input via the browser's Web Speech API. Never required. */
-function initMic(phone, form, input, play) {
+function initMic(phone, root, play) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const btn = $("[data-mic]", form);
-  const note = $("[data-mic-note]", form.closest("[data-try]"));
+  const btn = $("[data-mic]", root);
+  const note = $("[data-mic-note]", root);
   if (!SR || !btn) return;
   btn.hidden = false;
   note.hidden = false;
@@ -292,7 +282,6 @@ function initMic(phone, form, input, play) {
     };
     rec.onresult = (e) => {
       heard = [...e.results].map((r) => r[0].transcript).join(" ");
-      input.value = heard;
     };
     rec.onerror = (e) => {
       const blocked = e.error === "not-allowed" || e.error === "service-not-allowed";
@@ -307,7 +296,6 @@ function initMic(phone, form, input, play) {
       const text = heard.trim();
       finish();
       if (text) {
-        input.value = "";
         play(text);
       }
     };
