@@ -39,8 +39,9 @@ This PR does not deploy anything or touch Cloudflare or DNS. When the domain is 
 - [ ] Set the Android link in `js/config.js` (`androidUrl`). While it is empty every "Android" button shows a visible "coming soon" state instead of a dead link.
 - [ ] Make `og:image` and `twitter:image` in `index.html` absolute, `https://<domain>/assets/og-image.jpg`. Crawlers do not resolve relative image URLs.
 - [ ] Optionally add `<link rel="canonical" href="https://<domain>/">`.
-- [ ] Drop the real screenshots and clips into `assets/media/` (below), and replace `assets/og-image.jpg` with final artwork.
-- [ ] If analytics or an embed is added later, extend the Content-Security-Policy in `_headers` to allow it.
+- [x] Real screenshots and clips are in `assets/media/` (below) and `assets/og-image.jpg` is final artwork, masked from the captain's captures. Swap in higher-fidelity takes the same way: same filenames, no code change.
+- [ ] Optionally set `js/config.js`'s `demoReelUrl` to an external embed (e.g. a YouTube upload) once one exists, to serve that instead of the packaged `clip-demo-reel.mp4`.
+- [ ] If analytics or another embed host is added later, extend the Content-Security-Policy in `_headers` to allow it.
 
 ## Layout
 
@@ -65,37 +66,33 @@ landing/
 │   ├── brand/              favicon and app icons, copied from the repo's brand assets
 │   ├── icons.svg           Tabler icon sprite (MIT), the same set the app uses
 │   ├── kora-mark.svg       copy of docs/brand/kora-mark.svg
-│   ├── og-image.jpg        placeholder social image (1200 x 630)
-│   └── media/              screenshots and clips drop in here (manifest.json)
-├── tools/og-image.html     source of the placeholder social image
+│   ├── og-image.jpg        social image (1200 x 630), a real masked app frame composed in
+│   └── media/              screenshots and clips (manifest.json)
+├── tools/og-image.html     source of og-image.jpg
 └── docs/screenshots/       verification screenshots for the PR
 ```
 
-## Placeholders to replace
+## Media
 
-Everything below is a clearly marked placeholder on the page (dashed frame, "Placeholder" badge, the expected filename and size). Add the file under `assets/media/` with exactly this name and it replaces the placeholder on the next load: no code change. `assets/media/manifest.json` maps each id to its filename, dimensions and alt text; edit it only to rename a file, change its alt text, or add a new item (a new item also needs a `<figure data-media="<id>">` in `index.html`).
+`assets/media/manifest.json` maps each id to its filename, dimensions and alt text; edit it only to rename a file, change its alt text, or add a new item (a new item also needs a `<figure data-media="<id>">` in `index.html`). A slot with no entry (or a `fetch`/decode failure) keeps its loading skeleton rather than showing a dead placeholder — there is no `clip-call-customer` entry because no source exists for it; add the figure and manifest entry together when one does.
 
-Files are lazy-loaded, and clips start and pause with visibility. Under `prefers-reduced-motion` clips do not autoplay and show controls.
+Files are lazy-loaded, and phone clips are muted, loop, and start and pause with visibility; the demo reel is native controls, unmuted and never autoplays (it has narration) — see `js/main.js`'s `initMedia`. Under `prefers-reduced-motion` phone clips also show controls instead of autoplaying.
 
 | File in `assets/media/` | Kind | Dimensions | Notes |
 |---|---|---|---|
-| `clip-demo-reel.mp4` (+ `.webm`, `.jpg` poster) | Video | 1920 × 1080 | Full shift, 60 to 90 s. Muted loop, H.264, keep under about 10 MB |
-| `clip-next-delivery.mp4` (+ `.webm`, `.jpg`) | Video | 1080 × 2400 | Ask for the next stop, route draws. 15 s or less, about 4 MB |
-| `clip-auto-accept.mp4` (+ `.webm`, `.jpg`) | Video | 1080 × 2400 | Auto-accept on, an order taken out loud |
-| `clip-call-customer.mp4` (+ `.webm`, `.jpg`) | Video | 1080 × 2400 | Call and text the customer |
-| `screen-voice.png` | Image | 1080 × 2400 | Voice screen: orb, next stop, target, conversation |
-| `screen-map.png` | Image | 1080 × 2400 | Map with route and trip card |
-| `screen-order-offer.png` | Image | 1080 × 2400 | Order offer card |
-| `screen-summary.png` | Image | 1080 × 2400 | Today's activity, target, queue |
-| `screen-settings.png` | Image | 1080 × 2400 | Auto-accept rules on |
+| `clip-demo-reel.mp4` (+ `.jpg` poster) | Video | 1280 × 720 | The full explainer, narrated, ~7.3 MB |
+| `clip-next-delivery.mp4` (+ `.webm`, `.jpg`) | Video | 864 × 1844 | Driver asks for the next stop, route draws |
+| `clip-order-offer.mp4` (+ `.webm`, `.jpg`) | Video | 864 × 1844 | A new order is offered; the driver accepts it (not auto-accept) |
+| `clip-wake-followup.mp4` (+ `.webm`, `.jpg`) | Video | 864 × 1920 | A follow-up question answered without repeating the wake word |
+| `clip-shift-summary.mp4` (+ `.webm`, `.jpg`) | Video | 864 × 1844 | The shift summary screen |
+| `screen-voice.jpg` | Image | 864 × 1844 | Voice screen: chrome orb, next stop, target, lime listening button |
+| `screen-map.jpg` | Image | 864 × 1844 | Map with route and trip card |
+| `screen-order-offer.jpg` | Image | 720 × 1524 | The offer card itself: countdown, distance, time window, Accept/Decline |
+| `screen-summary.jpg` | Image | 864 × 1844 | Today's activity, target, queue |
+| `screen-settings.jpg` | Image | 720 × 1379 | Auto-accept rules and the wake word controls (sensitivity, wake on greetings) |
+| `assets/og-image.jpg` | Image | 1200 × 630 | Social card, regenerated from `tools/og-image.html` with a real screen composed in |
 
-Posters are optional (`.jpg`, 540 × 1200 for phone clips). PNG, WebP or JPG all work for screenshots as long as the filename in the manifest matches. Outside `assets/media/`:
-
-| File | Dimensions | Notes |
-|---|---|---|
-| `assets/og-image.jpg` | 1200 × 630 | Placeholder social card, regenerate from `tools/og-image.html` or replace |
-
-Use real app captures on a real device with neutral sample data (generic names, no local currency or place names) so the page stays international.
+All of the above are the captain's real phone captures and screenshots, privacy-masked — the four phone clips (`clip-next-delivery`, `clip-order-offer`, `clip-wake-followup`, `clip-shift-summary`) and the three video-frame stills (`screen-voice`, `screen-map`, `screen-summary`) reuse the explainer video project's frame-accurate masks (see its `BUILD-NOTES.md`, "Masking applied", for the exact windows). `screen-order-offer` and `screen-settings` come from two later phone screenshots instead, masked separately (address, distance line, next-stop name and address, and the status bar redacted with a frosted box, same treatment). No address, name, or status bar survives; nothing region-specific is on screen, keeping the page international. Swap in new captures the same way: same filenames under `assets/media/`, no code change, and mask any real name/address/street label before shipping them.
 
 ## Design system
 
@@ -137,4 +134,4 @@ To add a flow: write an `async` function in `flows.js` using the phone helpers (
 
 ## Not in scope here
 
-Deployment, DNS and Cloudflare resources (the captain connects them), real screenshots and clips, and the repository README rewrite.
+Deployment, DNS and Cloudflare resources (the captain connects them), and the repository README rewrite.

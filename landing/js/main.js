@@ -415,6 +415,25 @@ async function initMedia() {
   const mount = (fig, item) => {
     const ph = $(".media__ph", fig);
     const ratio = `${item.width} / ${item.height}`;
+    // The demo reel carries its own narration: it plays on request, with sound and
+    // controls, never muted and never autoplaying. Every other clip is a muted,
+    // looping background loop that starts and stops with visibility.
+    const isReel = item.id === "clip-demo-reel";
+    const externalReel = isReel && (CONFIG.demoReelUrl || "").trim();
+    if (externalReel) {
+      const frame = document.createElement("iframe");
+      frame.className = "media__el";
+      frame.style.aspectRatio = ratio;
+      frame.src = externalReel;
+      frame.title = item.alt || "Kora demo reel";
+      frame.loading = "lazy";
+      frame.allow = "accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share";
+      frame.referrerPolicy = "strict-origin-when-cross-origin";
+      frame.allowFullscreen = true;
+      fig.classList.add("has-media");
+      ph.replaceWith(frame);
+      return;
+    }
     if (item.type === "image") {
       const img = new Image();
       img.alt = item.alt || "";
@@ -431,8 +450,9 @@ async function initMedia() {
     } else {
       const v = document.createElement("video");
       v.className = "media__el";
-      v.muted = true;
-      v.loop = true;
+      v.muted = !isReel;
+      v.loop = !isReel;
+      v.controls = isReel;
       v.playsInline = true;
       v.preload = "metadata";
       v.setAttribute("aria-label", item.alt || "");
@@ -447,6 +467,7 @@ async function initMedia() {
         if (item.poster) v.poster = item.poster;
         fig.classList.add("has-media");
         ph.replaceWith(v);
+        if (isReel) return; // click to play, with sound; never autoplay
         if (reduceMotion()) v.controls = true;
         else
           new IntersectionObserver(
