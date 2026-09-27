@@ -17,7 +17,7 @@ Drivers should not have to choose between watching the road and managing work on
 
 Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon) on lablab.ai, September 1–30, 2026.
 
-[What Kora is](#what-is-kora) · [A shift with Kora](#a-shift-with-kora) · [What works today](#what-you-can-do-with-kora-today) · [For developers](#for-developers)
+[What Kora is](#what-is-kora) · [A shift with Kora](#a-shift-with-kora) · [What works today](#what-you-can-do-with-kora-today) · [Website](#website) · [For developers](#for-developers)
 
 ## What is Kora?
 
@@ -35,29 +35,30 @@ Kora closes that gap. The driver says what they need; the app coordinates the st
 
 ![Speak, let Kora coordinate the work, and keep moving](docs/brand/readme/how-it-works.svg)
 
-1. **Speak.** While the app is open, say “Kora” (also “Hey Kora”, “Okay Kora”, “Hi Kora”, or the “Cora” spellings) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for a short window.
+1. **Speak.** While the app is open, say “Kora” (also “Hey Kora”, “Okay Kora”, “Hi Kora”, “Hello Kora”, or the “Cora” spellings) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for 12 seconds after activity.
 2. **Kora acts.** One request can check delivery information, work out a route and contact a customer at the same time.
 3. **Keep moving.** The route appears in Kora's live map, progress stays visible, and the driver hears one useful answer.
 
 ## A shift with Kora
 
-1. **Start.** Open Kora, say “Kora” (also “Hey Kora” or “Okay Kora”) or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
-2. **Handle changes.** Ask Kora to call or text a customer when access is blocked. New orders are announced aloud, ready to accept or decline; optional auto-accept rules can apply limits such as distance and preferred areas.
-3. **Complete the work.** Update each delivery, log exceptions, and store photo or signature proof with its location. The queue and daily-target progress stay visible in the app.
+1. **Start.** Open Kora, use a supported wake phrase or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
+2. **Handle changes.** Ask Kora to call or text a customer when access is blocked. New orders near the driver's own recent location are announced aloud; Kora waits for the driver's answer before a voice acceptance or decline. Optional auto-accept rules can apply limits such as distance and preferred areas.
+3. **Complete the work.** Update each delivery and log exceptions. The queue and daily-target progress stay visible in the app.
 4. **Finish.** Say “End my shift” to close the shift and prepare its report, then review the result in the app.
 
 ## What you can do with Kora today
 
-- Wake the foreground app with “Kora” (also “Hey/Okay/Hi Kora” and “Cora”; Settings can raise wake sensitivity for a distant phone or add plain “hi/hey/hello”), then continue without repeating it for a short follow-up window; the microphone button remains available as a fallback.
+- Wake the foreground app with “Kora”, “Hey/Okay/Hi/Hello Kora” or the matching “Cora” forms, then continue without repeating the name during the 12-second follow-up window. Wake sensitivity is **Normal** by default; **High** adds far-field gain with a higher false-wake risk. Optional bare “hi/hey/hello” waking is off by default.
 - Hear a warm first greeting and concise spoken replies from the co-rider.
+- Choose and preview one of 11 co-rider voices during setup or later in Settings.
 - Ask for the next stop, see the route on an in-app live map, and receive proactive estimated-arrival and reroute updates.
 - Choose car, motorbike, bicycle or walking mode so arrival times reflect how the driver is travelling.
 - Call or text a customer, with a simulated call mode available for demonstrations.
-- Receive new-order offers, accept or decline them, or enable driver-controlled auto-accept rules.
+- Receive new-order offers based on the driver's own fresh location, accept or decline them after answering, or enable driver-controlled auto-accept rules. Settings changes only appear enabled after the backend saves them.
 - See the full order queue and track progress against a daily delivery target.
-- Complete or fail deliveries, log exceptions, alert dispatch and store photo or signature proof of delivery through the service.
-- End a shift by voice and receive an automatically generated shift report.
-- Open the map, settings, summary or voice screen by asking, and sign out from the profile screen.
+- Complete or fail deliveries, log exceptions and alert dispatch.
+- End a shift by voice and receive an automatically generated shift report. If voice reconnects after that shift, the app starts a fresh active shift while retaining the completed shift for its report.
+- End only the current conversation when the work continues, open the map, settings, summary or voice screen by asking, and view or edit the profile. Restored sessions finish profile setup before the first profile read, with retries for genuine failures.
 
 Under the hood, the current registry gives Kora **20 tools** for delivery work, navigation, communication, shift control and driver preferences. That count comes from the running registry, not a marketing estimate.
 
@@ -74,6 +75,10 @@ The Kora mark is a **K whose arms form a speaking orb**: one simple symbol for t
 </p>
 
 Read the [story and usage rules behind the mark](docs/brand/README.md).
+
+## Website
+
+[`landing/`](landing/) contains Kora's dependency-free static website: an interactive client-side phone preview, privacy-masked app screenshots and clips, a narrated demo reel, and an 11-voice picker mirrored from the app. It makes no backend calls and has no build step. See the [landing-page README](landing/README.md) for local preview, Cloudflare Pages settings, media handling and launch checks.
 
 ## What comes next
 
@@ -113,6 +118,7 @@ Kora brings together a mobile app, a real-time voice service and a small operati
 kora/
 ├── frontend/          Flutter mobile app
 ├── voiceops-backend/  FastAPI backend and voice orchestration
+├── landing/           Static website and interactive phone preview
 └── docs/              Product, interface, handoff and brand documentation
 ```
 
@@ -145,6 +151,8 @@ uvicorn app.main:app --reload --port 8000
 
 Run one server worker. Live voice sessions and order offers are held by that process.
 
+Leave `ASSEMBLYAI_AGENT_ID` unset unless you have created a stored AssemblyAI agent for the same account. Kora normally sends its prompt and tools inline; a copied placeholder agent ID switches modes and prevents voice startup. `GET /health/ready` below reports this and other voice-path configuration problems without exposing values.
+
 ### Run the app
 
 In another terminal:
@@ -158,6 +166,8 @@ flutter run --dart-define-from-file=config/supabase.prod.json
 
 Edit the copied JSON with your public Supabase URL, public anonymous key and backend address. Never place a Supabase service-role key in the Flutter app. For a physical phone on the same network, use the computer's local network address and start FastAPI with `--host 0.0.0.0`.
 
+The backend address is compiled into the app. Settings > About shows the host in use, and the release build script rejects local or retired hosts unless explicitly overridden for development.
+
 A real Android phone or iPhone is needed to judge wake-word accuracy, microphone handoff and native map behaviour. Desktop or widget tests cannot prove those experiences.
 
 ### Environment variables
@@ -166,13 +176,23 @@ Use [`voiceops-backend/.env.example`](voiceops-backend/.env.example) as the back
 
 The Flutter app uses [`frontend/config/supabase.prod.json.example`](frontend/config/supabase.prod.json.example). Copy it to the ignored local filename shown above and replace the placeholders. Do not commit either file with real credentials.
 
+### Health and diagnostics
+
+- `GET /health` is the lightweight liveness endpoint for hosting monitors.
+- `GET /health/ready` checks whether the database and AssemblyAI voice session can start. It returns only booleans and fixed reason tokens, is cached briefly, and answers `200` when ready or `503` otherwise.
+- `GET /health/dispatch` explains why the mock order feed is holding, using counts for `no_driver_online`, `no_located_driver`, `stale_ping` and `open_order_cap`; it never returns coordinates or driver identifiers.
+
+The app also surfaces the configured backend host and preserves specific connection errors. An ended-shift signal makes the next reconnect request a new active shift instead of silently reusing a completed one. Exact response and WebSocket event shapes live in the [interface contract](docs/contracts/interface.md).
+
+Traffic-aware ETA results keep their existing 75-second cache, now scoped to each ETA service instance so separate instances and tests cannot leak cached routes into one another.
+
 ### Run the checks
 
 Backend:
 
 ```bash
 cd voiceops-backend
-python -m pytest -v
+python -m pytest -q
 ```
 
 Flutter:
@@ -183,6 +203,15 @@ flutter analyze
 flutter test
 ```
 
+Website (no build step):
+
+```bash
+python3 -m http.server 8080 --directory landing
+for file in landing/js/*.js; do node --check "$file"; done
+```
+
+Then open `http://localhost:8080` and exercise the phone preview, voice picker and media at desktop and phone widths. See [`landing/README.md`](landing/README.md) for its manual accessibility, reduced-motion and privacy checks.
+
 ### Secret scanning
 
 Pull requests into `staging` and `main` are scanned by [gitleaks](https://github.com/gitleaks/gitleaks) (`.github/workflows/secret-scan.yml`, config in `.gitleaks.toml`). Only the commits a PR adds are judged, so old history does not fail the check. To catch a key before it is even committed, opt into the local hook:
@@ -191,6 +220,12 @@ Pull requests into `staging` and `main` are scanned by [gitleaks](https://github
 brew install gitleaks        # or the release binary: https://github.com/gitleaks/gitleaks/releases
 pip install pre-commit
 pre-commit install           # from the repo root
+```
+
+Run the same staged scan directly before committing:
+
+```bash
+gitleaks git --pre-commit --staged --redact --config .gitleaks.toml
 ```
 
 Check the current tree by hand with `gitleaks dir . --config .gitleaks.toml --redact`. If a real key is ever committed, rotate it first; a passing scan is not a substitute.
@@ -214,7 +249,7 @@ AssemblyAI speech, reasoning, tool calls and audio replies travel over one live 
 
 1. Fetch `staging` and create a scoped feature branch from its current tip: `features/frontend/...`, `features/backend/...` or `features/ai/...`.
 2. Keep a change inside its layer and preserve the frozen interface contract.
-3. Run the relevant checks above and verify that no `.env`, credential or token is staged (the [secret-scanning hook](#secret-scanning) helps).
+3. Run the relevant checks above, then run the staged gitleaks command and verify that no `.env`, credential or token is staged.
 4. Open a pull request into `staging`. Releases are promoted by pull request from `staging` to `dev`, then from `dev` to `main`; do not push directly to `dev` or `main`.
 
 Read [`AGENTS.md`](AGENTS.md) and the matching file in [`.firstmate/rules/`](.firstmate/rules/) before changing code.
