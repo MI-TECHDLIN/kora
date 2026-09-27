@@ -96,9 +96,6 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   .hero__phone { position: sticky; top: 84px; align-self: start; grid-row: 1 / span 2; }
 }
 
-.eyebrow { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: var(--kora-radius-pill); background: var(--kora-glass-fill); border: 1px solid var(--kora-glass-border); font-size: 13px; font-weight: 600; color: var(--kora-text-muted); margin-bottom: 20px; }
-.eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kora-holographic); }
-
 .editorial { text-wrap: balance; font-size: clamp(36px, 4.6vw, 62px); font-weight: 300; line-height: 1.08; letter-spacing: -0.032em; }
 .editorial__2 { display: block; color: var(--kora-text-muted); }
 .editorial--sm { font-size: clamp(30px, 5vw, 56px); }
