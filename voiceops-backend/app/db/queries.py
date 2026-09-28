@@ -591,7 +591,7 @@ async def get_active_driver_positions(live_shifts: Mapping[str, str]) -> List[Di
                  for shift_id, driver_id in live_shifts.items()}
     shifts = (
         supabase.table("shifts")
-        .select("id, driver_id, started_at, drivers(name)")
+        .select("id, driver_id, started_at")
         .in_("id", [shift_id for shift_id, _ in live_shifts.items()])
         .eq("status", "active")
         .execute()
@@ -639,13 +639,35 @@ async def get_active_driver_positions(live_shifts: Mapping[str, str]) -> List[Di
         if rows and str(rows[0].get("driver_id", "")).lower() == driver_key:
             fallback_by_driver[driver_key] = rows[0]
 
+    # Driver names make offer copy friendlier but are not part of locating a driver. Keep this
+    # separate from the shift query so missing PostgREST relationship metadata (or a name-read
+    # failure) can never hide a valid position.
+    driver_names: Dict[str, Any] = {}
+    try:
+        drivers = (
+            supabase.table("drivers")
+            .select("id, name")
+            .in_("id", [driver_id for _, driver_id, _ in active])
+            .execute()
+        ).data or []
+        driver_names = {
+            str(driver.get("id", "")).lower(): driver.get("name")
+            for driver in drivers
+            if driver.get("id")
+        }
+    except Exception as exc:
+        logger.warning(
+            "[DB Queries] Driver name lookup failed error_type=%s",
+            type(exc).__name__,
+        )
+
     positions = []
     for shift_id, driver_id, shift in active:
         ping = latest.get(shift_id.lower()) or fallback_by_driver.get(driver_id.lower()) or {}
         positions.append({
             "driver_id": driver_id,
             "shift_id": shift_id,
-            "driver_name": (shift.get("drivers") or {}).get("name"),
+            "driver_name": driver_names.get(driver_id.lower()),
             "latitude": ping.get("latitude"),
             "longitude": ping.get("longitude"),
             "pinged_at": ping.get("pinged_at"),
