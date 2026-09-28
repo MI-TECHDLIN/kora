@@ -440,7 +440,7 @@ gitleaks git --pre-commit --staged --redact --config .gitleaks.toml
 ## 👥 The Team
 
 * **Ez** — Flutter Frontend Lead, Mobile Architecture, Rive Animation & Voice Agent Integration.
-* **Maria** (`maria2469`) — FastAPI Backend Lead, AsyncIO Tool Orchestrator & Real-Time Agentic Workflows.
+* **Maria** — FastAPI Backend Lead, AsyncIO Tool Orchestrator & Real-Time Agentic Workflows.
 
 ---
 
