@@ -30,6 +30,7 @@ not during candidate ranking to avoid excessive API calls).
 import asyncio
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -117,6 +118,15 @@ async def _try_db(query, *args):
 
 def _first_name(name: Optional[str]) -> Optional[str]:
     return name.split()[0] if name and name.strip() else None
+
+
+def _position_error_token(exc: Exception) -> str:
+    """Exception class plus a structural PostgREST/SQLSTATE code, never its message."""
+    error_type = type(exc).__name__
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and re.fullmatch(r"(?:PGRST\d{3}|[0-9A-Z]{5})", code):
+        return f"{error_type}:{code}"
+    return error_type
 
 
 @dataclass
@@ -223,7 +233,7 @@ class OrderDispatcher:
         try:
             return await _db(get_active_driver_positions, live)
         except Exception as exc:
-            error_type = type(exc).__name__
+            error_type = _position_error_token(exc)
             self._position_query_failures += 1
             self._last_position_query_error = error_type
             logger.warning("[Dispatch] position query failed error_type=%s", error_type)

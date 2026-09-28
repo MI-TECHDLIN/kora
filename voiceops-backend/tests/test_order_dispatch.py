@@ -19,11 +19,12 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 
 from app.agents.tool_registry import TOOL_EXECUTORS, execute_tool, get_tools
 from app.api.routes.logistics import sign_body
 from app.api.websocket import events, voice
-from app.config import settings
+from app.config import Settings, settings
 from app.dispatch import order_dispatch
 from app.dispatch.order_dispatch import OrderDispatcher
 from app.db import queries
@@ -118,6 +119,16 @@ class FakeQuery:
         rows = self.store.tables.setdefault(self.table, [])
         if self.store.fail:
             raise RuntimeError("supabase down")
+        if self.store.fail_embeds and "(" in self.columns:
+            raise APIError({
+                "code": "PGRST200", "message": "embedded relationship details",
+                "hint": None, "details": None,
+            })
+        if self.store.fail_driver_names and self.table == "drivers" and "name" in self.columns:
+            raise APIError({
+                "code": "PGRST200", "message": "driver lookup details",
+                "hint": None, "details": None,
+            })
         if self.op == "insert":
             row = {"id": str(uuid.uuid4()), "created_at": next(self.store.clock), **self.payload}
             rows.append(row)
@@ -147,6 +158,8 @@ class FakeStore:
         self.tables = {}
         self.clock = itertools.count(1)
         self.fail = False
+        self.fail_embeds = False
+        self.fail_driver_names = False
 
     def table(self, name):
         return FakeQuery(self, name)
@@ -368,10 +381,14 @@ def test_first_fresh_ping_creates_the_first_order_after_the_fast_delay(store, no
         return before_delay
 
     assert run(scenario()) == ([], [])
-    assert clock.calls[0][0] == 10
+    assert clock.calls[0][0] == 3
     assert len(store.rows("deliveries")) == 1
     assert _within_km(store.rows("deliveries")[0], LONDON["at"], 3.0)
     assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"]]
+
+
+def test_first_order_fast_delay_defaults_to_three_seconds():
+    assert Settings.model_fields["order_feed_first_order_delay_seconds"].default == 3.0
 
 
 def test_fast_first_order_fires_only_once_per_shift(store, no_geocoding):
@@ -573,7 +590,7 @@ def first_order_dispatcher(hub, sleep, *, max_open_orders=5):
         feed_enabled=True,
         offer_window=30,
         max_open_orders=max_open_orders,
-        first_order_delay=10,
+        first_order_delay=3,
         first_order_sleep=sleep,
     )
 
@@ -918,6 +935,57 @@ def test_position_query_timeout_is_counted_and_value_free(store, adapter, monkey
     assert diagnostics["last_position_query_error"] == "TimeoutError"
     assert "error_type=TimeoutError" in caplog.text
     assert "sensitive database details" not in caplog.text
+
+
+def test_position_query_diagnostic_includes_value_free_postgrest_code(
+    store, adapter, monkeypatch, caplog,
+):
+    store.add_driver(REAL)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+
+    async def broken_relationship(live):
+        raise APIError({
+            "code": "PGRST200", "message": "sensitive relationship details",
+            "hint": None, "details": None,
+        })
+
+    monkeypatch.setattr(order_dispatch, "get_active_driver_positions", broken_relationship)
+
+    assert run(dispatcher.get_target_location()) is None
+    diagnostics = dispatcher.diagnostics()
+    assert diagnostics["position_query_failures"] == 1
+    assert diagnostics["last_position_query_error"] == "APIError:PGRST200"
+    assert "error_type=APIError:PGRST200" in caplog.text
+    assert "sensitive relationship details" not in caplog.text
+
+
+def test_position_lookup_does_not_depend_on_shift_driver_embed(store):
+    store.add_driver(REAL)
+    store.fail_embeds = True
+
+    positions = run(queries.get_active_driver_positions({REAL["shift_id"]: REAL["driver_id"]}))
+
+    assert len(positions) == 1
+    assert positions[0]["driver_id"] == REAL["driver_id"]
+    assert positions[0]["latitude"] == REAL["at"][0]
+
+
+def test_driver_name_lookup_failure_does_not_block_offer(store, adapter, caplog):
+    store.add_driver(REAL)
+    store.fail_driver_names = True
+    hub = online(REAL)
+    dispatcher = dispatcher_with(adapter, hub)
+
+    async def scenario():
+        result = await dispatcher.ingest(make_order())
+        await dispatcher.stop()
+        return result
+
+    result = run(scenario())
+
+    assert result["status"] == "offered"
+    assert hub.offers[0][0] == REAL["shift_id"]
+    assert "driver lookup details" not in caplog.text
 
 
 def test_position_lookup_scopes_many_active_shifts_to_the_live_socket(store):
