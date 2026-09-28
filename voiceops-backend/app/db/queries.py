@@ -1,4 +1,5 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Mapping
+from datetime import datetime, timezone
 import re
 import logging
 
@@ -112,6 +113,24 @@ async def get_active_shift_for_driver(driver_id: str) -> Optional[Dict[str, Any]
         return None
     except Exception:
         return None
+
+
+async def get_active_shifts_for_driver(driver_id: str) -> List[Dict[str, Any]]:
+    """Return every active shift for a driver, newest first.
+
+    Unlike the legacy singular lookup, failures propagate so `/shift/start` cannot silently
+    create another active row when cleanup could not be checked.
+    """
+    if not is_valid_uuid(driver_id):
+        return []
+    response = (
+        get_supabase().table("shifts")
+        .select("*")
+        .eq("driver_id", driver_id)
+        .eq("status", "active")
+        .execute()
+    )
+    return sorted(response.data or [], key=lambda shift: shift.get("started_at") or "", reverse=True)
 
 
 async def get_delivery_by_id(delivery_id: str) -> Optional[Dict[str, Any]]:
@@ -555,47 +574,140 @@ async def get_open_orders() -> List[Dict[str, Any]]:
     return response.data or []
 
 
-async def get_active_driver_positions() -> List[Dict[str, Any]]:
+async def get_active_driver_positions(live_shifts: Mapping[str, str]) -> List[Dict[str, Any]]:
     """
-    Every active shift with its driver's name and latest GPS ping: the dispatch candidates.
-    `latitude` / `longitude` / `pinged_at` are None for a shift with no ping yet.
+    Positions for shifts with an open voice socket, never the full historical "active" set.
+
+    Prefer the socket shift's latest ping. If that shift has none (for example the client
+    started a replacement shift while the socket was reconnecting), use that same driver's
+    newest ping from any shift. The returned shift id remains the live socket's id, so a
+    fallback can never route an offer to the old shift or to another driver.
     """
+    if not live_shifts:
+        return []
+
     supabase = get_supabase()
+    requested = {str(shift_id).lower(): (str(shift_id), str(driver_id))
+                 for shift_id, driver_id in live_shifts.items()}
     shifts = (
         supabase.table("shifts")
         .select("id, driver_id, started_at, drivers(name)")
+        .in_("id", [shift_id for shift_id, _ in live_shifts.items()])
         .eq("status", "active")
         .execute()
     ).data or []
-    if not shifts:
+    # Re-check ownership from the database. A stale or malformed socket mapping must not turn
+    # one driver's ping into another driver's location.
+    active = []
+    for shift in shifts:
+        requested_row = requested.get(str(shift.get("id", "")).lower())
+        if requested_row and str(shift.get("driver_id", "")).lower() == requested_row[1].lower():
+            active.append((requested_row[0], requested_row[1], shift))
+    if not active:
         return []
 
-    # Newest first, so the first ping seen per shift is its latest. PostgREST has no DISTINCT ON;
-    # at fleet scale this wants a view or RPC instead of the row cap.
-    pings = (
-        supabase.table("location_pings")
-        .select("shift_id, latitude, longitude, pinged_at")
-        .in_("shift_id", [s["id"] for s in shifts])
-        .order("pinged_at", desc=True)
-        .limit(1000)
-        .execute()
-    ).data or []
     latest: Dict[str, Dict[str, Any]] = {}
-    for ping in pings:
-        latest.setdefault(ping["shift_id"], ping)
+    # One bounded lookup per live shift avoids PostgREST's row cap letting a chatty historical
+    # shift crowd the online driver's row out of a fleet-wide result.
+    for shift_id, _, _ in active:
+        rows = (
+            supabase.table("location_pings")
+            .select("shift_id, latitude, longitude, pinged_at")
+            .eq("shift_id", shift_id)
+            .order("pinged_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        if rows:
+            latest[shift_id.lower()] = rows[0]
+
+    missing_drivers = {
+        driver_id.lower(): driver_id
+        for shift_id, driver_id, _ in active
+        if shift_id.lower() not in latest
+    }
+    fallback_by_driver: Dict[str, Dict[str, Any]] = {}
+    for driver_key, driver_id in missing_drivers.items():
+        rows = (
+            supabase.table("location_pings")
+            .select("driver_id, shift_id, latitude, longitude, pinged_at")
+            .eq("driver_id", driver_id)
+            .order("pinged_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        if rows and str(rows[0].get("driver_id", "")).lower() == driver_key:
+            fallback_by_driver[driver_key] = rows[0]
 
     positions = []
-    for shift in shifts:
-        ping = latest.get(shift["id"]) or {}
+    for shift_id, driver_id, shift in active:
+        ping = latest.get(shift_id.lower()) or fallback_by_driver.get(driver_id.lower()) or {}
         positions.append({
-            "driver_id": shift["driver_id"],
-            "shift_id": shift["id"],
+            "driver_id": driver_id,
+            "shift_id": shift_id,
             "driver_name": (shift.get("drivers") or {}).get("name"),
             "latitude": ping.get("latitude"),
             "longitude": ping.get("longitude"),
             "pinged_at": ping.get("pinged_at"),
         })
     return positions
+
+
+async def close_inactive_shifts(cutoff: datetime) -> int:
+    """Complete active shifts started before `cutoff` with no location activity since it."""
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=timezone.utc)
+    cutoff = cutoff.astimezone(timezone.utc)
+    cutoff_iso = cutoff.isoformat()
+    supabase = get_supabase()
+    old_shifts = (
+        supabase.table("shifts")
+        .select("id, started_at")
+        .eq("status", "active")
+        .lt("started_at", cutoff_iso)
+        .execute()
+    ).data or []
+    shift_ids = [str(shift["id"]) for shift in old_shifts if shift.get("id")]
+    if not shift_ids:
+        return 0
+
+    stale_ids = []
+    # Check each candidate with a one-row query. This sweep is deliberately off the request
+    # loop; bounded per-shift reads avoid a global row cap falsely closing a busy driver's shift.
+    for shift_id in shift_ids:
+        latest = (
+            supabase.table("location_pings")
+            .select("pinged_at")
+            .eq("shift_id", shift_id)
+            .order("pinged_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        if not latest:
+            stale_ids.append(shift_id)
+            continue
+        try:
+            pinged_at = datetime.fromisoformat(
+                str(latest[0]["pinged_at"]).replace("Z", "+00:00")
+            )
+            if pinged_at.tzinfo is None:
+                pinged_at = pinged_at.replace(tzinfo=timezone.utc)
+        except (KeyError, TypeError, ValueError):
+            continue  # unknown activity is not safe to auto-close
+        if pinged_at.astimezone(timezone.utc) < cutoff:
+            stale_ids.append(shift_id)
+    if not stale_ids:
+        return 0
+
+    ended_at = datetime.now(timezone.utc).isoformat()
+    response = (
+        supabase.table("shifts")
+        .update({"status": "completed", "ended_at": ended_at})
+        .in_("id", stale_ids)
+        .eq("status", "active")
+        .execute()
+    )
+    return len(response.data or [])
 
 
 async def create_shift(driver_id: str) -> Dict[str, Any]:

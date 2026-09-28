@@ -183,6 +183,8 @@ class OrderDispatcher:
         self._last_hold_at: Optional[float] = None
         self._last_located_at: Optional[float] = None
         self._last_first_order_at: Optional[float] = None
+        self._position_query_failures = 0
+        self._last_position_query_error: Optional[str] = None
         self._hold_logged_at: Dict[str, float] = {}
 
     def _record_hold(self, reason: str) -> None:
@@ -211,8 +213,21 @@ class OrderDispatcher:
             "last_hold_at": self._last_hold_at,
             "last_located_at": self._last_located_at,
             "last_first_order_at": self._last_first_order_at,
+            "position_query_failures": self._position_query_failures,
+            "last_position_query_error": self._last_position_query_error,
             **ping_diagnostics(),
         }
+
+    async def _positions(self, live: Dict[str, str]) -> Optional[List[Dict[str, Any]]]:
+        """Load live positions and retain a value-free failure signal for health checks."""
+        try:
+            return await _db(get_active_driver_positions, live)
+        except Exception as exc:
+            error_type = type(exc).__name__
+            self._position_query_failures += 1
+            self._last_position_query_error = error_type
+            logger.warning("[Dispatch] position query failed error_type=%s", error_type)
+            return None
 
     async def get_target_location(self) -> Optional[Tuple[float, float]]:
         """
@@ -227,7 +242,7 @@ class OrderDispatcher:
         if not live:
             self._record_hold(HOLD_NO_DRIVER_ONLINE)
             return None
-        positions = await _try_db(get_active_driver_positions) or []
+        positions = await self._positions(live) or []
         relevant = [p for p in positions if p.get("shift_id") in live]
         busy = {o.offered_to.driver_id for o in self._orders.values() if o.offered_to}
         located = [
@@ -374,7 +389,7 @@ class OrderDispatcher:
         live = self.hub.live_shifts()
         if not live:
             return []
-        positions = await _try_db(get_active_driver_positions)
+        positions = await self._positions(live)
         if positions is None:
             # Database unreachable: the drivers on an open socket are still reachable, but with
             # no position they can only be placed by the demo override (else they are skipped)
@@ -721,9 +736,16 @@ class OrderDispatcher:
         """This driver's own fresh position, optionally on one exact shift. Never anyone else's."""
         if shift_id is not None:
             live_driver = self.hub.live_shifts().get(shift_id)
-            if live_driver is None or str(live_driver) != str(driver_id):
+            if live_driver is not None and str(live_driver) != str(driver_id):
                 return None
-        positions = await _try_db(get_active_driver_positions) or []
+            requested = {shift_id: driver_id}
+        else:
+            requested = {
+                live_shift: live_driver
+                for live_shift, live_driver in self.hub.live_shifts().items()
+                if str(live_driver) == str(driver_id)
+            }
+        positions = await self._positions(requested) or []
         for p in positions:
             if (str(p["driver_id"]) == str(driver_id)
                     and (shift_id is None or str(p.get("shift_id")) == str(shift_id))

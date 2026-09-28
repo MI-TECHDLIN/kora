@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -24,6 +26,7 @@ from app.dispatch.ping_diagnostics import (
     record_ping_rejected,
 )
 from app.services.preference_service import initialize_preference_service
+from app.services.shift_cleanup import run_stale_shift_sweeper
 # Self-ping service disabled - using external ping service instead
 # from app.services.self_ping_service import self_ping_service
 
@@ -44,6 +47,7 @@ async def lifespan(app: FastAPI):
     
     dispatcher = get_order_dispatcher()
     await dispatcher.start()
+    shift_cleanup_task = asyncio.create_task(run_stale_shift_sweeper())
     
     # Self-ping service disabled - using external ping service instead
     # await self_ping_service.start()
@@ -51,6 +55,8 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     print("Kora backend shutting down")
+    shift_cleanup_task.cancel()
+    await asyncio.gather(shift_cleanup_task, return_exceptions=True)
     # await self_ping_service.stop()
     await dispatcher.stop()
 

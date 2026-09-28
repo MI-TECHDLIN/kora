@@ -130,8 +130,8 @@ def test_end_shift_tool_requires_an_active_shift():
 def test_start_shift_auto_closes_a_dangling_previous_shift(monkeypatch):
     calls = {"status": [], "created": []}
 
-    async def fake_get_active_shift_for_driver(driver_id):
-        return {"id": DANGLING_SHIFT_ID, "driver_id": driver_id, "status": "active"}
+    async def fake_get_active_shifts_for_driver(driver_id):
+        return [{"id": DANGLING_SHIFT_ID, "driver_id": driver_id, "status": "active"}]
 
     async def fake_end_shift_core(shift_id, driver_id, driver_name):
         calls["status"].append(shift_id)
@@ -144,7 +144,7 @@ def test_start_shift_auto_closes_a_dangling_previous_shift(monkeypatch):
         calls["created"].append(driver_id)
         return {"id": SHIFT_ID, "status": "active"}
 
-    monkeypatch.setattr(shift_routes, "get_active_shift_for_driver", fake_get_active_shift_for_driver)
+    monkeypatch.setattr(shift_routes, "get_active_shifts_for_driver", fake_get_active_shifts_for_driver)
     monkeypatch.setattr(shift_routes, "end_shift_core", fake_end_shift_core)
     monkeypatch.setattr(shift_routes, "run_shift_intelligence_and_stream", fake_run_shift_intelligence_and_stream)
     monkeypatch.setattr(shift_routes, "create_shift", fake_create_shift)
@@ -160,8 +160,8 @@ def test_start_shift_auto_closes_a_dangling_previous_shift(monkeypatch):
 def test_start_shift_with_no_dangling_shift_only_creates_the_new_one(monkeypatch):
     calls = {"status": [], "created": []}
 
-    async def fake_get_active_shift_for_driver(driver_id):
-        return None
+    async def fake_get_active_shifts_for_driver(driver_id):
+        return []
 
     async def fake_end_shift_core(shift_id, driver_id, driver_name):
         calls["status"].append(shift_id)
@@ -171,7 +171,7 @@ def test_start_shift_with_no_dangling_shift_only_creates_the_new_one(monkeypatch
         calls["created"].append(driver_id)
         return {"id": SHIFT_ID, "status": "active"}
 
-    monkeypatch.setattr(shift_routes, "get_active_shift_for_driver", fake_get_active_shift_for_driver)
+    monkeypatch.setattr(shift_routes, "get_active_shifts_for_driver", fake_get_active_shifts_for_driver)
     monkeypatch.setattr(shift_routes, "end_shift_core", fake_end_shift_core)
     monkeypatch.setattr(shift_routes, "create_shift", fake_create_shift)
 
@@ -180,6 +180,59 @@ def test_start_shift_with_no_dangling_shift_only_creates_the_new_one(monkeypatch
     assert response.status_code == 200
     assert calls["status"] == []
     assert calls["created"] == [DRIVER_ID]
+
+
+def test_start_shift_closes_every_previous_active_shift(monkeypatch):
+    previous = ["old-shift-1", "old-shift-2", "old-shift-3"]
+    closed = []
+
+    async def fake_get_active_shifts_for_driver(driver_id):
+        return [{"id": shift_id, "driver_id": driver_id, "status": "active"} for shift_id in previous]
+
+    async def fake_end_shift_core(shift_id, driver_id, driver_name):
+        closed.append(shift_id)
+        return {"shift_id": shift_id, "status": "completed"}
+
+    async def fake_create_shift(driver_id):
+        return {"id": SHIFT_ID, "status": "active"}
+
+    async def fake_run_shift_intelligence_and_stream(shift_id, driver_id):
+        return {}
+
+    monkeypatch.setattr(shift_routes, "get_active_shifts_for_driver", fake_get_active_shifts_for_driver)
+    monkeypatch.setattr(shift_routes, "end_shift_core", fake_end_shift_core)
+    monkeypatch.setattr(shift_routes, "create_shift", fake_create_shift)
+    monkeypatch.setattr(
+        shift_routes, "run_shift_intelligence_and_stream", fake_run_shift_intelligence_and_stream,
+    )
+
+    response = client.post("/v1/shift/start", headers={"Authorization": "Bearer good"})
+
+    assert response.status_code == 200
+    assert closed == previous
+
+
+def test_start_shift_does_not_create_another_active_row_when_cleanup_fails(monkeypatch):
+    created = []
+
+    async def fake_get_active_shifts_for_driver(driver_id):
+        return [{"id": DANGLING_SHIFT_ID, "driver_id": driver_id, "status": "active"}]
+
+    async def fake_end_shift_core(shift_id, driver_id, driver_name):
+        raise RuntimeError("cleanup failed")
+
+    async def fake_create_shift(driver_id):
+        created.append(driver_id)
+        return {"id": SHIFT_ID, "status": "active"}
+
+    monkeypatch.setattr(shift_routes, "get_active_shifts_for_driver", fake_get_active_shifts_for_driver)
+    monkeypatch.setattr(shift_routes, "end_shift_core", fake_end_shift_core)
+    monkeypatch.setattr(shift_routes, "create_shift", fake_create_shift)
+
+    response = client.post("/v1/shift/start", headers={"Authorization": "Bearer good"})
+
+    assert response.status_code == 500
+    assert created == []
 
 
 def test_get_shift_summary_reports_real_zeros_for_an_empty_shift(monkeypatch):

@@ -174,15 +174,9 @@ live.
 report) or this class of bug reappears. Don't assume a cached id on the frontend is still active
 just because it's non-null.
 
-**Related, found but not fixed (out of scope for that PR — flag before touching
-`app/db/queries.py`'s location-ping path):** `save_location_ping` is defined twice in
-`app/db/queries.py` (~line 219 and ~line 346); Python silently keeps the second definition, which
-skips the `is_valid_uuid` guards and try/except the first one has. Harmless while the app always
-sends a real, owned shift's UUID (as it does after the fix above), but a landmine if anything
-ever calls it with an empty or non-UUID `shift_id` again — the DB insert throws, uncaught, and
-`POST /v1/locations/ping` 500s instead of degrading gracefully. The test double in
-`tests/test_order_dispatch.py`/`test_voice_ws.py` doesn't enforce column types, so a real-Postgres
-failure here won't show up in `pytest`.
+**Resolved 2026-09-28:** the duplicate `save_location_ping` definition was removed. Ping insert
+failures now produce value-free diagnostics, while dispatch position reads are scoped to currently
+open voice sockets and expose query failure counts/classes through `/health/dispatch`.
 
 ## GitHub push access is often environment-specific
 

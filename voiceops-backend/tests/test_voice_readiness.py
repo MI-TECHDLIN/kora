@@ -253,12 +253,12 @@ def test_shift_start_database_failure_is_logged_by_class_only(monkeypatch, caplo
                         lambda: SimpleNamespace(auth=SimpleNamespace(get_user=lambda token: user)))
 
     async def no_dangling(driver_id):
-        return None
+        return []
 
     async def broken(driver_id):
         raise RuntimeError("relation shifts does not exist")
 
-    monkeypatch.setattr(shift_routes, "get_active_shift_for_driver", no_dangling)
+    monkeypatch.setattr(shift_routes, "get_active_shifts_for_driver", no_dangling)
     monkeypatch.setattr(shift_routes, "create_shift", broken)
 
     response = client.post("/v1/shift/start", headers={"Authorization": "Bearer good"})
