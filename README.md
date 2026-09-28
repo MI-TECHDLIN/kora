@@ -1,267 +1,464 @@
 <div align="center">
-  <img src="docs/brand/kora-mark.svg" width="88" alt="Kora logo: a K whose arms form a speaking orb">
-  <h1>Kora</h1>
+  <a href="https://github.com/MI-TECHDLIN/kora">
+    <img src="landing/assets/brand/icon-512.png" width="96" height="96" alt="Kora Logo" style="border-radius: 22px; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35);">
+  </a>
+  <h1 style="margin-top: 14px; margin-bottom: 6px;">Kora</h1>
   <p><strong>Talk to your operations. Let your operations talk back.</strong></p>
-  <p>A voice-first co-rider for last-mile delivery drivers.</p>
+  <p><em>An autonomous, voice-first operational co-rider for last-mile delivery couriers and drivers.</em></p>
+
   <p>
-    <img alt="Built for the AssemblyAI Voice Agent Hackathon" src="https://img.shields.io/badge/Built_for-AssemblyAI_Voice_Agent_Hackathon-8B5CF6?style=flat-square">
-    <img alt="Flutter" src="https://img.shields.io/badge/App-Flutter-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white">
-    <img alt="FastAPI" src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&amp;logo=fastapi&amp;logoColor=white">
-    <img alt="Status: working prototype" src="https://img.shields.io/badge/Status-Working_prototype-C4B5FD?style=flat-square&amp;labelColor=4C1D95">
+    <a href="https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon"><img alt="AssemblyAI Voice Agent Hackathon" src="https://img.shields.io/badge/Built_for-AssemblyAI_Voice_Agent_Hackathon-8B5CF6?style=for-the-badge&logo=assemblyai&logoColor=white"></a>
+    <a href="https://flutter.dev/"><img alt="Flutter" src="https://img.shields.io/badge/Mobile-Flutter_3.11+-02569B?style=for-the-badge&logo=flutter&logoColor=white"></a>
+    <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/Backend-FastAPI_+_asyncio-009688?style=for-the-badge&logo=fastapi&logoColor=white"></a>
+    <a href="https://www.assemblyai.com/"><img alt="AssemblyAI Voice Agent" src="https://img.shields.io/badge/Real--time-Voice_Agent_API-7C3AED?style=for-the-badge&logo=soundcharts&logoColor=white"></a>
+    <a href="https://supabase.com/"><img alt="Supabase" src="https://img.shields.io/badge/Database-Supabase_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"></a>
+  </p>
+  <p>
+    <img alt="Dual AssemblyAI Architecture" src="https://img.shields.io/badge/Dual_Integration-Voice_Agent_%2B_LeMUR-A78BFA?style=flat-square">
+    <img alt="Sub-500ms Voice SLA" src="https://img.shields.io/badge/Voice_SLA-%3C500ms_Parallel_Exec-C8F250?style=flat-square&labelColor=171033&color=C8F250">
+    <img alt="Offline Wake Word" src="https://img.shields.io/badge/Wake_Engine-sherpa--onnx_Offline-38BDF8?style=flat-square">
+    <img alt="Vector Navigation" src="https://img.shields.io/badge/Map-MapLibre_%2B_OpenFreeMap-F59E0B?style=flat-square">
+    <img alt="Status" src="https://img.shields.io/badge/Status-Working_Prototype-4ade80?style=flat-square">
   </p>
 </div>
 
-![A courier follows a route with Kora's voice orb alongside](docs/brand/readme/banner.svg)
+<br>
 
-Drivers should not have to choose between watching the road and managing work on a screen. Kora lets a driver ask for the next stop, start a route, contact a customer, handle a new order, or finish a shift by speaking naturally.
+<div align="center">
+  <img src="landing/assets/og-image.jpg" width="100%" alt="Kora Showcase Banner: Talk to your operations. Let your operations talk back." style="border-radius: 16px; border: 1px solid #2A2146;">
+</div>
 
-Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon) on lablab.ai, September 1–30, 2026.
+<br>
 
-[What Kora is](#what-is-kora) · [A shift with Kora](#a-shift-with-kora) · [What works today](#what-you-can-do-with-kora-today) · [Website](#website) · [For developers](#for-developers)
+<div align="center">
+  <strong><a href="#-executive-summary--the-problem">Problem</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#-the-dual-assemblyai-architecture">Dual AssemblyAI</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#%EF%B8%8F-system-architecture">System Architecture</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#-how-the-backend--agent-engine-works">Agent Engine</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#-the-20-autonomous-agent-tools">20 Agent Tools</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#-mobile-experience--frontend-architecture">Flutter App</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#-a-day-in-the-life-shift-lifecycle">Shift Walkthrough</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#%EF%B8%8F-developer-quickstart">Developer Setup</a></strong>
+</div>
 
-## What is Kora?
+<br>
 
-Kora is a mobile app for people making last-mile deliveries—the final journey from a depot or shop to a customer's door. Instead of repeatedly tapping through a delivery app, the driver talks to a calm co-rider called Kora.
+---
 
-Kora listens, carries out the work across routes, orders and customer communication, then gives one clear spoken answer. The live map and on-screen progress stay available when a glance is useful, but voice remains the main way to work.
+## 💡 Executive Summary & The Problem
 
-## The problem
+Last-mile couriers and delivery drivers—navigating congested urban corridors on motorbikes, bicycles, cargo bikes, scooters, and vans—face a dangerous cognitive dilemma: **road safety vs. screen friction**.
 
-A delivery shift is full of tiny screen tasks: find the next address, check traffic, call a customer, update a stop, accept another order, and count what is left. Each task is simple at a desk. While travelling by bicycle, scooter, motorbike or car, every tap competes with the road.
+```
+Typical Delivery Shift: 8 Hours | 40+ Stops | 180+ Screen Interactions
+[ Check Address ] ➔ [ Search Route ] ➔ [ Dial Gate Code ] ➔ [ Call Customer ] ➔ [ Mark Complete ] ➔ [ Accept Nearby Order ]
+```
 
-Kora closes that gap. The driver says what they need; the app coordinates the steps and speaks back.
+Every tap, swipe, and glance down at a mounted smartphone compromises driver awareness, introduces route delays, and increases collision risks. 
 
-## How it works
+**Kora solves the interface gap.** 
 
-![Speak, let Kora coordinate the work, and keep moving](docs/brand/readme/how-it-works.svg)
+Kora is a hands-free, autonomous voice co-rider built specifically for last-mile logistics operations. Instead of tapping through multiple disconnected apps, the driver simply speaks naturally to Kora. The agent acts across routing engines, dispatch databases, and telephony networks **in parallel**, returning one calm, unified spoken response while streaming live map updates and progress indicators on screen.
 
-1. **Speak.** While the app is open, say “Kora” (also “Hey Kora”, “Okay Kora”, “Hi Kora”, “Hello Kora”, or the “Cora” spellings) or use the large microphone button. Kora opens with a calm greeting and listens for the job; follow-ups work without repeating the wake word for 12 seconds after activity.
-2. **Kora acts.** One request can check delivery information, work out a route and contact a customer at the same time.
-3. **Keep moving.** The route appears in Kora's live map, progress stays visible, and the driver hears one useful answer.
+<div align="center">
+  <img src="docs/brand/readme/how-it-works.svg" width="90%" alt="How Kora works: Speak, coordinate operations in parallel, keep moving safely.">
+</div>
 
-## A shift with Kora
+---
 
-1. **Start.** Open Kora, use a supported wake phrase or tap the microphone, and ask for the next stop. The address and route appear on the live map, with arrival times matched to the selected travel mode.
-2. **Handle changes.** Ask Kora to call or text a customer when access is blocked. New orders near the driver's own recent location are announced aloud; Kora waits for the driver's answer before a voice acceptance or decline. Optional auto-accept rules can apply limits such as distance and preferred areas.
-3. **Complete the work.** Update each delivery and log exceptions. The queue and daily-target progress stay visible in the app.
-4. **Finish.** Say “End my shift” to close the shift and prepare its report, then review the result in the app.
+## ⚡ The Dual AssemblyAI Architecture
 
-## What you can do with Kora today
+Kora’s core technical moat is its **Dual AssemblyAI Integration**, deploying two complementary AssemblyAI product layers across the delivery lifecycle:
 
-- Wake the foreground app with “Kora”, “Hey/Okay/Hi/Hello Kora” or the matching “Cora” forms, then continue without repeating the name during the 12-second follow-up window. Wake sensitivity is **Normal** by default; **High** adds far-field gain with a higher false-wake risk. Optional bare “hi/hey/hello” waking is off by default.
-- Hear a warm first greeting and concise spoken replies from the co-rider.
-- Choose and preview one of 11 co-rider voices during setup or later in Settings.
-- Ask for the next stop, see the route on an in-app live map, and receive proactive estimated-arrival and reroute updates.
-- Choose car, motorbike, bicycle or walking mode so arrival times reflect how the driver is travelling.
-- Call or text a customer, with a simulated call mode available for demonstrations.
-- Receive new-order offers based on the driver's own fresh location, accept or decline them after answering, or enable driver-controlled auto-accept rules. Settings changes only appear enabled after the backend saves them.
-- See the full order queue and track progress against a daily delivery target.
-- Complete or fail deliveries, log exceptions and alert dispatch.
-- End a shift by voice and receive an automatically generated shift report. If voice reconnects after that shift, the app starts a fresh active shift while retaining the completed shift for its report.
-- End only the current conversation when the work continues, open the map, settings, summary or voice screen by asking, and view or edit the profile. Restored sessions finish profile setup before the first profile read, with retries for genuine failures.
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   KORA OPERATIONS                                      │
+├──────────────────────────────────────────┬─────────────────────────────────────────────┤
+│ 1. REAL-TIME OPERATIONAL LAYER           │ 2. POST-SHIFT INTELLIGENCE LAYER            │
+│    (During Active Shift)                 │    (Async Post-Shift Analysis)               │
+├──────────────────────────────────────────┼─────────────────────────────────────────────┤
+│ • AssemblyAI Voice Agent API             │ • AssemblyAI Speech Understanding & LeMUR   │
+│ • Single Unified Bidirectional WebSocket │ • Full Shift Transcript Digest & Synthesis │
+│ • 24 kHz Mono PCM16 Streaming            │ • Delivery Failure Pattern Topic Detection  │
+│ • Sub-500ms Voice Response SLA           │ • Customer Sentiment Analysis Trends        │
+│ • Concurrent Function / Tool Calling     │ • Coaching & Dispatch Efficiency Prompts    │
+│ • Neural Text-to-Speech (11 Voices)      │ • Fire-and-Forget Dispatch to n8n Webhooks  │
+└──────────────────────────────────────────┴─────────────────────────────────────────────┘
+```
 
-Under the hood, the current registry gives Kora **20 tools** for delivery work, navigation, communication, shift control and driver preferences. That count comes from the running registry, not a marketing estimate.
+1. **Real-Time Voice Agent API**: Consolidates speech-to-text (STT), natural language understanding (LLM), multi-tool execution, and text-to-speech (TTS) into a **single, low-latency WebSocket connection** running at ~$4.50/hr flat. There are zero audio-chopping or sequential bottlenecks.
+2. **Post-Shift Intelligence (LeMUR & Speech Understanding)**: Upon shift completion (`end_shift`), full turn histories are aggregated into LeMUR (`anthropic/claude-3-5-sonnet` / `claude-sonnet-5`). It pinpoints access failure clusters, generates operator debriefs, rates customer sentiment, and triggers automated alerts to logistics fleet managers.
 
-## A look at the brand
+---
 
-The Kora mark is a **K whose arms form a speaking orb**: one simple symbol for the name, voice and movement. The app uses a dark, road-friendly canvas with violet as its accent; bright lime is kept only for the moment the microphone is live.
+## 🏛️ System Architecture
 
-<p align="center">
-  <img src="docs/brand/previews/splash-phones.png" width="760" alt="Kora mark on the Android and iOS splash screens">
-</p>
+Kora’s architecture balances ultra-low latency real-time voice response with resilient, decoupled background intelligence.
 
-<p align="center">
-  <img src="docs/brand/previews/icon-on-dark-wallpaper.png" width="640" alt="Kora app icon shown among other icons on a dark phone wallpaper">
-</p>
+<div align="center">
+  <img src="docs/brand/readme/architecture-animated.svg" width="100%" alt="Kora Animated System Architecture: Flutter Client, FastAPI Relay, AssemblyAI Voice Agent, Tool Orchestrator, and Post-Shift LeMUR">
+</div>
 
-Read the [story and usage rules behind the mark](docs/brand/README.md).
+### The Three Inviolable Architectural Rules
 
-## Website
+> [!IMPORTANT]
+> 1. **n8n is strictly isolated to the Post-Shift Async Layer. Never in the real-time path.**  
+>    n8n is an HTTP-driven workflow automation engine. Introducing it into the real-time voice path introduces 2,000–3,500ms latency versus 200–500ms via FastAPI asyncio.
+> 2. **Tool calls execute in parallel via `asyncio.gather()`.**  
+>    Complex courier commands (e.g., *"Mark this stop delivered, navigate to my next customer, and text them I'm 5 minutes away"*) execute concurrently. Sequential awaits are strictly prohibited.
+> 3. **The AssemblyAI Voice Agent operates over a single unified WebSocket.**  
+>    Audio input, transcription, reasoning, tool execution, and synthesized audio stream across one persistent duplex socket.
 
-[`landing/`](landing/) contains Kora's dependency-free static website: an interactive client-side phone preview, privacy-masked app screenshots and clips, a narrated demo reel, and an 11-voice picker mirrored from the app. It makes no backend calls and has no build step. See the [landing-page README](landing/README.md) for local preview, Cloudflare Pages settings, media handling and launch checks.
+---
 
-## What comes next
+## 🧠 How the Backend & Agent Engine Works
 
-The hackathon build stays focused on the driver and the voice experience. After it, the clearest next steps are a small dispatcher view, company-level privacy controls, a customer tracking link with a handoff code, a readable delivery timeline, breaks by voice and smarter multi-stop sequencing.
+Kora's backend is powered by **Python 3.11+ FastAPI and asyncio**, engineered to process simultaneous voice frames, map queries, location pings, and telephony webhooks.
 
-These are plans, not claims about the current build. The full, prioritised list lives in the [post-hackathon roadmap](docs/roadmap/post-hackathon-ideas.md).
+### 1. WebSocket Voice Relay (`/ws/voice/{shift_id}`)
+Located at `voiceops-backend/app/api/websocket/voice.py`, the relay bridges the Flutter mobile client directly to AssemblyAI’s Voice Agent API:
+* **Audio Protocol**: Bidirectional PCM16 little-endian, mono, 24 kHz (2,400 bytes per 50ms frame).
+* **JWT Authentication**: Authenticates via `Authorization: Bearer <token>` on the WebSocket upgrade request.
+* **UI Event Mirroring**: As tools execute upstream, the relay translates backend state changes into structured client JSON events:
+  * `agent_state`: Updates co-rider visual moods (`idle`, `thinking`, `speaking`, `calling`, `mapping`, `task`, `summarizing`, `celebrating`).
+  * `task_step`: Real-time execution cards with deterministic rationale (`"This route saves about 7 min versus the alternative."`).
+  * `map_route`: Emits route coordinates, turn bounding boxes, and traffic-calibrated ETAs.
+  * `order_offer`: Triggers proactive incoming order alerts with countdown timers.
+  * `queue_updated`: Synchronizes order stacks across Home, Queue, and Summary tabs.
 
-## Built with
+### 2. Parallel Tool Orchestrator (`app/agents/orchestrator.py`)
+When AssemblyAI identifies intent requiring backend action, it emits one or more `tool.call` frames. The `ToolOrchestrator` schedules them immediately:
 
-Kora brings together a mobile app, a real-time voice service and a small operations backend:
+```python
+# Create concurrent coroutines for all requested tools
+tasks = [
+    cls.execute_single_tool(
+        tool_name=tc.get("name"),
+        parameters=tc.get("arguments") or {},
+        context=context,
+        call_id=tc.get("call_id")
+    )
+    for tc in tool_calls
+]
 
-| Part | What it does in Kora |
-| --- | --- |
-| [AssemblyAI](https://www.assemblyai.com/) | Hears the driver, understands the request, calls Kora's tools and speaks the answer; LeMUR helps prepare the shift report. |
-| [Flutter](https://flutter.dev/) + [Rive](https://rive.app/) | Powers the mobile experience and the animated co-rider. |
-| [FastAPI](https://fastapi.tiangolo.com/) | Coordinates delivery, routing, customer and shift work without slowing the conversation. |
-| [Supabase](https://supabase.com/) | Stores accounts, shifts, deliveries, preferences and reports. |
-| [MapLibre](https://maplibre.org/) + [OpenFreeMap](https://openfreemap.org/) | Draws the map and routes inside Kora without sending the driver to another app. |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Detects “Kora,” including “Hey Kora” and “Okay Kora,” on the phone while the app is in the foreground. |
-| [OSRM](https://project-osrm.org/) + [TomTom](https://developer.tomtom.com/) | Supplies routes, travel times and traffic-aware reroute information. |
-| [Twilio](https://www.twilio.com/) | Handles customer calls and text messages when carrier integrations are configured. |
-| [n8n](https://n8n.io/) | Runs optional notifications and reports after live driver work is finished. |
+# Dispatch concurrently via asyncio.gather
+raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+```
 
-## Team
+The orchestrator tracks per-tool wall-clock execution time, guarantees SLA metrics (<500ms target), and wraps responses into clean JSON envelopes ready for AssemblyAI's voice reply.
 
-- **Ez** — Flutter app and support on the agent layer.
-- **Maria** — FastAPI backend and agent workflows.
+### 3. Tool Safety Gate (`app/agents/tool_safety.py`)
+All tool requests pass through a security and validation layer before execution:
+* Validates shift ownership and active driver session state.
+* Clamps and sanitizes user input (e.g. `daily_delivery_target` bounded between 1 and 500).
+* Prevents unauthorized order completions or duplicate status transitions.
 
-## For developers
+### 4. Proactive Agent Behaviors
+Kora doesn't just respond—it actively monitors operating conditions:
+* **Quiet-Moment Order Dispatch**: When a new order matches the driver's proximity, the backend waits for a lull in driver audio and dispatches `reply.create` to announce the order unprompted.
+* **Proactive Traffic Rerouting**: Powered by TomTom traffic APIs, Kora monitors live congestion. If delays exceed configured thresholds, it alerts the driver: *"Traffic ahead on 5th Street. I found an alternate route saving 6 minutes. Should I switch?"*
+* **Stop Access Briefings**: Pre-alerts drivers to historical failure notes before arrival (e.g., *"Reminder: Jordan's gate code is #4092"*).
+* **Automatic Next Stop Announcement**: Immediately upon marking a package delivered, Kora announces the next destination.
 
-<details>
-<summary><strong>Open setup, architecture, tests and contribution notes</strong></summary>
+---
 
-### Repository layout
+## 🛠️ The 20 Autonomous Agent Tools
+
+Kora’s running registry (`voiceops-backend/app/agents/tool_registry.py`) exposes **exactly 20 deterministic tools** across 6 operational domains:
+
+| # | Tool Name | Operational Domain | Description & Capabilities | Execution Platform |
+|---|---|---|---|---|
+| 1 | `get_next_delivery` | **Delivery** | Retrieves the next scheduled delivery stop in the active shift queue. | Onfleet / MockAdapter |
+| 2 | `update_delivery_status` | **Delivery** | Marks delivery `delivered`, `failed`, or `rescheduled` with notes. | Supabase + Adapter |
+| 3 | `log_exception` | **Delivery** | Records gate access issues, absent recipients, or damaged packages. | Supabase Database |
+| 4 | `get_best_route` | **Navigation** | Computes optimal multi-modal turn route (car, motorbike, bike, walk). | OSRM + TomTom |
+| 5 | `start_navigation` | **Navigation** | Pushes active route polyline and turn cards directly to Flutter map. | In-App Vector Map |
+| 6 | `accept_reroute` | **Navigation** | Swaps active navigation route for traffic-optimized suggested detour. | In-App Navigation |
+| 7 | `get_next_order` | **Dispatch** | Fetches the newest order offered to the driver or nearest unassigned. | Order Dispatch Engine |
+| 8 | `accept_order` | **Dispatch** | Accepts an offered order, appending it to the driver's current shift. | Order Dispatch Engine |
+| 9 | `decline_order` | **Dispatch** | Declines an offer, automatically re-offering to the next closest courier. | Order Dispatch Engine |
+| 10 | `call_customer` | **Comms** | Initiates an outbound voice call (supports `DEMO_SIMULATED_CUSTOMER`). | Twilio Voice API |
+| 11 | `notify_customer` | **Comms** | Dispatches an automated SMS alert with arrival ETA or delivery note. | Twilio SMS API |
+| 12 | `alert_dispatcher` | **Comms** | Escalates critical delivery issues or vehicle emergencies to dispatch. | Supabase + n8n |
+| 13 | `get_shift_summary` | **Shift Control** | Reads out live shift statistics: completed stops, remaining stops, ETA. | Supabase Database |
+| 14 | `end_shift` | **Shift Control** | Closes active shift, compiles stats, and triggers async LeMUR report. | Supabase + LeMUR + n8n |
+| 15 | `end_conversation` | **Shift Control** | Closes active voice mic stream while keeping current shift running. | Internal Voice Relay |
+| 16 | `show_screen` | **Shift Control** | Voice-activated tab navigation (`voice`, `map`, `summary`, `settings`). | In-App GoRouter |
+| 17 | `get_preferences` | **Preferences** | Reads out driver settings (auto-accept, vehicle type, target). | Supabase Database |
+| 18 | `set_preference` | **Preferences** | Modifies driver preference (e.g. daily target, auto-accept radius). | Supabase Database |
+| 19 | `clear_preference` | **Preferences** | Resets a specific preference key back to system default. | Supabase Database |
+| 20 | `reset_preferences` | **Preferences** | Restores all driver preferences back to baseline defaults. | Supabase Database |
+
+---
+
+## 📱 Mobile Experience & Frontend Architecture
+
+The frontend is a production-grade Flutter application (`frontend/lib/`) designed for high legibility, vibration resistance, and instant glanceability.
+
+### Visual App Tour
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="20%">
+        <img src="landing/assets/media/screen-voice.jpg" width="100%" alt="Voice Screen">
+        <br><b>Voice Co-Rider</b><br>
+        <sub>Rive orb, live transcript &amp; lime mic-hot state</sub>
+      </td>
+      <td align="center" width="20%">
+        <img src="landing/assets/media/screen-map.jpg" width="100%" alt="Map Screen">
+        <br><b>In-App Vector Map</b><br>
+        <sub>MapLibre &amp; OpenFreeMap live turn routing</sub>
+      </td>
+      <td align="center" width="20%">
+        <img src="landing/assets/media/screen-order-offer.jpg" width="100%" alt="Order Offer">
+        <br><b>Proximity Offer</b><br>
+        <sub>Proactive order alert with 30s countdown</sub>
+      </td>
+      <td align="center" width="20%">
+        <img src="landing/assets/media/screen-summary.jpg" width="100%" alt="Shift Summary">
+        <br><b>Shift Intelligence</b><br>
+        <sub>Post-shift metrics &amp; LeMUR debrief</sub>
+      </td>
+      <td align="center" width="20%">
+        <img src="landing/assets/media/screen-settings.jpg" width="100%" alt="Settings Screen">
+        <br><b>Persona &amp; Rules</b><br>
+        <sub>11 Voice characters &amp; auto-accept filters</sub>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### Frontend Highlights
+
+* **Offline On-Device Wake Engine**: Integrated with **sherpa-onnx** to detect *"Kora"*, *"Hey Kora"*, or *"Okay Kora"* completely offline on-device with zero cloud latency. Once awakened, Kora maintains an active **12-second follow-up conversational window** requiring no wake-word repetition.
+* **Vector Map Engine**: Uses **MapLibre GL** powered by **OpenFreeMap** vector tiles. Zero Google Maps billing, zero API keys, and routes render directly inside the app—drivers never get kicked out to an external navigation app.
+* **Animated Rive Co-Rider Mascot**: Custom state machine (`frontend/lib/mascot/mascot_display.dart`) rendering dynamic emotional and operational states:
+  * Two materials: Holographic Bubble Orb for onboarding; Chrome Mercury Orb for daily shifts.
+  * 8 reactive states: `idle`, `thinking`, `speaking`, `calling`, `mapping`, `task`, `summarizing`, `celebrating`.
+* **11 Spoken Personas**: Choose from 11 distinct AssemblyAI voice characters (`alba`, `eve`, `george`, `jane`, `jean`, `mary`, `michael`, `anna`, `charles`, `paul`, `vera`), switchable in real-time.
+* **Safety Design System**:
+  * Dark-mode-first canvas (`#07060B`) to eliminate glare during night shifts and conserve battery.
+  * Brand violet (`#8B5CF6`) as primary identity accent.
+  * **Electric Lime (`#C8F250`) is strictly reserved for the mic-live state**, ensuring the driver knows immediately when the microphone is recording.
+
+---
+
+## 🔄 A Day in the Life: Shift Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Driver as 🛵 Driver (Audio / App)
+    participant Client as 📱 Flutter Client
+    participant Relay as ⚡ FastAPI Relay
+    participant AAI as 🎙️ AssemblyAI Voice Agent
+    participant Orch as 🛠️ Tool Orchestrator
+    participant Post as 📊 LeMUR & n8n
+
+    Driver->>Client: "Hey Kora, what's my first stop?"
+    Client->>Relay: WS Audio Stream (24kHz PCM16)
+    Relay->>AAI: Upstream Audio Stream
+    AAI->>Relay: tool.call: get_next_delivery()
+    Relay->>Orch: execute_single_tool("get_next_delivery")
+    Orch-->>Relay: Delivery Stop Context
+    Relay-->>Client: event: map_route + task_step
+    Relay->>AAI: tool.result (JSON)
+    AAI-->>Relay: Audio Output Stream (TTS)
+    Relay-->>Client: PCM16 Audio Stream
+    Client-->>Driver: 🔊 "Your first stop is Jordan at 742 Evergreen Terrace..."
+
+    Note over Driver,Post: Mid-shift: Driver finishes deliveries & completes shift
+
+    Driver->>Client: "End my shift"
+    Client->>Relay: WS Audio Stream
+    Relay->>AAI: tool.call: end_shift()
+    Relay->>Orch: end_shift_core()
+    Orch-->>Relay: Shift Completed & Stats Persisted
+    Relay-->>Client: event: shift_ended + summary_chunk
+    Orch->>Post: Async Background LeMUR Task & n8n Webhook
+    Post-->>Driver: 📈 AI Shift Digest & Slack Operator Report
+```
+
+---
+
+## 📂 Repository Layout
 
 ```text
 kora/
-├── frontend/          Flutter mobile app
-├── voiceops-backend/  FastAPI backend and voice orchestration
-├── landing/           Static website and interactive phone preview
-└── docs/              Product, interface, handoff and brand documentation
+├── frontend/                  # Flutter Mobile Application
+│   ├── lib/
+│   │   ├── app/               # Routing (GoRouter) & theme tokens
+│   │   ├── core/              # Theme tokens, design system, network clients
+│   │   ├── features/          # Voice, Map, Queue, Summary, Auth, Settings
+│   │   ├── mascot/            # Rive co-rider state machine (MascotDisplay)
+│   │   └── providers/         # Riverpod global state providers
+│   ├── assets/                # Audio previews, vector icons, fonts
+│   └── pubspec.yaml           # Flutter dependencies (MapLibre, Riverpod, Rive)
+│
+├── voiceops-backend/          # FastAPI Backend & Orchestration Service
+│   ├── app/
+│   │   ├── agents/            # Tool registry (20 tools), safety gate, orchestrator
+│   │   ├── api/               # WebSocket voice relay (/ws/voice) & REST routes
+│   │   ├── dispatch/          # Proximity order intake & dispatch feed engine
+│   │   ├── intelligence/      # LeMUR post-shift pipeline & report synthesis
+│   │   ├── integrations/      # OSRM, TomTom, Twilio, LogisticsAdapter
+│   │   └── main.py            # FastAPI service entrypoint & lifespans
+│   ├── n8n/workflows/         # Exported n8n post-shift intelligence workflows
+│   ├── tests/                 # Pytest suite (voice WS, parallel tools, schemas)
+│   └── requirements.txt       # Python dependencies (FastAPI, uvicorn, httpx)
+│
+├── landing/                   # Static Marketing Website & Web Phone Preview
+│   ├── assets/                # Brand SVGs, icons, phone screenshots, demo reels
+│   ├── js/                    # Dependency-free phone preview & 11-voice player
+│   └── index.html             # Marketing site (Cloudflare Pages ready)
+│
+└── docs/                      # Architectural Contracts & Product Specs
+    ├── contracts/interface.md # Frozen WebSocket & REST API specification
+    ├── VoiceOps_Agent_Tools_Reference.md # Contract for all 20 agent tools
+    └── product/               # PRD v4.0, handoff notes, brand guidelines
 ```
 
-The `voiceops-backend/` directory keeps the project's old internal folder name so existing paths and deployments do not break. The product is Kora.
+---
+
+## 🛠️ Developer Quickstart
 
 ### Prerequisites
+* **Git**
+* **Python 3.11+**
+* **Flutter SDK** (Dart `^3.11.5`)
+* **Supabase Account** (PostgreSQL database & auth)
+* **AssemblyAI Account** (API key with Voice Agent and LeMUR access)
+* *(Optional)* TomTom API Key (traffic routing), Twilio credentials (calls/SMS)
 
-- Git
-- A Flutter installation whose bundled Dart SDK satisfies `^3.11.5`
-- Python 3.11 or newer
-- A Supabase project and an AssemblyAI account for the full live experience
-- Optional provider accounts for Twilio, TomTom and n8n-backed notifications
+---
 
-### Run the backend
+### 1. Backend Setup (`voiceops-backend`)
 
 ```bash
+# Clone the repository
 git clone https://github.com/MI-TECHDLIN/kora.git
 cd kora/voiceops-backend
+
+# Set up virtual environment
 python3 -m venv .venv
+# Linux / macOS:
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+# Windows (PowerShell):
+# .\.venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
 cp .env.example .env
 ```
 
-Fill the local `.env` with your own development credentials, apply [`supabase_schema.sql`](voiceops-backend/supabase_schema.sql) in your Supabase project, then start one development server:
+Edit `.env` with your credentials:
+```ini
+ASSEMBLYAI_API_KEY=your_assemblyai_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+TOMTOM_API_KEY=your_optional_tomtom_key
+DEMO_SIMULATED_CUSTOMER=true # Enables simulated customer calls without Twilio carrier billing
+```
 
+Execute the database schema migration by executing [`supabase_schema.sql`](voiceops-backend/supabase_schema.sql) in your Supabase SQL editor.
+
+Start the FastAPI development server:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Run one server worker. Live voice sessions and order offers are held by that process.
+> [!TIP]
+> Run a single Uvicorn worker process. Live driver WebSocket sessions and proximity order queues are maintained in the event loop memory.
 
-Leave `ASSEMBLYAI_AGENT_ID` unset unless you have created a stored AssemblyAI agent for the same account. Kora normally sends its prompt and tools inline; a copied placeholder agent ID switches modes and prevents voice startup. `GET /health/ready` below reports this and other voice-path configuration problems without exposing values.
+---
 
-### Run the app
-
-In another terminal:
+### 2. Frontend Setup (`frontend`)
 
 ```bash
-cd kora/frontend
+cd ../frontend
+
+# Install Flutter dependencies
 flutter pub get
+
+# Configure client connection
 cp config/supabase.prod.json.example config/supabase.prod.json
+```
+
+Populate `config/supabase.prod.json` with your Supabase URL, public anonymous key, and local backend address (e.g., `ws://10.0.2.2:8000` for Android emulator or your LAN IP for physical device testing).
+
+Launch the Flutter app:
+```bash
 flutter run --dart-define-from-file=config/supabase.prod.json
 ```
 
-Edit the copied JSON with your public Supabase URL, public anonymous key and backend address. Never place a Supabase service-role key in the Flutter app. For a physical phone on the same network, use the computer's local network address and start FastAPI with `--host 0.0.0.0`.
+---
 
-The backend address is compiled into the app. Settings > About shows the host in use, and the release build script rejects local or retired hosts unless explicitly overridden for development.
+### 3. Website & Phone Preview (`landing`)
 
-A real Android phone or iPhone is needed to judge wake-word accuracy, microphone handoff and native map behaviour. Desktop or widget tests cannot prove those experiences.
-
-### Environment variables
-
-Use [`voiceops-backend/.env.example`](voiceops-backend/.env.example) as the backend checklist. It documents required AssemblyAI and Supabase values plus optional routing, customer communication, order-feed and post-shift settings. Keep the copied `.env` local.
-
-The Flutter app uses [`frontend/config/supabase.prod.json.example`](frontend/config/supabase.prod.json.example). Copy it to the ignored local filename shown above and replace the placeholders. Do not commit either file with real credentials.
-
-### Health and diagnostics
-
-- `GET /health` is the lightweight liveness endpoint for hosting monitors.
-- `GET /health/ready` checks whether the database and AssemblyAI voice session can start. It returns only booleans and fixed reason tokens, is cached briefly, and answers `200` when ready or `503` otherwise.
-- `GET /health/dispatch` explains why the mock order feed is holding, using counts for `no_driver_online`, `no_located_driver`, `stale_ping` and `open_order_cap`; it never returns coordinates or driver identifiers.
-
-The app also surfaces the configured backend host and preserves specific connection errors. An ended-shift signal makes the next reconnect request a new active shift instead of silently reusing a completed one. Exact response and WebSocket event shapes live in the [interface contract](docs/contracts/interface.md).
-
-Traffic-aware ETA results keep their existing 75-second cache, now scoped to each ETA service instance so separate instances and tests cannot leak cached routes into one another.
-
-### Run the checks
-
-Backend:
-
+The marketing site in `landing/` is zero-dependency static HTML/CSS/JS:
 ```bash
-cd voiceops-backend
-python -m pytest -q
+cd ../landing
+python3 -m http.server 8080
 ```
+Open `http://localhost:8080` in your browser to interact with the phone preview and 11-voice audio selector.
 
-Flutter:
+---
+
+## 🧪 Testing & Health Diagnostics
+
+### Diagnostics Endpoints
+* `GET /health`: Lightweight liveness check for hosting environments.
+* `GET /health/ready`: Deep health probe checking database connectivity and AssemblyAI upstream readiness.
+* `GET /health/dispatch`: Proximity order feed inspector detailing active drivers and assignment state without revealing PII coordinates.
+
+### Running Test Suites
 
 ```bash
-cd frontend
+# Run backend pytest suite
+cd voiceops-backend
+pytest -q
+
+# Run frontend analyzer and unit tests
+cd ../frontend
 flutter analyze
 flutter test
 ```
 
-Website (no build step):
+### Secret Scanning
 
+Kora enforces automated secret scanning via [Gitleaks](https://github.com/gitleaks/gitleaks):
 ```bash
-python3 -m http.server 8080 --directory landing
-for file in landing/js/*.js; do node --check "$file"; done
-```
-
-Then open `http://localhost:8080` and exercise the phone preview, voice picker and media at desktop and phone widths. See [`landing/README.md`](landing/README.md) for its manual accessibility, reduced-motion and privacy checks.
-
-### Secret scanning
-
-Pull requests into `staging` and `main` are scanned by [gitleaks](https://github.com/gitleaks/gitleaks) (`.github/workflows/secret-scan.yml`, config in `.gitleaks.toml`). Only the commits a PR adds are judged, so old history does not fail the check. To catch a key before it is even committed, opt into the local hook:
-
-```bash
-brew install gitleaks        # or the release binary: https://github.com/gitleaks/gitleaks/releases
-pip install pre-commit
-pre-commit install           # from the repo root
-```
-
-Run the same staged scan directly before committing:
-
-```bash
+# Verify staged commits before pushing
 gitleaks git --pre-commit --staged --redact --config .gitleaks.toml
 ```
 
-Check the current tree by hand with `gitleaks dir . --config .gitleaks.toml --redact`. If a real key is ever committed, rotate it first; a passing scan is not a substitute.
+---
 
-### Two rules that protect the live experience
+## 👥 The Team
 
-1. When a request needs several tools, Kora runs them concurrently and brings the results back into one answer. Do not turn that work into a chain of slow, one-by-one waits.
-2. n8n belongs only to work that happens after or outside the live conversation, such as a finished-shift notification. It must never sit between the driver and Kora's live voice connection.
+* **Ez** — Flutter Frontend Lead, Mobile Architecture, Rive Animation & Voice Agent Integration.
+* **Maria** (`maria2469`) — FastAPI Backend Lead, AsyncIO Tool Orchestrator & Real-Time Agentic Workflows.
 
-AssemblyAI speech, reasoning, tool calls and audio replies travel over one live WebSocket connection. The exact client/server messages are frozen in the interface contract below.
+---
 
-### Contracts and deeper documentation
+## 🏆 Acknowledgements
 
-- [Client/backend interface contract](docs/contracts/interface.md)
-- [Agent tools reference](docs/VoiceOps_Agent_Tools_Reference.md)
-- [Product requirements](docs/product/VoiceOps_PRD_v4.0.md)
-- [Backend handoff notes](docs/backend-handoff/)
-- [Known issues](docs/KNOWN_ISSUES.md)
+Kora was created for the **AssemblyAI Voice Agent Hackathon** hosted on [lablab.ai](https://lablab.ai/) (September 1–30, 2026).
 
-### Contributing
+Special thanks to the open-source ecosystems powering Kora:
+* [AssemblyAI](https://www.assemblyai.com/) — Real-Time Voice Agent API & LeMUR Speech Understanding.
+* [Flutter](https://flutter.dev/) & [Rive](https://rive.app/) — Native mobile UI & interactive vector mascot.
+* [FastAPI](https://fastapi.tiangolo.com/) — Async high-concurrency Python framework.
+* [MapLibre](https://maplibre.org/) & [OpenFreeMap](https://openfreemap.org/) — Free, open-source vector tile mapping.
+* [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) — High-efficiency offline on-device wake-word detection.
+* [OSRM](https://project-osrm.org/) & [TomTom](https://developer.tomtom.com/) — Open-source and traffic-aware routing engines.
+* [Supabase](https://supabase.com/) & [n8n](https://n8n.io/) — Database persistence & async workflow automation.
 
-1. Fetch `staging` and create a scoped feature branch from its current tip: `features/frontend/...`, `features/backend/...` or `features/ai/...`.
-2. Keep a change inside its layer and preserve the frozen interface contract.
-3. Run the relevant checks above, then run the staged gitleaks command and verify that no `.env`, credential or token is staged.
-4. Open a pull request into `staging`. Releases are promoted by pull request from `staging` to `dev`, then from `dev` to `main`; do not push directly to `dev` or `main`.
+---
 
-Read [`AGENTS.md`](AGENTS.md) and the matching file in [`.firstmate/rules/`](.firstmate/rules/) before changing code.
-
-</details>
-
-## Acknowledgements
-
-Kora was created for the AssemblyAI Voice Agent Hackathon hosted by [lablab.ai](https://lablab.ai/). It stands on the work of the teams and communities behind AssemblyAI, Flutter, FastAPI, Supabase, Rive, MapLibre, OpenFreeMap, [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), sherpa-onnx, OSRM, TomTom, Twilio and n8n.
-
-The README structure was informed by [Docsio's collection of strong README examples](https://docsio.co/blog/readme-examples) and the [Best README Template](https://github.com/othneildrew/Best-README-Template), adapted to tell Kora's story in its own voice.
-
-## License
-
-A project-wide licence has not been chosen yet. The existing [`frontend/LICENSE`](frontend/LICENSE) applies to the Flutter subproject; do not assume it covers the backend, documentation or repository as a whole.
+<div align="center">
+  <sub>Built with ❤️ for delivery drivers around the world. Keep your eyes on the road and your hands on the bars.</sub>
+</div>

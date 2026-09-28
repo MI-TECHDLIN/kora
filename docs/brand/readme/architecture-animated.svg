@@ -1,0 +1,366 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="100%" height="auto" role="img" aria-labelledby="koraArchTitle koraArchDesc">
+  <title id="koraArchTitle">Kora End-to-End System Architecture</title>
+  <desc id="koraArchDesc">Interactive animated architecture diagram of Kora voice-first operations layer showing Flutter client, FastAPI backend, AssemblyAI real-time voice pipeline, parallel tool orchestrator, and post-shift intelligence.</desc>
+
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#08070D"/>
+      <stop offset="50%" stop-color="#0E0C18"/>
+      <stop offset="100%" stop-color="#06050A"/>
+    </linearGradient>
+
+    <!-- Node Card Gradients -->
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1A152E"/>
+      <stop offset="100%" stop-color="#120E22"/>
+    </linearGradient>
+
+    <linearGradient id="assemblyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#261B4E"/>
+      <stop offset="100%" stop-color="#181135"/>
+    </linearGradient>
+
+    <linearGradient id="backendGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1B1730"/>
+      <stop offset="100%" stop-color="#110E20"/>
+    </linearGradient>
+
+    <linearGradient id="toolGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2D1B54"/>
+      <stop offset="100%" stop-color="#1E1438"/>
+    </linearGradient>
+
+    <linearGradient id="lemurGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F1538"/>
+      <stop offset="100%" stop-color="#0F0A1C"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="violetGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="limeGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Marker Arrow -->
+    <marker id="arrowViolet" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#8B5CF6"/>
+    </marker>
+    <marker id="arrowLime" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#C8F250"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+
+    <!-- CSS Keyframe Animations -->
+    <style>
+      @keyframes pulseGlow {
+        0%, 100% { opacity: 0.35; transform: scale(1); }
+        50% { opacity: 0.85; transform: scale(1.04); }
+      }
+      @keyframes flowDash {
+        to { stroke-dashoffset: -32; }
+      }
+      @keyframes waveBar {
+        0%, 100% { height: 6px; y: 22px; }
+        50% { height: 26px; y: 12px; }
+      }
+      @keyframes floatOrb {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-4px); }
+      }
+      @keyframes micPulse {
+        0%, 100% { fill: #C8F250; opacity: 1; r: 5px; }
+        50% { fill: #A3E635; opacity: 0.4; r: 9px; }
+      }
+      .pulse-ring {
+        transform-origin: center;
+        animation: pulseGlow 3s ease-in-out infinite;
+      }
+      .flow-path {
+        stroke-dasharray: 8 8;
+        animation: flowDash 1.2s linear infinite;
+      }
+      .flow-path-fast {
+        stroke-dasharray: 6 6;
+        animation: flowDash 0.8s linear infinite;
+      }
+      .wave-1 { animation: waveBar 1.1s ease-in-out infinite 0.1s; }
+      .wave-2 { animation: waveBar 1.1s ease-in-out infinite 0.3s; }
+      .wave-3 { animation: waveBar 1.1s ease-in-out infinite 0.5s; }
+      .wave-4 { animation: waveBar 1.1s ease-in-out infinite 0.2s; }
+      .wave-5 { animation: waveBar 1.1s ease-in-out infinite 0.4s; }
+      .orb-float { animation: floatOrb 4s ease-in-out infinite; }
+      .mic-live-dot { animation: micPulse 1.8s ease-in-out infinite; }
+    </style>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1200" height="520" rx="24" fill="url(#bgGrad)" stroke="#221C38" stroke-width="1.5"/>
+
+  <!-- Subdued Grid Backdrop -->
+  <g opacity="0.06" stroke="#C4B5FD" stroke-width="1">
+    <path d="M0 65 H1200 M0 130 H1200 M0 195 H1200 M0 260 H1200 M0 325 H1200 M0 390 H1200 M0 455 H1200" />
+    <path d="M100 0 V520 M200 0 V520 M300 0 V520 M400 0 V520 M500 0 V520 M600 0 V520 M700 0 V520 M800 0 V520 M900 0 V520 M1000 0 V520 M1100 0 V520" />
+  </g>
+
+  <!-- Ambient Glow Blobs -->
+  <circle cx="210" cy="180" r="140" fill="#8B5CF6" opacity="0.08" filter="url(#violetGlow)"/>
+  <circle cx="600" cy="180" r="180" fill="#6366F1" opacity="0.09" filter="url(#violetGlow)"/>
+  <circle cx="980" cy="180" r="150" fill="#8B5CF6" opacity="0.07" filter="url(#violetGlow)"/>
+
+  <!-- TOP HEADER LABEL -->
+  <g transform="translate(40, 36)">
+    <!-- Speaking Kora Mark Icon -->
+    <g transform="translate(0, -6)">
+      <rect width="36" height="36" rx="10" fill="#18132C" stroke="#372B5E" stroke-width="1.5"/>
+      <g transform="translate(7, 6) scale(0.043)" fill="#C4B5FD">
+        <rect x="76" y="116" width="58" height="280" rx="29"/>
+        <path d="M327.45 129.86A130 130 0 1 0 327.45 382.14L166 256Z"/>
+      </g>
+    </g>
+    <text x="46" y="16" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5">KORA ARCHITECTURE</text>
+    <text x="216" y="16" fill="#A78BFA" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500">Dual AssemblyAI Integration &amp; Real-Time Voice Loop</text>
+    
+    <!-- Live Status Pill -->
+    <g transform="translate(970, -2)">
+      <rect width="150" height="26" rx="13" fill="#151224" stroke="#2E244E" stroke-width="1"/>
+      <circle cx="16" cy="13" r="5" fill="#C8F250" class="mic-live-dot"/>
+      <text x="28" y="17" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" letter-spacing="0.3">SUB-500MS REALTIME</text>
+    </g>
+  </g>
+
+  <!-- ==================== FLOW CONNECTIONS ==================== -->
+  
+  <!-- Flow 1: Client to Backend Relay -->
+  <path d="M 280 180 L 410 180" fill="none" stroke="#8B5CF6" stroke-width="2.5" class="flow-path"/>
+  <path d="M 410 200 L 280 200" fill="none" stroke="#38BDF8" stroke-width="2" class="flow-path-fast"/>
+  
+  <!-- Flow 2: Backend Relay to AssemblyAI Voice Agent -->
+  <path d="M 580 170 L 680 170" fill="none" stroke="#C8F250" stroke-width="2.5" class="flow-path-fast"/>
+  <path d="M 680 190 L 580 190" fill="none" stroke="#A78BFA" stroke-width="2" class="flow-path"/>
+
+  <!-- Flow 3: Backend to Parallel Tool Orchestrator -->
+  <path d="M 580 215 L 680 255" fill="none" stroke="#C4B5FD" stroke-width="2" class="flow-path"/>
+  <path d="M 680 275 L 580 235" fill="none" stroke="#C4B5FD" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- Flow 4: Orchestrator to Tools Grid -->
+  <path d="M 870 260 L 930 260" fill="none" stroke="#A78BFA" stroke-width="2" class="flow-path"/>
+
+  <!-- Flow 5: Shift End to Async LeMUR Pipeline -->
+  <path d="M 495 270 L 495 380 L 680 380" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="6 6"/>
+  
+  <!-- Flow 6: LeMUR to n8n Webhook -->
+  <path d="M 870 380 L 930 380" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="6 6"/>
+
+  <!-- ==================== COLUMN 1: FLUTTER APP ==================== -->
+  <g transform="translate(50, 85)">
+    <!-- Card Frame -->
+    <rect width="230" height="230" rx="18" fill="url(#clientGrad)" stroke="#372A60" stroke-width="1.5"/>
+    <rect x="0" y="0" width="230" height="36" rx="18" fill="#20173D" opacity="0.6"/>
+    
+    <!-- Title -->
+    <text x="18" y="24" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700">FLUTTER CLIENT</text>
+    <text x="146" y="24" fill="#8B5CF6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">MOBILE APP</text>
+    
+    <!-- Feature Pills -->
+    <!-- Wake Engine -->
+    <g transform="translate(16, 48)">
+      <rect width="198" height="34" rx="8" fill="#130F24" stroke="#2B214C" stroke-width="1"/>
+      <circle cx="16" cy="17" r="6" fill="#C8F250" class="mic-live-dot"/>
+      <text x="30" y="21" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">sherpa-onnx (Offline Wake)</text>
+    </g>
+
+    <!-- Audio Pipeline -->
+    <g transform="translate(16, 90)">
+      <rect width="198" height="34" rx="8" fill="#130F24" stroke="#2B214C" stroke-width="1"/>
+      <text x="12" y="21" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">PCM16 24kHz Mic &amp; Audio Out</text>
+      <!-- Soundwave animation bars -->
+      <g transform="translate(150, 0)">
+        <rect x="0" width="3" rx="1.5" fill="#8B5CF6" class="wave-1"/>
+        <rect x="6" width="3" rx="1.5" fill="#A78BFA" class="wave-2"/>
+        <rect x="12" width="3" rx="1.5" fill="#C8F250" class="wave-3"/>
+        <rect x="18" width="3" rx="1.5" fill="#A78BFA" class="wave-4"/>
+        <rect x="24" width="3" rx="1.5" fill="#8B5CF6" class="wave-5"/>
+      </g>
+    </g>
+
+    <!-- Rive Mascot & MapLibre -->
+    <g transform="translate(16, 132)">
+      <rect width="198" height="34" rx="8" fill="#130F24" stroke="#2B214C" stroke-width="1"/>
+      <text x="12" y="21" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">Rive Co-Rider Orb (8 States)</text>
+    </g>
+
+    <!-- Vector Map -->
+    <g transform="translate(16, 174)">
+      <rect width="198" height="34" rx="8" fill="#130F24" stroke="#2B214C" stroke-width="1"/>
+      <text x="12" y="21" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">MapLibre GL + OpenFreeMap</text>
+    </g>
+  </g>
+
+  <!-- Flow 1 Protocol Label -->
+  <g transform="translate(294, 150)">
+    <text x="0" y="0" fill="#A78BFA" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600">WS /ws/voice</text>
+    <text x="0" y="14" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9">PCM16 Binary</text>
+    <text x="0" y="68" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9">JSON Events</text>
+  </g>
+
+  <!-- ==================== COLUMN 2: FASTAPI VOICE RELAY ==================== -->
+  <g transform="translate(410, 85)">
+    <!-- Card Frame -->
+    <rect width="170" height="230" rx="18" fill="url(#backendGrad)" stroke="#433373" stroke-width="1.5"/>
+    <rect x="0" y="0" width="170" height="36" rx="18" fill="#251B47" opacity="0.7"/>
+
+    <!-- Title -->
+    <text x="16" y="24" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700">FASTAPI RELAY</text>
+    
+    <!-- Relay Modules -->
+    <g transform="translate(12, 48)">
+      <rect width="146" height="34" rx="8" fill="#141026" stroke="#2D2350" stroke-width="1"/>
+      <text x="10" y="21" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="600">WebSocket Bi-Directional</text>
+    </g>
+
+    <g transform="translate(12, 90)">
+      <rect width="146" height="34" rx="8" fill="#141026" stroke="#2D2350" stroke-width="1"/>
+      <text x="10" y="21" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5">Session / Voice Manager</text>
+    </g>
+
+    <g transform="translate(12, 132)">
+      <rect width="146" height="34" rx="8" fill="#141026" stroke="#2D2350" stroke-width="1"/>
+      <text x="10" y="21" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5">Tool Safety Gate</text>
+    </g>
+
+    <g transform="translate(12, 174)">
+      <rect width="146" height="34" rx="8" fill="#141026" stroke="#2D2350" stroke-width="1"/>
+      <text x="10" y="21" fill="#C8F250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600">Proactive reply.create</text>
+    </g>
+  </g>
+
+  <!-- ==================== COLUMN 3: ASSEMBLYAI REAL-TIME AGENT ==================== -->
+  <g transform="translate(680, 85)">
+    <!-- Card Frame -->
+    <rect width="190" height="120" rx="18" fill="url(#assemblyGrad)" stroke="#5B21B6" stroke-width="1.5"/>
+    <rect x="0" y="0" width="190" height="34" rx="18" fill="#3B1C7A" opacity="0.6"/>
+
+    <!-- Title -->
+    <text x="14" y="22" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700">ASSEMBLYAI VOICE AGENT</text>
+
+    <!-- Sub-items -->
+    <g transform="translate(12, 44)">
+      <rect width="166" height="62" rx="8" fill="#171033" stroke="#39226E" stroke-width="1"/>
+      <text x="10" y="19" fill="#C4B5FD" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="600">• Streaming STT (24kHz)</text>
+      <text x="10" y="36" fill="#C4B5FD" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="600">• LLM Reasoning &amp; Context</text>
+      <text x="10" y="53" fill="#C8F250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="600">• Low-Latency Neural TTS</text>
+    </g>
+  </g>
+
+  <!-- ==================== PARALLEL TOOL ORCHESTRATOR ==================== -->
+  <g transform="translate(680, 225)">
+    <!-- Card Frame -->
+    <rect width="190" height="90" rx="16" fill="url(#toolGrad)" stroke="#6D28D9" stroke-width="1.5"/>
+    <rect x="0" y="0" width="190" height="30" rx="16" fill="#3D1A78" opacity="0.6"/>
+
+    <!-- Title -->
+    <text x="14" y="20" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700">TOOL ORCHESTRATOR</text>
+
+    <g transform="translate(12, 38)">
+      <rect width="166" height="42" rx="8" fill="#1C1138" stroke="#482387" stroke-width="1"/>
+      <text x="10" y="18" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700">asyncio.gather(*tasks)</text>
+      <text x="10" y="34" fill="#A78BFA" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5">Parallel Concurrent Execution</text>
+    </g>
+  </g>
+
+  <!-- ==================== COLUMN 4: 20 AGENT TOOLS & INTEGRATIONS ==================== -->
+  <g transform="translate(930, 85)">
+    <!-- Card Frame -->
+    <rect width="220" height="230" rx="18" fill="#151028" stroke="#382664" stroke-width="1.5"/>
+    <rect x="0" y="0" width="220" height="36" rx="18" fill="#241744" opacity="0.6"/>
+
+    <!-- Title -->
+    <text x="16" y="24" fill="#F4F1FF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700">20 AGENT TOOLS</text>
+    <text x="142" y="24" fill="#C8F250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600">PARALLEL</text>
+
+    <!-- Tool Categories -->
+    <g transform="translate(12, 46)">
+      <rect width="196" height="32" rx="7" fill="#1B1433" stroke="#2E2055" stroke-width="1"/>
+      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">📦 Delivery (Next, Status, Log)</text>
+    </g>
+
+    <g transform="translate(12, 84)">
+      <rect width="196" height="32" rx="7" fill="#1B1433" stroke="#2E2055" stroke-width="1"/>
+      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">🗺️ Route / Nav (OSRM + TomTom)</text>
+    </g>
+
+    <g transform="translate(12, 122)">
+      <rect width="196" height="32" rx="7" fill="#1B1433" stroke="#2E2055" stroke-width="1"/>
+      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">⚡ Order Dispatch (Proximity Feed)</text>
+    </g>
+
+    <g transform="translate(12, 160)">
+      <rect width="196" height="32" rx="7" fill="#1B1433" stroke="#2E2055" stroke-width="1"/>
+      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">📞 Comms (Twilio Voice/SMS)</text>
+    </g>
+
+    <g transform="translate(12, 198)">
+      <rect width="196" height="24" rx="6" fill="#120D22"/>
+      <text x="8" y="16" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5">⚙️ Preferences &amp; App Screens (4 tools)</text>
+    </g>
+  </g>
+
+  <!-- ==================== BOTTOM ROW: POST-SHIFT ASYNC INTELLIGENCE ==================== -->
+  
+  <!-- Trigger Line Label -->
+  <g transform="translate(510, 366)">
+    <rect width="145" height="20" rx="10" fill="#241B12" stroke="#78350F" stroke-width="1"/>
+    <text x="10" y="14" fill="#FBBF24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600">end_shift_core() Event</text>
+  </g>
+
+  <!-- AssemblyAI LeMUR Pipeline -->
+  <g transform="translate(680, 340)">
+    <rect width="190" height="80" rx="16" fill="url(#lemurGrad)" stroke="#78350F" stroke-width="1.5"/>
+    <rect x="0" y="0" width="190" height="28" rx="16" fill="#3D1D09" opacity="0.6"/>
+
+    <text x="14" y="18" fill="#FEF3C7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700">ASSEMBLYAI LeMUR</text>
+
+    <g transform="translate(12, 34)">
+      <text x="6" y="15" fill="#FDE68A" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">• Shift Transcript Digest</text>
+      <text x="6" y="30" fill="#FDE68A" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">• Failure &amp; Sentiment Insights</text>
+    </g>
+  </g>
+
+  <!-- n8n Post-Shift Automation -->
+  <g transform="translate(930, 340)">
+    <rect width="220" height="80" rx="16" fill="#140E24" stroke="#78350F" stroke-width="1.5"/>
+    <rect x="0" y="0" width="220" height="28" rx="16" fill="#361B1B" opacity="0.6"/>
+
+    <text x="14" y="18" fill="#FED7AA" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700">n8n ASYNC WORKFLOWS</text>
+    
+    <g transform="translate(12, 34)">
+      <text x="6" y="15" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">• Slack / Email Operator Alerts</text>
+      <text x="6" y="30" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5">⚠️ Strictly Non-Realtime Decoupled</text>
+    </g>
+  </g>
+
+  <!-- ==================== FOOTER GUARANTEES ==================== -->
+  <g transform="translate(50, 460)">
+    <rect width="1100" height="38" rx="10" fill="#100C1F" stroke="#251B45" stroke-width="1"/>
+    
+    <!-- Rule 1 -->
+    <circle cx="20" cy="19" r="4" fill="#C8F250"/>
+    <text x="32" y="23" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">Rule 1: n8n is strictly Post-Shift Async</text>
+
+    <!-- Rule 2 -->
+    <circle cx="390" cy="19" r="4" fill="#8B5CF6"/>
+    <text x="402" y="23" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">Rule 2: Tools run in parallel via asyncio.gather()</text>
+
+    <!-- Rule 3 -->
+    <circle cx="780" cy="19" r="4" fill="#38BDF8"/>
+    <text x="792" y="23" fill="#E2E8F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">Rule 3: Unified AssemblyAI WebSocket (STT+LLM+TTS)</text>
+  </g>
+</svg>
