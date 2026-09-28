@@ -2,11 +2,13 @@
 MockAdapter: a stand-in logistics platform for the demo (and the fallback when no real
 platform is connected).
 
-Its order feed behaves like a real platform's webhook: every random interval in
+Its normal order feed behaves like a real platform's webhook: every random interval in
 [order_feed_min_interval_seconds, order_feed_max_interval_seconds] (3-7 minutes by default,
 re-drawn each time, never a fixed timer) it builds an Order Intake API payload for a
 plausible drop-off in downtown Austin, the demo's home area, validates it with the same
-model `POST /v1/logistics/orders` uses, and hands the order to the dispatcher.
+model `POST /v1/logistics/orders` uses, and hands the order to the dispatcher. The dispatcher
+generates one accelerated first order per online shift after its first fresh GPS ping, then
+resets this feed so the next order gets a full normal interval.
 
 Each order is placed near the position `get_location()` reports, which the dispatcher
 draws from an online driver's own fresh GPS ping (or the explicit DEMO_AREA_LAT/LNG override).
@@ -195,6 +197,7 @@ class MockAdapter(LogisticsAdapter):
         self.location_retry_seconds = (settings.order_feed_location_retry_seconds
                                        if location_retry_seconds is None else location_retry_seconds)
         self._feed: Optional[asyncio.Task] = None
+        self._feed_reset = asyncio.Event()
         # What the platform was told, newest last (the demo and tests read it)
         self.writebacks: Deque[dict] = deque(maxlen=50)
 
@@ -336,7 +339,8 @@ class MockAdapter(LogisticsAdapter):
         every `location_retry_seconds` until one is (or nobody is left to take it).
         """
         while True:
-            await self._sleep(self.next_interval())
+            if not await self._wait_for_next_interval():
+                continue
             while should_generate():
                 ready, center = await self._locate(get_location)
                 if not ready:
@@ -349,6 +353,27 @@ class MockAdapter(LogisticsAdapter):
                 except Exception:
                     logger.exception(f"[MockAdapter] Dispatching {order.external_id} failed")
                 break
+
+    async def _wait_for_next_interval(self) -> bool:
+        """True after a full random interval; false when a fast first order resets the clock."""
+        sleep_task = asyncio.create_task(self._sleep(self.next_interval()))
+        reset_task = asyncio.create_task(self._feed_reset.wait())
+        done, _ = await asyncio.wait(
+            {sleep_task, reset_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        if reset_task in done:
+            self._feed_reset.clear()
+            sleep_task.cancel()
+            await asyncio.gather(sleep_task, return_exceptions=True)
+            return False
+        reset_task.cancel()
+        await asyncio.gather(reset_task, return_exceptions=True)
+        await sleep_task
+        return True
+
+    def reset_order_feed_interval(self) -> None:
+        """Start a fresh normal interval after the dispatcher creates a fast first order."""
+        self._feed_reset.set()
 
     async def start_order_feed(
         self,
@@ -364,6 +389,7 @@ class MockAdapter(LogisticsAdapter):
             self._feed.cancel()
             await asyncio.gather(self._feed, return_exceptions=True)
             self._feed = None
+        self._feed_reset.clear()
 
     # ------------------------------------------------------------------ write-backs
 

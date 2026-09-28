@@ -5,10 +5,15 @@ and historical trail queries.
 """
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, status, Depends, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, Depends, Query, BackgroundTasks, Request
 from pydantic import BaseModel, Field
 from app.dependencies import get_current_driver, get_current_operator
-from app.api.ownership import require_owned_shift
+from app.config import settings
+from app.dispatch.ping_diagnostics import (
+    record_ping_accepted,
+    record_ping_rejected,
+    record_ping_storage_error,
+)
 from app.services.location_service import location_service
 from app.services.vehicle_modes import get_driver_vehicle_mode
 from app.db.queries import (
@@ -16,6 +21,8 @@ from app.db.queries import (
     update_driver_location,
     get_driver_by_id,
     get_recent_location_pings,
+    get_active_shift_for_driver,
+    get_shift_by_id,
     is_valid_uuid,
 )
 
@@ -34,6 +41,7 @@ class LocationPingRequest(BaseModel):
 
 @router.post("/locations/ping")
 async def receive_location_ping(
+    request: Request,
     ping: LocationPingRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_driver),
@@ -44,20 +52,65 @@ async def receive_location_ping(
     """
     driver_id = current_user.get("id")
     shift_id = ping.shift_id or current_user.get("current_shift_id", "")
-    if shift_id:
-        await require_owned_shift(shift_id, driver_id, allow_mock_id=True)
+    shift_active = False
+
+    def reject(reason: str, status_code: int, detail: str) -> None:
+        record_ping_rejected(reason)
+        request.state.ping_diagnostic_recorded = True
+        raise HTTPException(status_code=status_code, detail=detail)
+
+    if not shift_id:
+        active_shift = await get_active_shift_for_driver(driver_id)
+        if not active_shift:
+            reject("missing_shift", status.HTTP_404_NOT_FOUND, "Active shift not found")
+        shift_id = str(active_shift["id"])
+        shift_active = True
+    elif not is_valid_uuid(shift_id) and settings.mock_delivery_ids_enabled:
+        shift_active = True
+    else:
+        shift = await get_shift_by_id(shift_id)
+        if not shift:
+            reject("shift_not_found", status.HTTP_404_NOT_FOUND, "Shift not found")
+        if str(shift.get("driver_id")) != str(driver_id):
+            reject("not_owner", status.HTTP_404_NOT_FOUND, "Shift not found")
+        if shift.get("status") != "active":
+            reject("shift_not_active", status.HTTP_409_CONFLICT, "Shift is not active")
+        shift_active = True
 
     try:
         # 1. Store location ping
-        await save_location_ping(
-            driver_id=driver_id,
-            shift_id=shift_id,
-            lat=ping.latitude,
-            lng=ping.longitude,
-            speed=ping.speed,
-            heading=ping.heading,
-            accuracy=ping.accuracy,
-        )
+        try:
+            stored_ping = await save_location_ping(
+                driver_id=driver_id,
+                shift_id=shift_id,
+                lat=ping.latitude,
+                lng=ping.longitude,
+                speed=ping.speed,
+                heading=ping.heading,
+                accuracy=ping.accuracy,
+            )
+        except Exception as insert_error:
+            logger.warning(
+                "[Locations] Location ping insert failed error_type=%s",
+                type(insert_error).__name__,
+            )
+            record_ping_storage_error(type(insert_error).__name__)
+            request.state.ping_diagnostic_recorded = True
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Could not store location ping",
+            ) from insert_error
+        if not stored_ping:
+            logger.warning("[Locations] Location ping insert failed error_type=empty_result")
+            record_ping_storage_error("empty_result")
+            request.state.ping_diagnostic_recorded = True
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Could not store location ping",
+            )
+
+        record_ping_accepted(shift_active=shift_active)
+        request.state.ping_diagnostic_recorded = True
 
         # Orders waiting on this driver's position can be offered now (best effort)
         try:
@@ -176,6 +229,8 @@ async def receive_location_ping(
             "longitude": ping.longitude,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[Locations] Failed to process ping: {e}")
         raise HTTPException(

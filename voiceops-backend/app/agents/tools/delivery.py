@@ -304,7 +304,9 @@ async def get_next_order(parameters: dict, context: dict) -> dict:
         dispatcher = get_order_dispatcher()
         latitude, longitude = context.get("latitude"), context.get("longitude")
         if latitude is None or longitude is None:  # the driver's own latest ping, never another's
-            latitude, longitude = (await dispatcher.driver_position(context.get("driver_id"))) or (None, None)
+            latitude, longitude = (
+                await dispatcher.driver_position(context.get("driver_id"), context.get("shift_id"))
+            ) or (None, None)
         found = dispatcher.next_order_for(context.get("driver_id"), latitude, longitude)
         if not found:
             return {"success": True, "has_next": False, "message": "No new orders are waiting right now."}
