@@ -60,7 +60,8 @@ async def dispatch_diagnostics():
     """
     Why the mock order feed did or didn't offer anything recently: counts and fixed reason
     tokens only (`no_driver_online`, `no_located_driver`, `stale_ping`, `open_order_cap`) —
-    never a coordinate, id, or other personal data. See
+    plus first-order timing and value-free location-ping acceptance/rejection counters, never a
+    coordinate, id, or other personal data. See
     `app/dispatch/order_dispatch.py`'s `OrderDispatcher.diagnostics()`.
     """
     from app.dispatch.order_dispatch import get_order_dispatcher

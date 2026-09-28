@@ -26,6 +26,7 @@ from app.api.websocket import events, voice
 from app.config import settings
 from app.dispatch import order_dispatch
 from app.dispatch.order_dispatch import OrderDispatcher
+from app.db import queries
 from app.integrations.logistics import DEMO_AREA_CENTER, IncomingOrder, MockAdapter, address_area
 from app.main import app
 from app.models.schemas import OrderCreatedEvent
@@ -97,6 +98,14 @@ class FakeQuery:
         self.filters.append(lambda r: r.get(column) in values)
         return self
 
+    def lt(self, column, value):
+        self.filters.append(lambda r: r.get(column) is not None and r.get(column) < value)
+        return self
+
+    def gte(self, column, value):
+        self.filters.append(lambda r: r.get(column) is not None and r.get(column) >= value)
+        return self
+
     def order(self, column, desc=False, nullsfirst=None):
         self.ordering = (column, desc)
         return self
@@ -150,12 +159,14 @@ class FakeStore:
         self.rows("drivers").append({"id": driver["driver_id"], "name": driver["name"]})
         self.rows("shifts").append({"id": driver["shift_id"], "driver_id": driver["driver_id"],
                                     "status": "active" if active else "completed",
-                                    "started_at": "2026-09-01T08:00:00+00:00"})
+                                    "started_at": ago(60)})
         if old_ping_at:
-            self.rows("location_pings").append({"shift_id": driver["shift_id"], "latitude": old_ping_at[0],
+            self.rows("location_pings").append({"driver_id": driver["driver_id"],
+                                                "shift_id": driver["shift_id"], "latitude": old_ping_at[0],
                                                 "longitude": old_ping_at[1], "pinged_at": ago(ping_age_s + 3600)})
         if ping:
-            self.rows("location_pings").append({"shift_id": driver["shift_id"], "latitude": driver["at"][0],
+            self.rows("location_pings").append({"driver_id": driver["driver_id"],
+                                                "shift_id": driver["shift_id"], "latitude": driver["at"][0],
                                                 "longitude": driver["at"][1], "pinged_at": ago(ping_age_s)})
 
     def delivery(self, order_id):
@@ -272,6 +283,31 @@ def test_feed_waits_before_the_first_order_and_between_every_order():
     assert all(180 <= s <= 420 for kind, s in log if kind == "sleep")
 
 
+def test_fast_first_order_resets_the_normal_feed_to_a_full_interval():
+    sleeps = []
+
+    async def sleep(seconds):
+        gate = asyncio.Event()
+        sleeps.append((seconds, gate))
+        await gate.wait()
+
+    async def on_order(order):
+        raise AssertionError("the reset should happen before the normal interval finishes")
+
+    adapter = MockAdapter(180, 420, rng=random.Random(5), sleep=sleep)
+
+    async def scenario():
+        feed = asyncio.create_task(adapter.run_feed(on_order, lambda: True))
+        await wait_until(lambda: len(sleeps) == 1)
+        adapter.reset_order_feed_interval()
+        await wait_until(lambda: len(sleeps) == 2)
+        feed.cancel()
+        await asyncio.gather(feed, return_exceptions=True)
+
+    run(scenario())
+    assert all(180 <= seconds <= 420 for seconds, _ in sleeps)
+
+
 def test_feed_makes_no_order_while_nobody_could_take_one():
     orders, sleeps = [], []
 
@@ -312,6 +348,187 @@ def test_feed_pauses_for_lapsed_offers_but_not_for_declines(store, adapter):
     assert run(scenario()) == (True, False)
 
 
+def test_first_fresh_ping_creates_the_first_order_after_the_fast_delay(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        before_delay = (list(store.rows("deliveries")), list(hub.offers))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.stop()
+        return before_delay
+
+    assert run(scenario()) == ([], [])
+    assert clock.calls[0][0] == 10
+    assert len(store.rows("deliveries")) == 1
+    assert _within_km(store.rows("deliveries")[0], LONDON["at"], 3.0)
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"]]
+
+
+def test_fast_first_order_fires_only_once_per_shift(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.accept(LONDON["driver_id"], LONDON["shift_id"])
+        dispatcher.location_ping(LONDON["driver_id"])
+        await asyncio.sleep(0.01)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 1
+    assert len(store.rows("deliveries")) == 1
+
+
+def test_new_shift_gets_a_new_fast_first_order(store, no_geocoding):
+    second_shift = {**LONDON, "shift_id": "51000000-0000-4000-8000-000000000099"}
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def trigger(driver):
+        store.rows("location_pings").append({
+            "shift_id": driver["shift_id"], "latitude": driver["at"][0],
+            "longitude": driver["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(driver["driver_id"])
+        await wait_until(lambda: len(clock.calls) == len(hub.offers) + 1)
+        clock.calls[-1][1].set()
+        await wait_until(lambda: len(hub.offers) == len(clock.calls))
+
+    async def scenario():
+        await trigger(LONDON)
+        await dispatcher.accept(LONDON["driver_id"], LONDON["shift_id"])
+        store.rows("shifts").append({
+            "id": second_shift["shift_id"], "driver_id": second_shift["driver_id"],
+            "status": "active", "started_at": "2026-09-01T09:00:00+00:00",
+        })
+        hub.live = {second_shift["shift_id"]: second_shift["driver_id"]}
+        await trigger(second_shift)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 2
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"], second_shift["shift_id"]]
+    assert len(store.rows("deliveries")) == 2
+
+
+def test_stale_and_other_driver_pings_do_not_trigger_fast_orders(store, no_geocoding):
+    store.add_driver(LONDON, ping_age_s=30 * 60)
+    store.add_driver(REAL)
+    clock = ManualSleep()
+    dispatcher = first_order_dispatcher(online(LONDON), clock)
+
+    async def scenario():
+        dispatcher.location_ping(REAL["driver_id"])  # fresh, but not online
+        dispatcher.location_ping(LONDON["driver_id"])  # online, but its stored ping is stale
+        await asyncio.sleep(0.05)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert clock.calls == []
+    assert store.rows("deliveries") == []
+
+
+def test_repeated_pings_for_several_drivers_create_only_one_first_order_each(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    store.add_driver(REAL, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON, REAL)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        for driver in (LONDON, REAL):
+            store.rows("location_pings").append({
+                "shift_id": driver["shift_id"], "latitude": driver["at"][0],
+                "longitude": driver["at"][1], "pinged_at": ago(0),
+            })
+            for _ in range(3):
+                dispatcher.location_ping(driver["driver_id"])
+        await wait_until(lambda: len(clock.calls) == 2)
+        for _, gate in clock.calls:
+            gate.set()
+        await wait_until(lambda: len(hub.offers) == 2)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 2
+    assert len(store.rows("deliveries")) == 2
+    assert {shift_id for shift_id, _ in hub.offers} == {LONDON["shift_id"], REAL["shift_id"]}
+
+
+def test_online_event_uses_a_fresh_ping_that_arrived_just_before_connect(store, no_geocoding):
+    store.add_driver(LONDON)
+    clock = ManualSleep()
+    hub = FakeHub()
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        dispatcher.location_ping(LONDON["driver_id"])
+        await asyncio.sleep(0.01)
+        assert clock.calls == []
+        hub.live[LONDON["shift_id"]] = LONDON["driver_id"]
+        await dispatcher.driver_available(LONDON["driver_id"], LONDON["shift_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(store.rows("deliveries")) == 1
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"]]
+
+
+def test_fast_first_order_respects_the_open_order_cap(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    dispatcher = first_order_dispatcher(online(LONDON), clock, max_open_orders=1)
+    already_open = order_dispatch.OpenOrder(
+        "already-open", make_order("MLX-ALREADY-OPEN", at=LONDON["at"]), "offered"
+    )
+    already_open.offered_to = order_dispatch.Candidate(
+        LONDON["driver_id"], LONDON["shift_id"], LONDON["name"], 0.0, LONDON["at"]
+    )
+    dispatcher._orders["already-open"] = already_open
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await asyncio.sleep(0.05)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 1
+    assert store.rows("deliveries") == []
+    assert dispatcher.diagnostics()["hold_counts"]["open_order_cap"] >= 1
+
+
 @pytest.fixture
 def no_geocoding(monkeypatch):
     """Orders away from Austin reverse-geocode over the network; keep the tests offline."""
@@ -324,6 +541,41 @@ def fast_feed_dispatcher(hub):
     adapter = MockAdapter(0.01, 0.02, rng=random.Random(3))
     adapter.location_retry_seconds = 0.01  # how often a held order re-checks
     return OrderDispatcher(adapter, hub=hub, feed_enabled=True, offer_window=30, max_open_orders=5)
+
+
+class ManualSleep:
+    """A sleep the test advances explicitly, without waiting for wall-clock time."""
+
+    def __init__(self):
+        self.calls = []
+
+    async def __call__(self, seconds):
+        gate = asyncio.Event()
+        self.calls.append((seconds, gate))
+        await gate.wait()
+
+    def release_next(self):
+        self.calls[0][1].set()
+
+
+async def wait_until(predicate):
+    deadline = time.monotonic() + 2
+    while not predicate() and time.monotonic() < deadline:
+        await asyncio.sleep(0.001)
+    assert predicate()
+
+
+def first_order_dispatcher(hub, sleep, *, max_open_orders=5):
+    adapter = MockAdapter(180, 420, rng=random.Random(3))
+    return OrderDispatcher(
+        adapter,
+        hub=hub,
+        feed_enabled=True,
+        offer_window=30,
+        max_open_orders=max_open_orders,
+        first_order_delay=10,
+        first_order_sleep=sleep,
+    )
 
 
 def _within_km(row, at, km):
@@ -444,7 +696,12 @@ def test_health_dispatch_exposes_diagnostics_with_no_personal_data():
     body = response.json()
     assert set(body) == {
         "feed_enabled", "online_drivers", "open_orders", "hold_counts",
-        "last_hold_reason", "last_hold_at", "last_located_at",
+        "last_hold_reason", "last_hold_at", "last_located_at", "last_first_order_at",
+        "position_query_failures", "last_position_query_error",
+        "ping_received", "ping_accepted", "ping_rejected", "ping_rejections",
+        "ping_storage_error_types",
+        "last_ping_received_at", "last_ping_accepted_at", "last_ping_rejected_at",
+        "last_ping_rejection_reason", "last_accepted_ping_shift_active",
     }
     assert isinstance(body["hold_counts"], dict)
     for reason in body["hold_counts"]:
@@ -636,11 +893,104 @@ def test_database_outage_does_not_make_unlocated_sockets_candidates(store, adapt
     store.add_driver(REAL)
     dispatcher = dispatcher_with(adapter, online(REAL))
 
-    async def down():
+    async def down(live):
         raise RuntimeError("supabase down")
 
     monkeypatch.setattr(order_dispatch, "get_active_driver_positions", down)
     assert run(dispatcher._candidates(make_order(), exclude=set())) == []
+    diagnostics = dispatcher.diagnostics()
+    assert diagnostics["position_query_failures"] == 1
+    assert diagnostics["last_position_query_error"] == "RuntimeError"
+
+
+def test_position_query_timeout_is_counted_and_value_free(store, adapter, monkeypatch, caplog):
+    store.add_driver(REAL)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+
+    async def timeout(live):
+        raise asyncio.TimeoutError("sensitive database details")
+
+    monkeypatch.setattr(order_dispatch, "get_active_driver_positions", timeout)
+
+    assert run(dispatcher.get_target_location()) is None
+    diagnostics = dispatcher.diagnostics()
+    assert diagnostics["position_query_failures"] == 1
+    assert diagnostics["last_position_query_error"] == "TimeoutError"
+    assert "error_type=TimeoutError" in caplog.text
+    assert "sensitive database details" not in caplog.text
+
+
+def test_position_lookup_scopes_many_active_shifts_to_the_live_socket(store):
+    """Production had 97 stale active shifts; they must not expand the dispatch query."""
+    store.add_driver(REAL)
+    for index in range(100):
+        driver_id = f"d2000000-0000-4000-8000-{index:012d}"
+        shift_id = f"52000000-0000-4000-8000-{index:012d}"
+        store.rows("drivers").append({"id": driver_id, "name": f"Old {index}"})
+        store.rows("shifts").append({
+            "id": shift_id, "driver_id": driver_id, "status": "active",
+            "started_at": "2026-09-01T08:00:00+00:00",
+        })
+
+    positions = run(queries.get_active_driver_positions({REAL["shift_id"]: REAL["driver_id"]}))
+
+    assert len(positions) == 1
+    assert positions[0]["shift_id"] == REAL["shift_id"]
+    assert positions[0]["latitude"] == REAL["at"][0]
+
+
+def test_socket_shift_without_ping_falls_back_to_same_drivers_fresh_previous_shift(store, adapter):
+    previous_shift_id = "51000000-0000-4000-8000-000000000099"
+    store.add_driver(REAL, ping=False)
+    store.rows("shifts").append({
+        "id": previous_shift_id, "driver_id": REAL["driver_id"], "status": "completed",
+        "started_at": ago(3600),
+    })
+    store.rows("location_pings").append({
+        "driver_id": REAL["driver_id"], "shift_id": previous_shift_id,
+        "latitude": REAL["at"][0], "longitude": REAL["at"][1], "pinged_at": ago(10),
+    })
+    dispatcher = dispatcher_with(adapter, online(REAL))
+
+    candidates = run(dispatcher._candidates(make_order(), exclude=set()))
+
+    assert [candidate.driver_id for candidate in candidates] == [REAL["driver_id"]]
+    assert candidates[0].shift_id == REAL["shift_id"]
+    assert candidates[0].origin == REAL["at"]
+
+
+def test_shift_mismatch_fallback_never_borrows_another_drivers_ping(store, adapter):
+    store.add_driver(REAL, ping=False)
+    store.add_driver(MARIA)
+    dispatcher = dispatcher_with(adapter, online(REAL))
+
+    assert run(dispatcher._candidates(make_order(), exclude=set())) == []
+
+
+def test_stale_shift_sweep_keeps_recently_located_shift_and_completes_abandoned_one(store):
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
+    abandoned = "53000000-0000-4000-8000-000000000001"
+    recently_located = "53000000-0000-4000-8000-000000000002"
+    for shift_id in (abandoned, recently_located):
+        store.rows("shifts").append({
+            "id": shift_id,
+            "driver_id": REAL["driver_id"],
+            "status": "active",
+            "started_at": ago(24 * 3600),
+        })
+    store.rows("location_pings").append({
+        "driver_id": REAL["driver_id"],
+        "shift_id": recently_located,
+        "latitude": REAL["at"][0],
+        "longitude": REAL["at"][1],
+        "pinged_at": ago(60),
+    })
+
+    assert run(queries.close_inactive_shifts(cutoff)) == 1
+    by_id = {row["id"]: row for row in store.rows("shifts")}
+    assert by_id[abandoned]["status"] == "completed"
+    assert by_id[abandoned]["ended_at"]
+    assert by_id[recently_located]["status"] == "active"
 
 
 def test_demo_area_override_stands_in_for_a_missing_ping(store, adapter, monkeypatch):

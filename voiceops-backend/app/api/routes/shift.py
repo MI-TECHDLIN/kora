@@ -12,7 +12,7 @@ from app.db.queries import (
     get_shift_voice_sessions,
     get_intelligence_report_by_shift,
     get_shift_by_id,
-    get_active_shift_for_driver,
+    get_active_shifts_for_driver,
     get_supabase,
 )
 from app.integrations.n8n_client import trigger_post_shift_report_background
@@ -121,20 +121,16 @@ async def start_shift(
     try:
         driver_id = current_user["id"]
 
-        dangling = await get_active_shift_for_driver(driver_id)
-        if dangling and dangling.get("id"):
-            try:
-                await end_shift_core(
-                    dangling["id"],
-                    driver_id,
-                    current_user.get("full_name") or current_user.get("email", "Driver"),
-                )
-                background_tasks.add_task(run_shift_intelligence_and_stream, dangling["id"], driver_id)
-            except Exception:
-                # Don't let cleanup of a stale shift block starting the new one.
-                logger.warning(
-                    f"[start_shift] failed to auto-close dangling shift {dangling['id']}", exc_info=True
-                )
+        dangling_shifts = await get_active_shifts_for_driver(driver_id)
+        for dangling in dangling_shifts:
+            if not dangling.get("id"):
+                continue
+            await end_shift_core(
+                dangling["id"],
+                driver_id,
+                current_user.get("full_name") or current_user.get("email", "Driver"),
+            )
+            background_tasks.add_task(run_shift_intelligence_and_stream, dangling["id"], driver_id)
 
         shift = await create_shift(driver_id)
         return ShiftStartResponse(

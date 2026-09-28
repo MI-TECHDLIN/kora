@@ -68,8 +68,12 @@ class Settings(BaseSettings):
     order_feed_max_interval_seconds: float = 420.0
     order_feed_max_open_orders: int = 5              # the feed pauses at this many undeclined open orders
     order_offer_window_seconds: float = 75.0         # how long one driver has to accept
+    order_feed_first_order_delay_seconds: float = 10.0  # first offer after a shift's first fresh GPS ping
     order_feed_location_retry_seconds: float = 10.0  # how often a held order re-checks for a driver's position
     order_dispatch_ping_max_age_minutes: Optional[float] = 5.0  # a GPS ping older than this is not a position (None: any age)
+    stale_shift_max_age_hours: float = 12.0     # complete abandoned active shifts after no location activity
+    stale_shift_sweep_interval_seconds: float = 3600.0
+    stale_shift_sweep_timeout_seconds: float = 30.0
     logistics_webhook_secret: Optional[str] = None   # HMAC key for POST /v1/logistics/orders
     demo_area_lat: Optional[float] = None            # Custom demo area center lat (overrides default Austin)
     demo_area_lng: Optional[float] = None            # Custom demo area center lng (overrides default Austin)
