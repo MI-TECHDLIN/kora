@@ -933,9 +933,11 @@ LogisticsAdapter (abstract)            app/integrations/logistics/base.py
 
 `MockAdapter` is the demo safety net. Any change to the base class updates `MockAdapter` in the
 same commit. **Code today:** the adapter covers new orders: an order feed in, and write-backs
-out (`order_assigned`, `order_unassigned`). `MockAdapter` generates an order every random 3-7
-minutes (`ORDER_FEED_*` settings) in downtown Austin, the demo area, as an Order Intake API
-payload (`interface.md` §2). `get_next_order`, `accept_order`, and `decline_order` read and
+out (`order_assigned`, `order_unassigned`). After an online shift's first fresh GPS ping,
+`MockAdapter` generates its first order after `ORDER_FEED_FIRST_ORDER_DELAY_SECONDS` (10 seconds
+by default), near that driver's own position. It then returns to a fresh random 3-7 minute interval
+(`ORDER_FEED_*` settings). Orders are Order Intake API payloads (`interface.md` §2).
+`get_next_order`, `accept_order`, and `decline_order` read and
 change that queue through the order dispatcher. `get_next_delivery` and
 `update_delivery_status` still return inline mock data.
 

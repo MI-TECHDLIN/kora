@@ -33,7 +33,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Protocol, Set, Tuple
 
 from app.config import settings
 from app.db.queries import (
@@ -44,7 +44,8 @@ from app.db.queries import (
     insert_incoming_order,
     set_open_order_status,
 )
-from app.integrations.logistics import IncomingOrder, LogisticsAdapter, get_logistics_adapter
+from app.integrations.logistics import IncomingOrder, LogisticsAdapter, MockAdapter, get_logistics_adapter
+from app.dispatch.ping_diagnostics import ping_diagnostics
 from app.services.order_queue_service import notify_queue_changed
 from app.utils.geo import haversine_km
 
@@ -149,6 +150,8 @@ class OrderDispatcher:
         ping_max_age_minutes: Optional[float] = None,
         feed_enabled: Optional[bool] = None,
         fallback_origin: Optional[Tuple[float, float]] = None,
+        first_order_delay: Optional[float] = None,
+        first_order_sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self.adapter = adapter
         self.hub: SessionHub = hub or _VoiceHub()
@@ -157,12 +160,21 @@ class OrderDispatcher:
         self.ping_max_age_minutes = (settings.order_dispatch_ping_max_age_minutes
                                      if ping_max_age_minutes is None else ping_max_age_minutes)
         self.feed_enabled = settings.order_feed_enabled if feed_enabled is None else feed_enabled
+        self.first_order_delay = (settings.order_feed_first_order_delay_seconds
+                                  if first_order_delay is None else first_order_delay)
+        self._first_order_sleep = first_order_sleep
         if fallback_origin is None and settings.demo_area_lat is not None and settings.demo_area_lng is not None:
             fallback_origin = (float(settings.demo_area_lat), float(settings.demo_area_lng))
         # Where a driver with no fresh ping stands. Only the explicit demo override sets it;
         # otherwise such a driver is not offered anything until their position is known.
         self.fallback_origin: Optional[Tuple[float, float]] = fallback_origin
         self._last_ping: Dict[str, float] = {}  # driver_id → monotonic time of the last ping seen
+        # The demo feed's accelerated first order is per shift. Pending de-duplicates frequent
+        # app pings; attempted makes the fast path one-shot; offered prevents a normal/waiting
+        # order from being followed by an unnecessary fast-path order.
+        self._first_order_pending: Set[Tuple[str, str]] = set()
+        self._first_order_attempted: Set[Tuple[str, str]] = set()
+        self._shifts_offered: Set[Tuple[str, str]] = set()
         self._orders: Dict[str, OpenOrder] = {}
         self._lock = asyncio.Lock()
         self._background: Set[asyncio.Task] = set()
@@ -170,6 +182,7 @@ class OrderDispatcher:
         self._last_hold_reason: Optional[str] = None
         self._last_hold_at: Optional[float] = None
         self._last_located_at: Optional[float] = None
+        self._last_first_order_at: Optional[float] = None
         self._hold_logged_at: Dict[str, float] = {}
 
     def _record_hold(self, reason: str) -> None:
@@ -197,6 +210,8 @@ class OrderDispatcher:
             "last_hold_reason": self._last_hold_reason,
             "last_hold_at": self._last_hold_at,
             "last_located_at": self._last_located_at,
+            "last_first_order_at": self._last_first_order_at,
+            **ping_diagnostics(),
         }
 
     async def get_target_location(self) -> Optional[Tuple[float, float]]:
@@ -286,12 +301,18 @@ class OrderDispatcher:
 
     # ------------------------------------------------------------------ inbound orders
 
-    async def ingest(self, order: IncomingOrder) -> Dict[str, Any]:
+    async def ingest(
+        self,
+        order: IncomingOrder,
+        target: Optional[Tuple[str, str]] = None,
+    ) -> Dict[str, Any]:
         """
         Store a new order and offer it. Idempotent on (source, external_id): a platform retrying
         its webhook gets the first result back. Raises DispatchUnavailable if it can't be stored.
         """
         async with self._lock:
+            if target is not None and not self.should_generate():
+                return {"status": "skipped", "reason": self._last_hold_reason}
             for known in self._orders.values():
                 if (known.order.source, known.order.external_id) == (order.source, order.external_id):
                     return {"order_id": known.delivery_id, "status": known.status, "duplicate": True}
@@ -300,6 +321,14 @@ class OrderDispatcher:
                 if existing:
                     return {"order_id": existing["id"], "status": existing.get("status"), "duplicate": True}
                 candidates = await self._candidates(order, exclude=set())
+                if target is not None:
+                    target_driver, target_shift = target
+                    candidates = [
+                        candidate for candidate in candidates
+                        if (candidate.driver_id, candidate.shift_id) == (target_driver, target_shift)
+                    ]
+                    if not candidates:
+                        return {"status": "skipped", "reason": "target_unavailable"}
                 row = await _db(insert_incoming_order, {
                     "source": order.source,
                     "external_id": order.external_id,
@@ -428,6 +457,7 @@ class OrderDispatcher:
             await _try_db(set_open_order_status, open_order.delivery_id, status)
 
     async def _make_offer(self, open_order: OpenOrder, candidate: Candidate) -> None:
+        self._shifts_offered.add((str(candidate.driver_id), str(candidate.shift_id)))
         open_order.offered_to = candidate
         open_order.expires_at = time.time() + self.offer_window
         await self._set_status(open_order, OFFERED)
@@ -616,6 +646,7 @@ class OrderDispatcher:
 
     async def driver_available(self, driver_id: str, shift_id: str) -> None:
         """A driver opened a voice socket: show them any offer they hold, then retry the queue."""
+        self._queue_first_order(driver_id, shift_id)
         async with self._lock:
             for open_order in self._orders.values():
                 holder = open_order.offered_to
@@ -637,14 +668,69 @@ class OrderDispatcher:
         if went_stale and any(o.offered_to is None for o in self._orders.values()):
             self._spawn(self.redispatch())
 
-    async def driver_position(self, driver_id: str) -> Optional[Tuple[float, float]]:
-        """This driver's own fresh position, else the demo override, else None. Never anyone else's."""
+        # The normal feed keeps its 3–7 minute cadence. Separately, the first fresh ping of each
+        # online shift gets one accelerated mock order after a short delay. The async worker
+        # validates this driver's exact active-shift position both before and after the delay.
+        for shift_id, online_driver_id in self.hub.live_shifts().items():
+            if str(online_driver_id) == str(driver_id):
+                self._queue_first_order(driver_id, shift_id)
+
+    def _queue_first_order(self, driver_id: str, shift_id: str) -> None:
+        """De-duplicate and start the fast path when a shift becomes online-and-located."""
+        key = (str(driver_id), str(shift_id))
+        live_driver = self.hub.live_shifts().get(shift_id)
+        if (not self.feed_enabled or not isinstance(self.adapter, MockAdapter)
+                or live_driver is None or str(live_driver) != str(driver_id)
+                or key in self._first_order_pending
+                or key in self._first_order_attempted
+                or key in self._shifts_offered):
+            return
+        self._first_order_pending.add(key)
+        self._spawn(self._generate_first_order(*key))
+
+    async def _generate_first_order(self, driver_id: str, shift_id: str) -> None:
+        """Generate this shift's one accelerated mock order near this driver's own fresh ping."""
+        key = (driver_id, shift_id)
+        try:
+            if await self.driver_position(driver_id, shift_id) is None:
+                return
+            self._first_order_attempted.add(key)
+            await self._first_order_sleep(self.first_order_delay)
+            if key in self._shifts_offered or not self.should_generate():
+                return
+            center = await self.driver_position(driver_id, shift_id)
+            if center is None:
+                return
+            order = await self.adapter.next_order_async(center=center)
+            result = await self.ingest(order, target=key)
+            if result.get("status") != "skipped":
+                self._last_first_order_at = time.time()
+                self.adapter.reset_order_feed_interval()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("[Dispatch] First-order fast path failed")
+        finally:
+            self._first_order_pending.discard(key)
+
+    async def driver_position(
+        self,
+        driver_id: str,
+        shift_id: Optional[str] = None,
+    ) -> Optional[Tuple[float, float]]:
+        """This driver's own fresh position, optionally on one exact shift. Never anyone else's."""
+        if shift_id is not None:
+            live_driver = self.hub.live_shifts().get(shift_id)
+            if live_driver is None or str(live_driver) != str(driver_id):
+                return None
         positions = await _try_db(get_active_driver_positions) or []
         for p in positions:
-            if (str(p["driver_id"]) == str(driver_id) and p.get("latitude") is not None
+            if (str(p["driver_id"]) == str(driver_id)
+                    and (shift_id is None or str(p.get("shift_id")) == str(shift_id))
+                    and p.get("latitude") is not None
                     and p.get("longitude") is not None and self._fresh(p.get("pinged_at"))):
                 return float(p["latitude"]), float(p["longitude"])
-        return self.fallback_origin
+        return self.fallback_origin if shift_id is None else None
 
     def driver_left(self, driver_id: str) -> None:
         """A driver's last voice socket closed: their offer goes to the next online driver now."""

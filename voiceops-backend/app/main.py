@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
@@ -19,6 +19,10 @@ from app.api.routes import (
 )
 from app.api.websocket.voice import router as voice_router
 from app.dispatch.order_dispatch import get_order_dispatcher
+from app.dispatch.ping_diagnostics import (
+    record_ping_received,
+    record_ping_rejected,
+)
 from app.services.preference_service import initialize_preference_service
 # Self-ping service disabled - using external ping service instead
 # from app.services.self_ping_service import self_ping_service
@@ -57,6 +61,34 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+@app.middleware("http")
+async def location_ping_diagnostics(request: Request, call_next):
+    """Count ping requests even when auth or body validation rejects them before the route."""
+    if request.url.path != "/v1/locations/ping" or request.method != "POST":
+        return await call_next(request)
+
+    record_ping_received()
+    request.state.ping_diagnostic_recorded = False
+    try:
+        response = await call_next(request)
+    except Exception:
+        if not request.state.ping_diagnostic_recorded:
+            record_ping_rejected("processing_error")
+            request.state.ping_diagnostic_recorded = True
+        raise
+
+    if not request.state.ping_diagnostic_recorded:
+        reason = {
+            401: "no_auth",
+            503: "auth_unavailable",
+            422: "bad_payload",
+            404: "shift_not_found",
+        }.get(response.status_code, "processing_error")
+        record_ping_rejected(reason)
+        request.state.ping_diagnostic_recorded = True
+    return response
 
 # CORS middleware - dynamic based on environment
 cors_origins = (

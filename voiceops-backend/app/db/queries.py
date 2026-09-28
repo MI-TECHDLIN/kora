@@ -216,32 +216,6 @@ async def increment_delivery_attempts(delivery_id: str) -> Dict[str, Any]:
         return {}
 
 
-async def save_location_ping(
-    driver_id: str,
-    shift_id: str,
-    lat: float,
-    lng: float,
-    speed: float = 0.0,
-    heading: float = 0.0,
-    accuracy: float = 0.0,
-) -> Dict[str, Any]:
-    """Save a GPS location ping to location_pings table."""
-    try:
-        data = {
-            "driver_id": driver_id if is_valid_uuid(driver_id) else None,
-            "shift_id": shift_id if is_valid_uuid(shift_id) else None,
-            "latitude": lat,
-            "longitude": lng,
-            "pinged_at": "now()",
-        }
-        response = get_supabase().table("location_pings").insert(data).execute()
-        return response.data[0] if response.data else {}
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"[DB] save_location_ping failed: {e}")
-        return {}
-
-
 async def update_driver_location(
     driver_id: str,
     lat: float,
@@ -352,7 +326,7 @@ async def save_location_ping(
     heading: float = 0.0,
     accuracy: float = 0.0,
 ) -> Dict[str, Any]:
-    """Save GPS location ping with full telemetry fields."""
+    """Save a GPS ping using only schema-guaranteed columns; the DB stamps `pinged_at`."""
     response = (
         get_supabase().table("location_pings")
         .insert({
@@ -360,7 +334,6 @@ async def save_location_ping(
             "shift_id": shift_id,
             "latitude": lat,
             "longitude": lng,
-            "pinged_at": "now()"
         })
         .execute()
     )

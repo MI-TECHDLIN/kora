@@ -272,6 +272,31 @@ def test_feed_waits_before_the_first_order_and_between_every_order():
     assert all(180 <= s <= 420 for kind, s in log if kind == "sleep")
 
 
+def test_fast_first_order_resets_the_normal_feed_to_a_full_interval():
+    sleeps = []
+
+    async def sleep(seconds):
+        gate = asyncio.Event()
+        sleeps.append((seconds, gate))
+        await gate.wait()
+
+    async def on_order(order):
+        raise AssertionError("the reset should happen before the normal interval finishes")
+
+    adapter = MockAdapter(180, 420, rng=random.Random(5), sleep=sleep)
+
+    async def scenario():
+        feed = asyncio.create_task(adapter.run_feed(on_order, lambda: True))
+        await wait_until(lambda: len(sleeps) == 1)
+        adapter.reset_order_feed_interval()
+        await wait_until(lambda: len(sleeps) == 2)
+        feed.cancel()
+        await asyncio.gather(feed, return_exceptions=True)
+
+    run(scenario())
+    assert all(180 <= seconds <= 420 for seconds, _ in sleeps)
+
+
 def test_feed_makes_no_order_while_nobody_could_take_one():
     orders, sleeps = [], []
 
@@ -312,6 +337,187 @@ def test_feed_pauses_for_lapsed_offers_but_not_for_declines(store, adapter):
     assert run(scenario()) == (True, False)
 
 
+def test_first_fresh_ping_creates_the_first_order_after_the_fast_delay(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        before_delay = (list(store.rows("deliveries")), list(hub.offers))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.stop()
+        return before_delay
+
+    assert run(scenario()) == ([], [])
+    assert clock.calls[0][0] == 10
+    assert len(store.rows("deliveries")) == 1
+    assert _within_km(store.rows("deliveries")[0], LONDON["at"], 3.0)
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"]]
+
+
+def test_fast_first_order_fires_only_once_per_shift(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.accept(LONDON["driver_id"], LONDON["shift_id"])
+        dispatcher.location_ping(LONDON["driver_id"])
+        await asyncio.sleep(0.01)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 1
+    assert len(store.rows("deliveries")) == 1
+
+
+def test_new_shift_gets_a_new_fast_first_order(store, no_geocoding):
+    second_shift = {**LONDON, "shift_id": "51000000-0000-4000-8000-000000000099"}
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def trigger(driver):
+        store.rows("location_pings").append({
+            "shift_id": driver["shift_id"], "latitude": driver["at"][0],
+            "longitude": driver["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(driver["driver_id"])
+        await wait_until(lambda: len(clock.calls) == len(hub.offers) + 1)
+        clock.calls[-1][1].set()
+        await wait_until(lambda: len(hub.offers) == len(clock.calls))
+
+    async def scenario():
+        await trigger(LONDON)
+        await dispatcher.accept(LONDON["driver_id"], LONDON["shift_id"])
+        store.rows("shifts").append({
+            "id": second_shift["shift_id"], "driver_id": second_shift["driver_id"],
+            "status": "active", "started_at": "2026-09-01T09:00:00+00:00",
+        })
+        hub.live = {second_shift["shift_id"]: second_shift["driver_id"]}
+        await trigger(second_shift)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 2
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"], second_shift["shift_id"]]
+    assert len(store.rows("deliveries")) == 2
+
+
+def test_stale_and_other_driver_pings_do_not_trigger_fast_orders(store, no_geocoding):
+    store.add_driver(LONDON, ping_age_s=30 * 60)
+    store.add_driver(REAL)
+    clock = ManualSleep()
+    dispatcher = first_order_dispatcher(online(LONDON), clock)
+
+    async def scenario():
+        dispatcher.location_ping(REAL["driver_id"])  # fresh, but not online
+        dispatcher.location_ping(LONDON["driver_id"])  # online, but its stored ping is stale
+        await asyncio.sleep(0.05)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert clock.calls == []
+    assert store.rows("deliveries") == []
+
+
+def test_repeated_pings_for_several_drivers_create_only_one_first_order_each(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    store.add_driver(REAL, ping=False)
+    clock = ManualSleep()
+    hub = online(LONDON, REAL)
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        for driver in (LONDON, REAL):
+            store.rows("location_pings").append({
+                "shift_id": driver["shift_id"], "latitude": driver["at"][0],
+                "longitude": driver["at"][1], "pinged_at": ago(0),
+            })
+            for _ in range(3):
+                dispatcher.location_ping(driver["driver_id"])
+        await wait_until(lambda: len(clock.calls) == 2)
+        for _, gate in clock.calls:
+            gate.set()
+        await wait_until(lambda: len(hub.offers) == 2)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 2
+    assert len(store.rows("deliveries")) == 2
+    assert {shift_id for shift_id, _ in hub.offers} == {LONDON["shift_id"], REAL["shift_id"]}
+
+
+def test_online_event_uses_a_fresh_ping_that_arrived_just_before_connect(store, no_geocoding):
+    store.add_driver(LONDON)
+    clock = ManualSleep()
+    hub = FakeHub()
+    dispatcher = first_order_dispatcher(hub, clock)
+
+    async def scenario():
+        dispatcher.location_ping(LONDON["driver_id"])
+        await asyncio.sleep(0.01)
+        assert clock.calls == []
+        hub.live[LONDON["shift_id"]] = LONDON["driver_id"]
+        await dispatcher.driver_available(LONDON["driver_id"], LONDON["shift_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await wait_until(lambda: bool(hub.offers))
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(store.rows("deliveries")) == 1
+    assert [shift_id for shift_id, _ in hub.offers] == [LONDON["shift_id"]]
+
+
+def test_fast_first_order_respects_the_open_order_cap(store, no_geocoding):
+    store.add_driver(LONDON, ping=False)
+    clock = ManualSleep()
+    dispatcher = first_order_dispatcher(online(LONDON), clock, max_open_orders=1)
+    already_open = order_dispatch.OpenOrder(
+        "already-open", make_order("MLX-ALREADY-OPEN", at=LONDON["at"]), "offered"
+    )
+    already_open.offered_to = order_dispatch.Candidate(
+        LONDON["driver_id"], LONDON["shift_id"], LONDON["name"], 0.0, LONDON["at"]
+    )
+    dispatcher._orders["already-open"] = already_open
+
+    async def scenario():
+        store.rows("location_pings").append({
+            "shift_id": LONDON["shift_id"], "latitude": LONDON["at"][0],
+            "longitude": LONDON["at"][1], "pinged_at": ago(0),
+        })
+        dispatcher.location_ping(LONDON["driver_id"])
+        await wait_until(lambda: bool(clock.calls))
+        clock.release_next()
+        await asyncio.sleep(0.05)
+        await dispatcher.stop()
+
+    run(scenario())
+    assert len(clock.calls) == 1
+    assert store.rows("deliveries") == []
+    assert dispatcher.diagnostics()["hold_counts"]["open_order_cap"] >= 1
+
+
 @pytest.fixture
 def no_geocoding(monkeypatch):
     """Orders away from Austin reverse-geocode over the network; keep the tests offline."""
@@ -324,6 +530,41 @@ def fast_feed_dispatcher(hub):
     adapter = MockAdapter(0.01, 0.02, rng=random.Random(3))
     adapter.location_retry_seconds = 0.01  # how often a held order re-checks
     return OrderDispatcher(adapter, hub=hub, feed_enabled=True, offer_window=30, max_open_orders=5)
+
+
+class ManualSleep:
+    """A sleep the test advances explicitly, without waiting for wall-clock time."""
+
+    def __init__(self):
+        self.calls = []
+
+    async def __call__(self, seconds):
+        gate = asyncio.Event()
+        self.calls.append((seconds, gate))
+        await gate.wait()
+
+    def release_next(self):
+        self.calls[0][1].set()
+
+
+async def wait_until(predicate):
+    deadline = time.monotonic() + 2
+    while not predicate() and time.monotonic() < deadline:
+        await asyncio.sleep(0.001)
+    assert predicate()
+
+
+def first_order_dispatcher(hub, sleep, *, max_open_orders=5):
+    adapter = MockAdapter(180, 420, rng=random.Random(3))
+    return OrderDispatcher(
+        adapter,
+        hub=hub,
+        feed_enabled=True,
+        offer_window=30,
+        max_open_orders=max_open_orders,
+        first_order_delay=10,
+        first_order_sleep=sleep,
+    )
 
 
 def _within_km(row, at, km):
@@ -444,7 +685,11 @@ def test_health_dispatch_exposes_diagnostics_with_no_personal_data():
     body = response.json()
     assert set(body) == {
         "feed_enabled", "online_drivers", "open_orders", "hold_counts",
-        "last_hold_reason", "last_hold_at", "last_located_at",
+        "last_hold_reason", "last_hold_at", "last_located_at", "last_first_order_at",
+        "ping_received", "ping_accepted", "ping_rejected", "ping_rejections",
+        "ping_storage_error_types",
+        "last_ping_received_at", "last_ping_accepted_at", "last_ping_rejected_at",
+        "last_ping_rejection_reason", "last_accepted_ping_shift_active",
     }
     assert isinstance(body["hold_counts"], dict)
     for reason in body["hold_counts"]:
