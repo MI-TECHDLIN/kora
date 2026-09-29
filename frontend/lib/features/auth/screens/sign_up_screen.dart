@@ -18,7 +18,7 @@ import '../widgets/auth_text_field.dart';
 import '../widgets/terms_agreement.dart';
 
 /// Email sign-up: name, email, password and phone (drivers.phone is
-/// required), gated on agreeing to the terms. Google is the alternative.
+/// required), gated on agreeing to the terms.
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
@@ -181,12 +181,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
             expand: true,
             onPressed: busy ? null : _createAccount,
           ),
-        ),
-        const SizedBox(height: KoraSpacing.xl),
-        const OrDivider(),
-        const SizedBox(height: KoraSpacing.xl),
-        GoogleButton(
-          onPressed: busy ? null : () => attempt((a) => a.signInWithGoogle()),
         ),
         const SizedBox(height: KoraSpacing.md),
         AuthSwitchLink(
