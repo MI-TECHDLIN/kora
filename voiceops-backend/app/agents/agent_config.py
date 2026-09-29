@@ -19,15 +19,33 @@ _GREETING_QUESTIONS = (
     "Is there anything you are looking forward to after your shift?",
     "What would make this shift feel like a win for you?",
     "Have you heard a song today that put you in a good mood?",
+    "How is the road treating you so far?",
 )
 _GREETING_RANDOM = SystemRandom()
 
-_CALM_OPENINGS = (
-    "Good to see you on the road today.",
-    "Hope you're having a smooth start to your shift.",
-    "Ready to help you have a great delivery day.",
-    "Let's make this a good one together.",
-    "Looking forward to a safe and successful shift with you.",
+# Each entry is (with_name, no_name); "{name}" is filled in when a real name is known.
+_GREETING_SALUTATIONS = (
+    ("Hello, {name}", "Hello there"),
+    ("Hi, {name}", "Hi there"),
+    ("Hey, {name}", "Hey there"),
+    ("Good to have you, {name}", "Good to have you here"),
+    ("Welcome back, {name}", "Welcome back"),
+)
+
+_GREETING_WARM_LINES = (
+    "hope you're off to a smooth start",
+    "glad to have you on the road",
+    "ready for a calm, easy shift together",
+    "here's to a safe and steady day",
+)
+
+_GREETING_SELF_INTROS = (
+    "I'm Kora, your co-rider",
+    "I'm Kora, riding along with you",
+    "This is Kora, glad to be your co-rider today",
+    "Kora here, your co-rider for the shift",
+    "I'm Kora, here with you as your co-rider",
+    "It's Kora, your co-rider, checking in",
 )
 
 
@@ -102,7 +120,9 @@ Screen changes require voice confirmation unless the driver's current request ex
 
 The driver's microphone remains open during the conversation. When they say they are done, say a short goodbye and call end_conversation. Do not call it while waiting for an answer.
 
-Use a calm, warm, and friendly manner in every response. Be reassuring and respectful, including when a tool fails or the driver sounds rushed. Be concise and helpful."""
+Use a calm, warm, and friendly manner in every response. Be reassuring and respectful, including when a tool fails or the driver sounds rushed. Be concise and helpful.
+
+When the driver greets you or wakes you again later in the shift, vary your wording instead of repeating the same greeting each time, while staying calm, warm, and brief."""
 
     driver_facts = [f"The driver's name is {driver_name}."]
     if vehicle_type and vehicle_type != "vehicle":
@@ -115,19 +135,30 @@ Use a calm, warm, and friendly manner in every response. Be reassuring and respe
 def get_agent_greeting(
     driver_name: str = "Driver", question_index: Optional[int] = None
 ) -> str:
-    """Build a warm first greeting, with an injectable variation for tests."""
+    """Build a short, calm, varied first greeting.
+
+    question_index selects a deterministic combination of pieces for tests;
+    leaving it unset draws each piece independently at random so consecutive
+    shifts rarely hear the same greeting.
+    """
     if question_index is None:
+        salutation_pair = _GREETING_RANDOM.choice(_GREETING_SALUTATIONS)
+        warm_line = _GREETING_RANDOM.choice(_GREETING_WARM_LINES)
+        self_intro = _GREETING_RANDOM.choice(_GREETING_SELF_INTROS)
         question = _GREETING_RANDOM.choice(_GREETING_QUESTIONS)
-        opening = _GREETING_RANDOM.choice(_CALM_OPENINGS)
     else:
+        salutation_pair = _GREETING_SALUTATIONS[question_index % len(_GREETING_SALUTATIONS)]
+        warm_line = _GREETING_WARM_LINES[question_index % len(_GREETING_WARM_LINES)]
+        self_intro = _GREETING_SELF_INTROS[question_index % len(_GREETING_SELF_INTROS)]
         question = _GREETING_QUESTIONS[question_index % len(_GREETING_QUESTIONS)]
-        opening = _CALM_OPENINGS[question_index % len(_CALM_OPENINGS)]
+
     name = (driver_name or "").strip()
-    salutation = f"Hello, {name}" if name and name.lower() != "driver" else "Hello there"
-    return (f"{salutation}. {opening} I'm Kora, your co-rider. "
-            f"I'm here to help you manage deliveries, navigate routes, and handle customer communications. "
-            f"You can customize how I help by voice—just say things like 'always accept orders' or 'never call customers'. "
-            f"How has your day been so far? {question}")
+    if name and name.lower() != "driver":
+        salutation = salutation_pair[0].format(name=name)
+    else:
+        salutation = salutation_pair[1]
+
+    return f"{salutation} — {warm_line}. {self_intro}. {question}"
 
 
 def get_audio_config(voice: Optional[str] = None) -> Dict[str, Any]:
