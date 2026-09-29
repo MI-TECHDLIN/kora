@@ -31,21 +31,21 @@
 <br>
 
 <div align="center">
-  <strong><a href="#-executive-summary--the-problem">Problem</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#-the-dual-assemblyai-architecture">Dual AssemblyAI</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#%EF%B8%8F-system-architecture">System Architecture</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#-how-the-backend--agent-engine-works">Agent Engine</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#-the-20-autonomous-agent-tools">20 Agent Tools</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#-mobile-experience--frontend-architecture">Flutter App</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#-a-day-in-the-life-shift-lifecycle">Shift Walkthrough</a></strong> &nbsp;•&nbsp;
-  <strong><a href="#%EF%B8%8F-developer-quickstart">Developer Setup</a></strong>
+  <strong><a href="#executive-summary--the-problem">Problem</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#the-dual-assemblyai-architecture">Dual AssemblyAI</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#system-architecture">System Architecture</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#how-the-backend--agent-engine-works">Agent Engine</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#the-20-autonomous-agent-tools">20 Agent Tools</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#mobile-experience--frontend-architecture">Flutter App</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#a-day-in-the-life-shift-lifecycle">Shift Walkthrough</a></strong> &nbsp;•&nbsp;
+  <strong><a href="#developer-quickstart">Developer Setup</a></strong>
 </div>
 
 <br>
 
 ---
 
-## 💡 Executive Summary & The Problem
+## Executive Summary & The Problem
 
 Last-mile couriers and delivery drivers—navigating congested urban corridors on motorbikes, bicycles, cargo bikes, scooters, and vans—face a dangerous cognitive dilemma: **road safety vs. screen friction**.
 
@@ -66,7 +66,7 @@ Kora is a hands-free, autonomous voice co-rider built specifically for last-mile
 
 ---
 
-## ⚡ The Dual AssemblyAI Architecture
+## The Dual AssemblyAI Architecture
 
 Kora’s core technical moat is its **Dual AssemblyAI Integration**, deploying two complementary AssemblyAI product layers across the delivery lifecycle:
 
@@ -91,7 +91,7 @@ Kora’s core technical moat is its **Dual AssemblyAI Integration**, deploying t
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 Kora’s architecture balances ultra-low latency real-time voice response with resilient, decoupled background intelligence.
 
@@ -111,7 +111,7 @@ Kora’s architecture balances ultra-low latency real-time voice response with r
 
 ---
 
-## 🧠 How the Backend & Agent Engine Works
+## How the Backend & Agent Engine Works
 
 Kora's backend is powered by **Python 3.11+ FastAPI and asyncio**, engineered to process simultaneous voice frames, map queries, location pings, and telephony webhooks.
 
@@ -162,7 +162,7 @@ Kora doesn't just respond—it actively monitors operating conditions:
 
 ---
 
-## 🛠️ The 20 Autonomous Agent Tools
+## The 20 Autonomous Agent Tools
 
 Kora’s running registry (`voiceops-backend/app/agents/tool_registry.py`) exposes **exactly 20 deterministic tools** across 6 operational domains:
 
@@ -191,7 +191,7 @@ Kora’s running registry (`voiceops-backend/app/agents/tool_registry.py`) expos
 
 ---
 
-## 📱 Mobile Experience & Frontend Architecture
+## Mobile Experience & Frontend Architecture
 
 The frontend is a production-grade Flutter application (`frontend/lib/`) designed for high legibility, vibration resistance, and instant glanceability.
 
@@ -244,7 +244,7 @@ The frontend is a production-grade Flutter application (`frontend/lib/`) designe
 
 ---
 
-## 🔄 A Day in the Life: Shift Lifecycle
+## A Day in the Life: Shift Lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -282,7 +282,7 @@ sequenceDiagram
 
 ---
 
-## 📂 Repository Layout
+## Repository Layout
 
 ```text
 kora/
@@ -321,7 +321,7 @@ kora/
 
 ---
 
-## 🛠️ Developer Quickstart
+## Developer Quickstart
 
 ### Prerequisites
 * **Git**
@@ -407,7 +407,7 @@ Open `http://localhost:8080` in your browser to interact with the phone preview 
 
 ---
 
-## 🧪 Testing & Health Diagnostics
+## Testing & Health Diagnostics
 
 ### Diagnostics Endpoints
 * `GET /health`: Lightweight liveness check for hosting environments.
@@ -437,14 +437,16 @@ gitleaks git --pre-commit --staged --redact --config .gitleaks.toml
 
 ---
 
-## 👥 The Team
+## The Team
 
-* **Ez** — Flutter Frontend Lead, Mobile Architecture, Rive Animation & Voice Agent Integration.
-* **Maria** — FastAPI Backend Lead, AsyncIO Tool Orchestrator & Real-Time Agentic Workflows.
+* **Ezechukwu Miracle** — Mobile Application Developer
+* **John Pere** — Project Manager, UI/UX Designer.
+* **Maria** — Ai Engineer 
+
 
 ---
 
-## 🏆 Acknowledgements
+## Acknowledgements
 
 Kora was created for the **AssemblyAI Voice Agent Hackathon** hosted on [lablab.ai](https://lablab.ai/) (September 1–30, 2026).
 
