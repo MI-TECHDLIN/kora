@@ -13,7 +13,7 @@ import '../widgets/auth_entrance.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_text_field.dart';
 
-/// Email + password sign-in, with Google as the alternative.
+/// Email + password sign-in.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -105,12 +105,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
             expand: true,
             onPressed: busy ? null : _signIn,
           ),
-        ),
-        const SizedBox(height: KoraSpacing.xl),
-        const OrDivider(),
-        const SizedBox(height: KoraSpacing.xl),
-        GoogleButton(
-          onPressed: busy ? null : () => attempt((a) => a.signInWithGoogle()),
         ),
         const SizedBox(height: KoraSpacing.md),
         AuthSwitchLink(

@@ -38,9 +38,9 @@ class AuthFailure implements Exception {
   String toString() => 'AuthFailure: $message';
 }
 
-/// Email + password and Google auth, straight against Supabase Auth. The
-/// backend's phone-OTP routes (`/v1/auth/otp/*`) are a separate path and are
-/// not used here.
+/// Email + password auth, straight against Supabase Auth. The backend's
+/// phone-OTP routes (`/v1/auth/otp/*`) are a separate path and are not used
+/// here.
 abstract interface class AuthRepository {
   /// True while there is a session that has not expired.
   bool get hasValidSession;
@@ -56,10 +56,6 @@ abstract interface class AuthRepository {
   Future<SignUpResult> signUp(SignUpDetails details);
 
   Future<void> signIn({required String email, required String password});
-
-  /// Starts Google sign-in in the browser. The session arrives later, through
-  /// the [SupabaseConfig.authRedirectUrl] deep link, as a [changes] event.
-  Future<void> signInWithGoogle();
 
   /// Clears the Supabase session and emits [AuthChangeEvent.signedOut].
   Future<void> signOut();
@@ -113,17 +109,6 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _guard(() => _auth.signOut());
-
-  @override
-  Future<void> signInWithGoogle() async {
-    final launched = await _guard(
-      () =>
-          _auth.signInWithOAuth(OAuthProvider.google, redirectTo: _redirectUrl),
-    );
-    if (!launched) {
-      throw const AuthFailure("Couldn't open Google sign-in. Try again.");
-    }
-  }
 
   /// Runs an auth call and turns every failure into an [AuthFailure].
   Future<T> _guard<T>(Future<T> Function() call) async {
