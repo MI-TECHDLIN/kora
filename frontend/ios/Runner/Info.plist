@@ -47,10 +47,10 @@
 			</array>
 		</dict>
 	</dict>
-	<!-- Supabase Auth returns here after Google sign-in and email
-	     confirmation (SupabaseConfig.authRedirectUrl). supabase_flutter
-	     handles the link through app_links, so Flutter's own deep linking
-	     stays off: go_router would treat it as a route. -->
+	<!-- Supabase Auth returns here after email confirmation
+	     (SupabaseConfig.authRedirectUrl). supabase_flutter handles the
+	     link through app_links, so Flutter's own deep linking stays off:
+	     go_router would treat it as a route. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

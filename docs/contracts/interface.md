@@ -588,8 +588,9 @@ Additive, and one shape relaxation.
 | `drivers.phone` is now nullable (was `NOT NULL`) | `supabase_schema.sql` |
 
 **Why:** the app's only driver-row-creation path used to run client-side against Supabase
-directly, once, on sign-in, and threw for any Google sign-in because Google never provides a
-phone number that the old code hard-required (kora-full-audit report §2.1). Driver-row
+directly, once, on sign-in, and threw for any Google sign-in (since removed) because Google
+never provided a phone number that the old code hard-required (kora-full-audit report §2.1).
+Driver-row
 creation now runs backend-side with the service-role client, so it succeeds regardless of the
 anon-key RLS INSERT policy, and no longer depends on OAuth metadata carrying a phone.
 

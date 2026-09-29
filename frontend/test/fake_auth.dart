@@ -20,7 +20,6 @@ class FakeAuthRepository implements AuthRepository {
 
   SignUpDetails? lastSignUp;
   ({String email, String password})? lastSignIn;
-  int googleCalls = 0;
   int signOutCalls = 0;
 
   final _changes = StreamController<AuthChangeEvent>.broadcast();
@@ -66,12 +65,6 @@ class FakeAuthRepository implements AuthRepository {
     lastSignIn = (email: email, password: password);
     _failIfScripted();
     completeSignIn();
-  }
-
-  @override
-  Future<void> signInWithGoogle() async {
-    googleCalls++;
-    _failIfScripted();
   }
 }
 

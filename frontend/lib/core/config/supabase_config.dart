@@ -34,8 +34,8 @@ abstract final class SupabaseConfig {
       "Sign-in isn't set up in this build yet. "
       'Build with SUPABASE_URL and SUPABASE_ANON_KEY.';
 
-  /// Where OAuth (Google) and email-confirmation links return to on mobile.
-  /// Registered as a deep link in AndroidManifest.xml and ios Info.plist, and
-  /// must be added to the Supabase project's allowed redirect URLs.
+  /// Where email-confirmation links return to on mobile. Registered as a
+  /// deep link in AndroidManifest.xml and ios Info.plist, and must be added
+  /// to the Supabase project's allowed redirect URLs.
   static const authRedirectUrl = 'io.voiceops.app://login-callback/';
 }

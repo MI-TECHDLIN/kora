@@ -425,25 +425,6 @@ void main() {
     expect(find.byKey(const Key('profile-details')), findsOneWidget);
   });
 
-  testWidgets('Google sign-in starts from both forms', (tester) async {
-    final auth = await pumpApp(tester);
-
-    await tap(tester, toSignIn);
-    await tap(tester, find.byType(GoogleButton));
-    expect(auth.googleCalls, 1);
-
-    auth.failure = const AuthFailure(
-      "Couldn't open Google sign-in. Try again.",
-    );
-    await tap(tester, toSignUp);
-    await tap(tester, find.byType(GoogleButton));
-    expect(auth.googleCalls, 2);
-    expect(
-      find.text("Couldn't open Google sign-in. Try again."),
-      findsOneWidget,
-    );
-  });
-
   testWidgets('a driver profile sync failure stays off-screen', (tester) async {
     final logs = <String>[];
     final originalDebugPrint = debugPrint;
