@@ -41,7 +41,7 @@ function initAndroidCta() {
         ? "The download link goes live with the first release."
         : "Android build coming soon. The phone preview follows the app's real flow, scripted in your browser."
       : n.closest(".cta")
-        ? "Android only for now. Sideload the APK when your device asks."
+        ? "Download the recommended APK for most phones from the release page, then allow the install when Android asks."
         : "Android build available. The phone preview follows the app's real flow, scripted in your browser.";
   }
 }
