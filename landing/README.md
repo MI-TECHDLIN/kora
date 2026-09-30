@@ -36,7 +36,7 @@ This PR does not deploy anything or touch Cloudflare or DNS. When the domain is 
 
 ### Before launch
 
-- [ ] Set the Android link in `js/config.js` (`androidUrl`). While it is empty every "Android" button shows a visible "coming soon" state instead of a dead link.
+- [x] Set the Android link in `js/config.js` (`androidUrl`) to the release page, `https://github.com/MI-TECHDLIN/kora/releases/latest`, where visitors pick the right APK from the notes. While it is empty every "Android" button shows a visible "coming soon" state instead of a dead link.
 - [ ] Make `og:image` and `twitter:image` in `index.html` absolute, `https://<domain>/assets/og-image.jpg`. Crawlers do not resolve relative image URLs.
 - [ ] Optionally add `<link rel="canonical" href="https://<domain>/">`.
 - [x] Real screenshots and clips are in `assets/media/` (below) and `assets/og-image.jpg` is final artwork, masked from the captain's captures. Swap in higher-fidelity takes the same way: same filenames, no code change.
