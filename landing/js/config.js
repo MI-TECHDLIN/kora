@@ -1,9 +1,9 @@
 /*
  * Site configuration. This is the only file to edit when a release exists.
  *
- * androidUrl: where the Android build downloads from, for example the APK
- * attached to a GitHub release:
- *   https://github.com/MI-TECHDLIN/kora/releases/latest/download/kora.apk
+ * androidUrl: where the Android build downloads from, for example the
+ * release page itself, so visitors pick the right APK from the notes:
+ *   https://github.com/MI-TECHDLIN/kora/releases/latest
  * Leave it empty until then: every "Try Kora on Android" button then shows a
  * visible "coming soon" state instead of a dead link.
  *
@@ -17,6 +17,6 @@
  * frame-src for this; a different host needs that CSP updated too.
  */
 export const CONFIG = {
-  androidUrl: "",
+  androidUrl: "https://github.com/MI-TECHDLIN/kora/releases/latest",
   demoReelUrl: "",
 };
