@@ -56,9 +56,9 @@ graph TD
         SupaStorage["Storage Bucket: pod-photos"]
     end
 
-    subgraph External["External Integrations"]
-        Twilio["Twilio Voice & SMS"]
-        OSRM["OSRM / Google Directions"]
+    subgraph External["Operational Integrations"]
+        SimCalling["Simulated Customer Calling Engine (Zero-Carrier)"]
+        OSRM["OSRM / TomTom Directions & Traffic"]
         n8n["n8n Webhook Automations"]
     end
 
@@ -74,7 +74,7 @@ graph TD
     SafetyGate --> ToolRunner
     ToolRunner --> SupaDB
     ToolRunner --> EventBus
-    ToolRunner --> Twilio
+    ToolRunner --> SimCalling
     ToolRunner --> RoutingService
     LocationsAPI --> LocationIntel
     LocationIntel --> RiskEngine

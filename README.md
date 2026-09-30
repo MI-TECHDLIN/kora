@@ -58,7 +58,7 @@ Every tap, swipe, and glance down at a mounted smartphone compromises driver awa
 
 **Kora solves the interface gap.** 
 
-Kora is a hands-free, autonomous voice co-rider built specifically for last-mile logistics operations. Instead of tapping through multiple disconnected apps, the driver simply speaks naturally to Kora. The agent acts across routing engines, dispatch databases, and telephony networks **in parallel**, returning one calm, unified spoken response while streaming live map updates and progress indicators on screen.
+Kora is a hands-free, autonomous voice co-rider built specifically for last-mile logistics operations. Instead of tapping through multiple disconnected apps, the driver simply speaks naturally to Kora. The agent acts across routing engines, dispatch databases, and customer communication engines **in parallel**, returning one calm, unified spoken response while streaming live map updates and progress indicators on screen.
 
 <div align="center">
   <img src="docs/brand/readme/how-it-works.svg" width="90%" alt="How Kora works: Speak, coordinate operations in parallel, keep moving safely.">
@@ -99,13 +99,163 @@ Kora’s architecture balances ultra-low latency real-time voice response with r
   <img src="docs/brand/readme/architecture-animated.svg" width="100%" alt="Kora Animated System Architecture: Flutter Client, FastAPI Relay, AssemblyAI Voice Agent, Tool Orchestrator, and Post-Shift LeMUR">
 </div>
 
+```mermaid
+flowchart TB
+    %% System Architecture Flowchart
+    subgraph ClientLayer["📱 1. Mobile Client (Flutter App)"]
+        Wake["On-Device Wake Engine<br/><b>sherpa-onnx</b> (Offline)"]
+        AudioIO["Audio I/O Stream<br/><b>24kHz Mono PCM16</b>"]
+        Mascot["Rive Mascot Co-Rider Orb<br/>(8 Reactive Mood States)"]
+        VectorMap["In-App Vector Map<br/><b>MapLibre GL + OpenFreeMap</b>"]
+        CallOverlay["In-App Call Overlay<br/>(call_started / call_ended)"]
+    end
+
+    subgraph RelayLayer["⚡ 2. Real-Time Voice Relay (FastAPI)"]
+        AuthWS["WebSocket Tunnel<br/><b>WS /ws/voice/{shift_id}</b><br/>(JWT Bearer Auth)"]
+        SessionMgr["Voice Session & Context<br/>(Driver, Active Stop, Queue)"]
+        UIEvents["UI Event Mirroring<br/>(task_step, map_route, agent_state)"]
+        ProactiveEngine["Proactive Engine<br/>(Quiet-Moment reply.create)"]
+    end
+
+    subgraph AAILayer["🎙️ 3. AssemblyAI Real-Time Agent (Single Duplex WS)"]
+        AAI_STT["Streaming STT<br/>(24kHz PCM16 Audio)"]
+        AAI_LLM["Conversational Reasoning<br/>(Context & Tool Selection)"]
+        AAI_TTS["Neural Voice Synthesis<br/>(11 Switchable Personas)"]
+    end
+
+    subgraph ToolOrchestration["🛠️ 4. Parallel Tool Orchestrator & Safety Gate"]
+        SafetyGate["Tool Safety Gate<br/>(Auth, Ownership & Range Guards)"]
+        AsyncGather["Parallel Runner<br/><b>asyncio.gather(*tasks)</b><br/>(&lt;500ms Voice SLA)"]
+    end
+
+    subgraph OperationalDomains["🌐 5. Operational Domains (20 Autonomous Tools)"]
+        subgraph DomDelivery["📦 Delivery Ops"]
+            T_Deliv["get_next_delivery<br/>update_delivery_status<br/>log_exception"]
+        end
+        subgraph DomNav["🗺️ Vector Navigation & Traffic"]
+            T_Nav["get_best_route<br/>start_navigation<br/>accept_reroute<br/>(OSRM + TomTom)"]
+        end
+        subgraph DomDispatch["⚡ Proximity Dispatch"]
+            T_Disp["get_next_order<br/>accept_order<br/>decline_order<br/>(Austin Intake Feed)"]
+        end
+        subgraph DomSimCall["📞 Comms & Simulated Customer Calling"]
+            T_Call["call_customer (Simulated Phone Call)<br/>• Zero-carrier demo (No Twilio needed)<br/>• Scenarios: home | neighbour | gate | reschedule<br/>• 1.5s call lifecycle & in-app overlay<br/>• Proactive spoken customer readout"]
+            T_Notify["notify_customer (Arrival Note)<br/>alert_dispatcher (Operator Escalation)"]
+        end
+        subgraph DomPrefs["⚙️ Preferences & Screens"]
+            T_Prefs["get/set/clear/reset_preferences<br/>show_screen (Voice Tabs)<br/>end_conversation (Mic Close)"]
+        end
+    end
+
+    subgraph StorageLayer["💾 Data Persistence"]
+        SupaDB[("Supabase PostgreSQL<br/>Drivers, Stops, Stats, Logs")]
+    end
+
+    subgraph PostShift["📊 6. Post-Shift Asynchronous Intelligence (Strictly Decoupled)"]
+        EndTrigger["end_shift_core() Event<br/>(Shift Completed & Metrics Locked)"]
+        LeMURPipe["AssemblyAI LeMUR Pipeline<br/>(Claude Sonnet Digest, Topics, Sentiment)"]
+        SummaryStream["Summary Typewriter Stream<br/>(Pushed to App Summary Tab)"]
+        N8NFlow["n8n Webhook Automations<br/>(Slack & Email Fleet Reports)"]
+    end
+
+    %% Real-time flow connections
+    AudioIO <==>|Duplex 24kHz PCM16 Audio| AuthWS
+    AuthWS <==>|Upstream Audio & Frames| AAI_STT
+    AAI_STT --> AAI_LLM
+    AAI_LLM ==>|tool.call intent| AuthWS
+    AuthWS --> SafetyGate
+    SafetyGate --> AsyncGather
+    AsyncGather ==>|Parallel Execution| DomDelivery
+    AsyncGather ==>|Parallel Execution| DomNav
+    AsyncGather ==>|Parallel Execution| DomDispatch
+    AsyncGather ==>|Parallel Execution| DomSimCall
+    AsyncGather ==>|Parallel Execution| DomPrefs
+
+    %% Database operations
+    DomDelivery <--> SupaDB
+    DomPrefs <--> SupaDB
+    DomSimCall -.->|Logs Simulated Call| SupaDB
+
+    %% Tool results return to AAI and UI
+    AsyncGather -->|Enveloped Results| AuthWS
+    AuthWS ==>|tool.result JSON| AAI_LLM
+    AAI_LLM --> AAI_TTS
+    AAI_TTS ==>|Synthesized PCM16 Audio| AuthWS
+    AuthWS ==>|Audio Stream| AudioIO
+
+    %% UI Events mirroring
+    AuthWS -.->|Events: agent_state, task_step| Mascot
+    AuthWS -.->|Events: map_route, screen_navigate| VectorMap
+    T_Call -.->|Events: call_started & call_ended| CallOverlay
+    ProactiveEngine -.->|Quiet-Moment reply.create| AAI_LLM
+
+    %% Post shift decoupling (Rule 1)
+    AsyncGather -.->|end_shift tool| EndTrigger
+    EndTrigger --> LeMURPipe
+    LeMURPipe --> SummaryStream
+    SummaryStream -.->|summary_chunk| Mascot
+    EndTrigger -.->|Fire-and-Forget Webhook| N8NFlow
+```
+
+### End-to-End Architectural Pipeline (Step-by-Step Validation)
+
+Every interaction across Kora's real-time and post-shift layers follows an explicit, deterministic execution pipeline:
+
+1. **Step 1: On-Device Wake Detection & Audio Ingestion (`sherpa-onnx`)**
+   - The courier wakes Kora hands-free by speaking *"Kora"*, *"Hey Kora"*, or *"Okay Kora"* (or taps the push-to-talk button).
+   - Detection runs **100% on-device offline** via `sherpa-onnx` with zero cloud latency.
+   - The microphone captures raw **24 kHz mono PCM16 audio** (2,400 bytes / 50ms frames), streamed immediately over the persistent WebSocket.
+
+2. **Step 2: Real-Time WebSocket Relay & JWT Session Tunnel (`FastAPI`)**
+   - Streamed to `WS /ws/voice/{shift_id}` authenticated with a Bearer JWT.
+   - The relay manages driver session context (active delivery stop, assigned vehicle, route coordinates, cached preferences).
+   - Forwards audio frames upstream to AssemblyAI over a single bidirectional duplex WebSocket.
+
+3. **Step 3: Unified Real-Time Voice Processing (`AssemblyAI Voice Agent API`)**
+   - AssemblyAI processes incoming audio frames with streaming Speech-to-Text (STT).
+   - The conversational LLM interprets the courier's intent within active operational context.
+   - If an operational action is required, AssemblyAI dispatches one or more `tool.call` JSON frames to FastAPI.
+
+4. **Step 4: Parallel Tool Orchestration & Safety Validation (`asyncio.gather`)**
+   - All tool calls pass through `ToolSafetyGate` to validate shift ownership, legal state transitions, and sanitize parameters.
+   - `ToolOrchestrator` schedules tools concurrently using Python's `asyncio.gather(*tasks)` to guarantee a sub-500ms voice SLA (Rule 2).
+
+5. **Step 5: Operational Execution & Zero-Carrier Simulated Customer Calling**
+   - **Delivery Management**: `get_next_delivery`, `update_delivery_status`, and `log_exception` read/write directly to Supabase and the logistics adapter.
+   - **Navigation & Traffic**: `get_best_route`, `start_navigation`, and `accept_reroute` query OSRM for turn geometries and TomTom for real-time traffic congestion.
+   - **Order Dispatch**: `get_next_order`, `accept_order`, and `decline_order` query the Austin proximity feed for nearby unassigned deliveries.
+   - **Simulated Customer Calling (`call_customer`)**:
+     * **No external carrier or Twilio required**: To eliminate carrier billing barriers and regional phone restrictions during live demos, Kora executes an in-app **Simulated Customer Calling Engine**.
+     * Dynamically resolves recipient name and real-time arrival ETA from the active delivery stop.
+     * Selects a realistic customer scenario (`home`, `neighbour`, `gate_code`, or `reschedule`).
+     * Emits a `call_started` event over the WebSocket, immediately displaying the active call overlay on Flutter.
+     * Runs a 1.5-second simulated call timer (`_run_simulated_call`), then emits `call_ended` to dismiss the overlay.
+     * Caches the simulated customer outcome in context and triggers an unprompted AssemblyAI `reply.create` readout (e.g., *"The simulated customer said the gate code is 2468 and they will answer the door"*).
+     * Automatically logs the simulated call interaction to the Supabase `customer_interactions` table with `[SIMULATED]` status.
+   - **Driver Preferences & Screen Navigation**: `get_preferences`, `set_preference`, and `show_screen` manage settings and in-app tab routing.
+
+6. **Step 6: UI Event Mirroring & Spoken Audio Streaming**
+   - As tools finish, the FastAPI relay translates results into client UI events (`map_route` updates polyline on MapLibre, `task_step` displays execution cards with deterministic reasoning, `agent_state` changes mascot mood).
+   - Tool results return to AssemblyAI as `tool.result` JSON envelopes.
+   - AssemblyAI synthesizes natural, conversational audio (Neural TTS using the selected voice persona) and streams 24 kHz PCM16 audio back through the relay to Flutter.
+
+7. **Step 7: Proactive Quiet-Moment Announcements**
+   - For incoming order offers (`order_offer`), traffic delays, or simulated customer call responses, the backend waits for driver audio silence and dispatches `reply.create` to speak unprompted without clipping the driver.
+
+8. **Step 8: Post-Shift Asynchronous Intelligence & Fleet Dispatch (`LeMUR & n8n`)**
+   - When the courier says *"End my shift"*, `end_shift_core()` marks the shift complete in Supabase and closes the active shift.
+   - **Strictly isolated from the real-time path (Rule 1)**: FastAPI spawns an asynchronous background task running the AssemblyAI LeMUR pipeline (`anthropic/claude-3-5-sonnet`).
+   - LeMUR synthesizes turn history transcripts into structured post-shift intelligence: failure pattern topic detection, customer sentiment scores, and courier coaching recommendations.
+   - Summary chunks stream to the Flutter app's Summary tab via `summary_chunk` events.
+   - A fire-and-forget webhook notifies n8n workflows (`post_shift_intelligence.json`), sending automated shift debriefs to fleet managers via Slack or email.
+
 ### The Three Inviolable Architectural Rules
 
 > [!IMPORTANT]
 > 1. **n8n is strictly isolated to the Post-Shift Async Layer. Never in the real-time path.**  
 >    n8n is an HTTP-driven workflow automation engine. Introducing it into the real-time voice path introduces 2,000–3,500ms latency versus 200–500ms via FastAPI asyncio.
 > 2. **Tool calls execute in parallel via `asyncio.gather()`.**  
->    Complex courier commands (e.g., *"Mark this stop delivered, navigate to my next customer, and text them I'm 5 minutes away"*) execute concurrently. Sequential awaits are strictly prohibited.
+>    Complex courier commands (e.g., *"Mark this stop delivered, navigate to my next customer, and alert them I'm 5 minutes away"*) execute concurrently. Sequential awaits are strictly prohibited.
 > 3. **The AssemblyAI Voice Agent operates over a single unified WebSocket.**  
 >    Audio input, transcription, reasoning, tool execution, and synthesized audio stream across one persistent duplex socket.
 
@@ -113,7 +263,7 @@ Kora’s architecture balances ultra-low latency real-time voice response with r
 
 ## How the Backend & Agent Engine Works
 
-Kora's backend is powered by **Python 3.11+ FastAPI and asyncio**, engineered to process simultaneous voice frames, map queries, location pings, and telephony webhooks.
+Kora's backend is powered by **Python 3.11+ FastAPI and asyncio**, engineered to process simultaneous voice frames, map queries, location pings, simulated customer calls, and dispatch events.
 
 ### 1. WebSocket Voice Relay (`/ws/voice/{shift_id}`)
 Located at `voiceops-backend/app/api/websocket/voice.py`, the relay bridges the Flutter mobile client directly to AssemblyAI’s Voice Agent API:
@@ -177,8 +327,8 @@ Kora’s running registry (`voiceops-backend/app/agents/tool_registry.py`) expos
 | 7 | `get_next_order` | **Dispatch** | Fetches the newest order offered to the driver or nearest unassigned. | Order Dispatch Engine |
 | 8 | `accept_order` | **Dispatch** | Accepts an offered order, appending it to the driver's current shift. | Order Dispatch Engine |
 | 9 | `decline_order` | **Dispatch** | Declines an offer, automatically re-offering to the next closest courier. | Order Dispatch Engine |
-| 10 | `call_customer` | **Comms** | Initiates an outbound voice call (supports `DEMO_SIMULATED_CUSTOMER`). | Twilio Voice API |
-| 11 | `notify_customer` | **Comms** | Dispatches an automated SMS alert with arrival ETA or delivery note. | Twilio SMS API |
+| 10 | `call_customer` | **Comms** | Initiates simulated customer phone call (zero-carrier in-app simulation with 4 realistic scenarios & proactive spoken readout) or carrier fallback. | Simulated Call Engine / In-App |
+| 11 | `notify_customer` | **Comms** | Dispatches an automated delivery notification with arrival ETA and courier notes. | Customer Notification Engine |
 | 12 | `alert_dispatcher` | **Comms** | Escalates critical delivery issues or vehicle emergencies to dispatch. | Supabase + n8n |
 | 13 | `get_shift_summary` | **Shift Control** | Reads out live shift statistics: completed stops, remaining stops, ETA. | Supabase Database |
 | 14 | `end_shift` | **Shift Control** | Closes active shift, compiles stats, and triggers async LeMUR report. | Supabase + LeMUR + n8n |
@@ -256,6 +406,7 @@ sequenceDiagram
     participant Orch as 🛠️ Tool Orchestrator
     participant Post as 📊 LeMUR & n8n
 
+    %% Stop 1 Request
     Driver->>Client: "Hey Kora, what's my first stop?"
     Client->>Relay: WS Audio Stream (24kHz PCM16)
     Relay->>AAI: Upstream Audio Stream
@@ -268,8 +419,25 @@ sequenceDiagram
     Relay-->>Client: PCM16 Audio Stream
     Client-->>Driver: 🔊 "Your first stop is Jordan at 742 Evergreen Terrace..."
 
-    Note over Driver,Post: Mid-shift: Driver finishes deliveries & completes shift
+    %% Mid-Shift Simulated Customer Call
+    Note over Driver,Post: Mid-shift: Driver Arrives & Initiates Simulated Customer Call (Zero-Carrier)
+    Driver->>Client: "Call the customer"
+    Client->>Relay: WS Audio Stream
+    Relay->>AAI: Upstream Audio Stream
+    AAI->>Relay: tool.call: call_customer()
+    Relay->>Orch: execute_single_tool("call_customer")
+    Orch-->>Relay: Simulated Call (Scenario: gate_code / home / neighbour)
+    Relay-->>Client: event: call_started (In-App Call Overlay Opens)
+    Note over Relay,Client: 1.5s simulated call duration timer
+    Relay-->>Client: event: call_ended (In-App Call Overlay Closes)
+    Relay->>AAI: tool.result (call_sid: demo-gate_code-4821)
+    Relay->>AAI: reply.create (Queue proactive customer response)
+    AAI-->>Relay: Audio Output Stream (TTS)
+    Relay-->>Client: PCM16 Audio Stream
+    Client-->>Driver: 🔊 "The simulated customer said the gate code is 2468 and they will answer the door."
 
+    %% Shift Completion
+    Note over Driver,Post: Shift End: Driver completes deliveries & requests shift debrief
     Driver->>Client: "End my shift"
     Client->>Relay: WS Audio Stream
     Relay->>AAI: tool.call: end_shift()
@@ -302,7 +470,7 @@ kora/
 │   │   ├── api/               # WebSocket voice relay (/ws/voice) & REST routes
 │   │   ├── dispatch/          # Proximity order intake & dispatch feed engine
 │   │   ├── intelligence/      # LeMUR post-shift pipeline & report synthesis
-│   │   ├── integrations/      # OSRM, TomTom, Twilio, LogisticsAdapter
+│   │   ├── integrations/      # OSRM, TomTom, Simulated Calling, LogisticsAdapter
 │   │   └── main.py            # FastAPI service entrypoint & lifespans
 │   ├── n8n/workflows/         # Exported n8n post-shift intelligence workflows
 │   ├── tests/                 # Pytest suite (voice WS, parallel tools, schemas)
@@ -329,7 +497,7 @@ kora/
 * **Flutter SDK** (Dart `^3.11.5`)
 * **Supabase Account** (PostgreSQL database & auth)
 * **AssemblyAI Account** (API key with Voice Agent and LeMUR access)
-* *(Optional)* TomTom API Key (traffic routing), Twilio credentials (calls/SMS)
+* *(Optional)* TomTom API Key (live traffic routing). *(Zero external carrier required! Kora includes a built-in Simulated Customer Calling Engine for realistic customer calling demos without Twilio credentials).*
 
 ---
 
@@ -360,7 +528,8 @@ ASSEMBLYAI_API_KEY=your_assemblyai_key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 TOMTOM_API_KEY=your_optional_tomtom_key
-DEMO_SIMULATED_CUSTOMER=true # Enables simulated customer calls without Twilio carrier billing
+DEMO_SIMULATED_CUSTOMER=true # Enables zero-carrier simulated customer calls (default in demo)
+DEMO_SIMULATED_CUSTOMER_SCENARIO=home # Optional scenario: home | neighbour | gate_code | reschedule
 ```
 
 Execute the database schema migration by executing [`supabase_schema.sql`](voiceops-backend/supabase_schema.sql) in your Supabase SQL editor.

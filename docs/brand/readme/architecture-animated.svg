@@ -304,7 +304,7 @@
 
     <g transform="translate(12, 160)">
       <rect width="196" height="32" rx="7" fill="#1B1433" stroke="#2E2055" stroke-width="1"/>
-      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">📞 Comms (Twilio Voice/SMS)</text>
+      <text x="10" y="20" fill="#CBD5E1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5">📞 Comms (Simulated Customer Calls)</text>
     </g>
 
     <g transform="translate(12, 198)">
